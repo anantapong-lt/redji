@@ -85,6 +85,25 @@ export async function rotateAuthSession(
   return sessions.length === 1
 }
 
+export async function validateAuthSession(
+  sessionId: string,
+  userId: string,
+  tokenId: string,
+): Promise<boolean> {
+  const sessions = await db<{ id: string }[]>`
+    SELECT id
+    FROM auth_sessions
+    WHERE id = ${sessionId}
+      AND user_id = ${userId}
+      AND refresh_token_hash = ${hashTokenId(tokenId)}
+      AND revoked_at IS NULL
+      AND expires_at > NOW()
+    LIMIT 1
+  `
+
+  return sessions.length === 1
+}
+
 export async function revokeAuthSession(sessionId: string, userId: string): Promise<void> {
   await db`
     UPDATE auth_sessions

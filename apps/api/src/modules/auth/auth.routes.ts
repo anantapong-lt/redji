@@ -9,6 +9,7 @@ import {
   findActiveUserById,
   revokeAuthSession,
   rotateAuthSession,
+  validateAuthSession,
 } from './auth.service'
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60
@@ -160,6 +161,44 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       expires_in: ACCESS_TOKEN_TTL_SECONDS,
       user,
     }
+  })
+  .get('/session', async ({ cookie, refreshJwt, set }) => {
+    const refreshToken = cookie[REFRESH_COOKIE_NAME].value
+
+    if (typeof refreshToken !== 'string') {
+      set.status = 401
+      return { message: 'กรุณาเข้าสู่ระบบ' }
+    }
+
+    const payload = await refreshJwt.verify(refreshToken)
+    if (
+      !payload
+      || payload.token_type !== 'refresh'
+      || typeof payload.sub !== 'string'
+      || typeof payload.jti !== 'string'
+      || typeof payload.sid !== 'string'
+    ) {
+      set.status = 401
+      return { message: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' }
+    }
+
+    const sessionIsValid = await validateAuthSession(
+      payload.sid,
+      payload.sub,
+      payload.jti,
+    )
+    if (!sessionIsValid) {
+      set.status = 401
+      return { message: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' }
+    }
+
+    const user = await findActiveUserById(payload.sub)
+    if (!user) {
+      set.status = 401
+      return { message: 'ไม่พบบัญชีผู้ใช้ที่พร้อมใช้งาน' }
+    }
+
+    return { user }
   })
   .get('/me', ({ currentUser }) => ({ user: currentUser }), { auth: true })
   .post('/logout', async ({ cookie, refreshJwt }) => {
