@@ -14,7 +14,7 @@ const WEEKLY_POPULAR = [
 
 export function WeeklyPopularSection() {
   return (
-    <aside aria-labelledby="weekly-popular-heading" className="hidden w-full self-start px-3 pt-16 lg:block">
+    <aside aria-labelledby="weekly-popular-heading" className="hidden w-4/5 self-start justify-self-end px-3 pt-16 lg:block">
       <div className="rounded-md bg-card p-4">
         <h2 id="weekly-popular-heading" className="text-lg font-bold tracking-tight text-foreground">
           Weekly Popular

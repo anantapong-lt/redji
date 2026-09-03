@@ -1,6 +1,6 @@
 import { StoryGrid } from '@/components/story-grid'
 
-const POPULAR_NOVELS = [
+export const POPULAR_NOVELS = [
   { id: 1, title: 'จักรพรรดิเหนือบัลลังก์', episode: 'ตอนที่ 48', author: 'เมฆาพเนจร', reads: '1.8M อ่าน', image: '/covers/cartoon-cover-04.png' },
   { id: 2, title: 'ย้อนเวลามาเป็นคุณหนูใหญ่', episode: 'ตอนที่ 36', author: 'จันทร์กระจ่าง', reads: '1.5M อ่าน', image: '/covers/cartoon-cover-01.png' },
   { id: 3, title: 'ระบบลับของตัวประกอบ', episode: 'ตอนที่ 72', author: 'นักเล่าเงา', reads: '1.3M อ่าน', image: '/covers/cartoon-cover-06.png' },
