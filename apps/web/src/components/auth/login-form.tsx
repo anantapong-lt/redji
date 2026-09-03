@@ -10,7 +10,7 @@ import { Lock, Mail } from 'lucide-react'
 import { useAuth } from './auth-provider'
 import { CloudflarePlaceholder } from './cloudflare-placeholder'
 import { IconInput, PasswordInput } from './form-inputs'
-import { ApiError } from '@/lib/api'
+import { ApiError } from '@/lib/api-client'
 import { userRole } from '@/interface/user.interface'
 
 const loginSchema = z.object({

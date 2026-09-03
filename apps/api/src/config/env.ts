@@ -23,6 +23,7 @@ export const env = {
   PORT: Number(process.env.PORT ?? 3001),
   WEB_ORIGIN: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
   DATABASE_URL: required('DATABASE_URL'),
+  REDIS_URL: process.env.REDIS_URL?.trim() ?? 'redis://localhost:6379',
   JWT_ACCESS_SECRET: requiredSecret('JWT_ACCESS_SECRET'),
   JWT_REFRESH_SECRET: requiredSecret('JWT_REFRESH_SECRET'),
   R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID?.trim() ?? '',

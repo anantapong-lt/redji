@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/components/auth/auth-provider'
-import { getWriterStats } from '@/lib/api'
+import { getWriterStats } from '@/controllers/writer.controller'
 import type { WriterStats } from '@/interface/writer-stats.interface'
 import { userRole } from '@/interface/user.interface'
 import { WriterLayout } from './components/writer-layout'

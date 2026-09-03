@@ -5,7 +5,7 @@ import { Image as ImageIcon, LoaderCircle, UploadCloud, X } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { uploadWriterCover } from '@/lib/api'
+import { uploadWriterCover } from '@/controllers/writer.controller'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']

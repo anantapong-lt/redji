@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/components/auth/auth-provider'
+import { GenreOptionsInitializer } from '@/components/genre-options-initializer'
 import { SITE_CONFIG } from '@/site.config'
 import { notoSansThai } from '@/lib/fonts'
 import './globals.css'
@@ -32,7 +33,10 @@ export default function RootLayout({
   return (
     <html lang="th" suppressHydrationWarning>
       <body className={`${notoSansThai.variable} font-sans antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <GenreOptionsInitializer />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

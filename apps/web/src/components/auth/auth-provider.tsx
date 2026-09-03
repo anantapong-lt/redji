@@ -13,7 +13,7 @@ import {
   loginWithPassword,
   logoutAuthSession,
   refreshAuthSession,
-} from '@/lib/api'
+} from '@/controllers/auth.controller'
 import type { AuthSession } from '@/interface/auth-session.interface'
 import type { AuthUser } from '@/interface/user.interface'
 
