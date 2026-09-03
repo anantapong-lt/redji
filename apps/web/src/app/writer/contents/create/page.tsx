@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -9,6 +11,8 @@ import {
 } from '@/components/ui/select'
 import { WriterLayout } from '../../home/components/writer-layout'
 import { CoverImageUpload } from './components/cover-image-upload'
+import { SlugField } from './components/slug-field'
+import { SynopsisField } from './components/synopsis-field'
 
 type ContentType = 'novel' | 'cartoon'
 
@@ -26,8 +30,6 @@ const statusOptions = [
   { value: 'hiatus', label: 'หยุดชั่วคราว' },
   { value: 'cancelled', label: 'ยกเลิก' },
 ] as const
-
-const inputClassName = 'h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary'
 
 export default async function CreateContentPage({ searchParams }: CreateContentPageProps) {
   const params = await searchParams
@@ -64,54 +66,32 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
             <input type="hidden" name="type" value={databaseType} />
 
             <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
-              <label className="space-y-2 md:col-span-2">
-                <span className="block text-sm font-semibold">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="title" className="text-sm font-semibold">
                   ชื่อ{contentLabel} <span className="text-destructive">*</span>
-                </span>
-                <input
+                </Label>
+                <Input
+                  id="title"
                   type="text"
                   name="title"
                   defaultValue={initialTitle}
                   maxLength={255}
                   required
                   placeholder={`กรอกชื่อ${contentLabel}`}
-                  className={inputClassName}
+                  className="h-11 rounded-xl px-3"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-2 md:col-span-2">
-                <span className="block text-sm font-semibold">
-                  Slug <span className="text-destructive">*</span>
-                </span>
-                <input
-                  type="text"
-                  name="slug"
-                  maxLength={255}
-                  required
-                  placeholder="ตัวอย่าง: my-story-title"
-                  className={inputClassName}
-                />
-                <span className="block text-xs text-muted-foreground">
-                  ใช้เป็นส่วนหนึ่งของ URL และต้องไม่ซ้ำกับเนื้อหาอื่น
-                </span>
-              </label>
+              <SlugField />
 
-              <label className="space-y-2 md:col-span-2">
-                <span className="block text-sm font-semibold">เรื่องย่อ</span>
-                <textarea
-                  name="synopsis"
-                  rows={6}
-                  placeholder={`เขียนเรื่องย่อของ${contentLabel}`}
-                  className="w-full resize-y rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
-                />
-              </label>
+              <SynopsisField contentLabel={contentLabel} />
 
-              <label className="space-y-2">
-                <span className="block text-sm font-semibold">
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm font-semibold">
                   สถานะ <span className="text-destructive">*</span>
-                </span>
+                </Label>
                 <Select name="status" defaultValue="draft" required>
-                  <SelectTrigger className="h-11! w-full rounded-xl px-3">
+                  <SelectTrigger id="status" className="h-11! w-full rounded-xl px-3">
                     <SelectValue placeholder="เลือกสถานะ" />
                   </SelectTrigger>
                   <SelectContent>
@@ -120,26 +100,30 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                     ))}
                   </SelectContent>
                 </Select>
-              </label>
+              </div>
 
-              <label className="space-y-2">
-                <span className="block text-sm font-semibold">เรทอายุ</span>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="age-rating" className="text-sm font-semibold">เรทอายุ</Label>
+                <Input
+                  id="age-rating"
                   type="number"
                   name="age_rating"
                   min={0}
                   step={1}
                   placeholder="ตัวอย่าง: 13"
-                  className={inputClassName}
+                  className="h-11 rounded-xl px-3"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-2">
-                <span className="block text-sm font-semibold">หมวดหมู่</span>
-                <select name="genre_ids" disabled defaultValue="" className={inputClassName}>
-                  <option value="">ยังไม่มีข้อมูลหมวดหมู่</option>
-                </select>
-              </label>
+              <div className="space-y-2">
+                <Label htmlFor="genre" className="text-sm font-semibold">หมวดหมู่</Label>
+                <Select name="genre_ids" disabled>
+                  <SelectTrigger id="genre" className="h-11! w-full rounded-xl px-3">
+                    <SelectValue placeholder="ยังไม่มีข้อมูลหมวดหมู่" />
+                  </SelectTrigger>
+                  <SelectContent />
+                </Select>
+              </div>
             </section>
 
             <aside className="readji-surface rounded-2xl p-5 md:p-6">
