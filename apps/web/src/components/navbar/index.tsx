@@ -93,7 +93,7 @@ function NavPills() {
               'flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all duration-200',
               active
                 ? 'text-primary'
-                : 'text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-sm',
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon className="size-4" />

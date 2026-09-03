@@ -22,7 +22,7 @@ export function StoryGrid({
 
   return (
     <>
-      <div className="flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-6 lg:gap-x-5 lg:gap-y-8 lg:overflow-visible lg:pb-0">
+      <div className="flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-5 lg:gap-x-4 lg:gap-y-7 lg:overflow-visible lg:pb-0 2xl:grid-cols-6">
         {pages.map((page, pageIndex) => (
           <div
             key={pageIndex}
@@ -30,9 +30,15 @@ export function StoryGrid({
           >
             {page.map(({ id, ...story }, itemIndex) => {
               const storyIndex = pageIndex * 8 + itemIndex
+              const desktopVisibility =
+                storyIndex >= visibleDesktopCount
+                  ? 'lg:hidden'
+                  : visibleDesktopCount === 12 && storyIndex >= 10
+                    ? 'lg:hidden 2xl:block'
+                    : ''
 
               return (
-                <div key={id} className={storyIndex >= visibleDesktopCount ? 'min-w-0 lg:hidden' : 'min-w-0'}>
+                <div key={id} className={`min-w-0 ${desktopVisibility}`}>
                   <StoryCard {...story} eager={eagerFirst && storyIndex === 0} />
                 </div>
               )
