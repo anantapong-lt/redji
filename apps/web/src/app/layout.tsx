@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
-import { Providers } from './providers'
 import { SITE_CONFIG } from '@/site.config'
-import { notoSansThai } from '@/lib/fonts'
 import './globals.css'
 
 // ─── Metadata ──────────────────────────────────────────────────────────────
@@ -31,11 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="th" suppressHydrationWarning>
-      <body className={`${notoSansThai.variable} font-sans antialiased`}>
-        <Providers>
-          {children}
-        </Providers>
-      </body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   )
 }

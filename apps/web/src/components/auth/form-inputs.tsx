@@ -2,13 +2,11 @@
 
 import { forwardRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 
-type IconInputProps = React.ComponentProps<typeof Input> & { icon?: React.ReactNode }
+type IconInputProps = React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }
 
 export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function IconInput(
-  { icon, className, ...props },
+  { icon, className = '', ...props },
   ref,
 ) {
   return (
@@ -18,13 +16,17 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(function I
           {icon}
         </span>
       )}
-      <Input ref={ref} className={cn('h-12 rounded-xl', icon && 'pl-10', className)} {...props} />
+      <input
+        ref={ref}
+        className={`flex h-12 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm ${icon ? 'pl-10' : ''} ${className}`}
+        {...props}
+      />
     </div>
   )
 })
 
 export const PasswordInput = forwardRef<HTMLInputElement, IconInputProps>(function PasswordInput(
-  { icon, className, ...props },
+  { icon, className = '', ...props },
   ref,
 ) {
   const [show, setShow] = useState(false)
@@ -36,15 +38,15 @@ export const PasswordInput = forwardRef<HTMLInputElement, IconInputProps>(functi
           {icon}
         </span>
       )}
-      <Input
+      <input
         ref={ref}
-        type={show ? 'text' : 'password'}
-        className={cn('h-12 rounded-xl pr-10', icon && 'pl-10', className)}
         {...props}
+        type={show ? 'text' : 'password'}
+        className={`flex h-12 w-full rounded-xl border border-input bg-transparent px-3 py-1 pr-10 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm ${icon ? 'pl-10' : ''} ${className}`}
       />
       <button
         type="button"
-        onClick={() => setShow((v) => !v)}
+        onClick={() => setShow((value) => !value)}
         aria-label={show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
         className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
       >

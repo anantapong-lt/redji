@@ -2,18 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { User, Lock } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { IconInput, PasswordInput } from './form-inputs'
+import { Lock, User } from 'lucide-react'
 import { CloudflarePlaceholder } from './cloudflare-placeholder'
-import { api } from '@/lib/api'
-import { useAuthStore } from '@/store/auth.store'
-import type { AuthResponse } from '@/types'
+import { IconInput, PasswordInput } from './form-inputs'
 
 const loginSchema = z.object({
   login: z.string().min(1, 'กรุณากรอกชื่อบัญชีผู้ใช้งานหรืออีเมล'),
@@ -23,27 +17,15 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
-  const router = useRouter()
-  const setAuth = useAuthStore((s) => s.setAuth)
-  const [submitting, setSubmitting] = useState(false)
-
+  const [previewMessage, setPreviewMessage] = useState('')
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
 
-  async function onSubmit(values: LoginValues) {
-    setSubmitting(true)
-    try {
-      const res = await api.post<AuthResponse>('/auth/login', values, { public: true })
-      setAuth(res.user, res.access_token)
-      router.push('/')
-    } catch (err: any) {
-      toast.error(err?.message ?? 'เข้าสู่ระบบไม่สำเร็จ')
-    } finally {
-      setSubmitting(false)
-    }
+  function onSubmit() {
+    setPreviewMessage('โหมดตัวอย่าง UI — ระบบเข้าสู่ระบบยังไม่เปิดใช้งาน')
   }
 
   return (
@@ -65,24 +47,26 @@ export function LoginForm() {
           autoComplete="current-password"
           {...register('password')}
         />
-        {errors.password && (
-          <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>
-        )}
+        {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
       </div>
 
       <CloudflarePlaceholder />
 
-      <Button type="submit" disabled={submitting} className="h-11 w-full rounded-lg text-base">
-        {submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
-      </Button>
+      <button type="submit" className="h-11 w-full rounded-lg bg-primary px-4 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+        เข้าสู่ระบบ
+      </button>
+
+      {previewMessage && (
+        <p role="status" className="rounded-lg bg-muted px-3 py-2 text-center text-sm text-muted-foreground">
+          {previewMessage}
+        </p>
+      )}
 
       <div className="flex items-center justify-between text-sm">
-        <Link href="/forgot-password" className="text-muted-foreground hover:text-foreground">
+        <span aria-disabled="true" title="ยังไม่เปิดใช้งาน" className="cursor-not-allowed text-muted-foreground opacity-45">
           ลืมรหัสผ่าน
-        </Link>
-        <Link href="/register" className="text-primary hover:underline">
-          สมัครสมาชิก
-        </Link>
+        </span>
+        <Link href="/register" className="text-primary hover:underline">สมัครสมาชิก</Link>
       </div>
     </form>
   )
