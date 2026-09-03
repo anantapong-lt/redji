@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import {
   Banknote,
   BarChart3,
@@ -15,8 +15,7 @@ import {
   UserCog,
   X,
 } from 'lucide-react'
-import { useAuth } from '@/components/auth/auth-provider'
-import { userRole } from '@/interface/user.interface'
+import type { AuthUser } from '@/interface/user.interface'
 
 const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
@@ -50,34 +49,13 @@ function DisabledNavigationItem({
   )
 }
 
-export function WriterLayout({ children }: { children: ReactNode }) {
+export function WriterLayout({ children, user }: { children: ReactNode; user: AuthUser }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const { status, user } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/login')
-      return
-    }
-
-    if (status === 'authenticated' && user?.role !== userRole.WRITER) {
-      router.replace('/')
-    }
-  }, [router, status, user])
 
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [pathname])
-
-  if (status === 'loading' || status === 'unauthenticated' || user?.role !== userRole.WRITER) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">กำลังตรวจสอบสิทธิ์...</p>
-      </div>
-    )
-  }
 
   const userInitial = user.display_name.trim().charAt(0)
     || user.username.trim().charAt(0)

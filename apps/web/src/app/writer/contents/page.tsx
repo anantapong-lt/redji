@@ -1,5 +1,4 @@
 import type { WriterContentTab } from '@/interface/writer-content.interface'
-import { WriterLayout } from '../home/components/writer-layout'
 import { WriterContents } from './components/writer-contents'
 
 interface WriterContentsPageProps {
@@ -15,9 +14,5 @@ export default async function WriterContentsPage({ searchParams }: WriterContent
   const requestedPage = typeof params.page === 'string' ? Number(params.page) : 1
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
 
-  return (
-    <WriterLayout>
-      <WriterContents activeTab={activeTab} page={page} />
-    </WriterLayout>
-  )
+  return <WriterContents activeTab={activeTab} page={page} />
 }
