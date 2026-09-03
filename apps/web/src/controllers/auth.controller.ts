@@ -20,6 +20,6 @@ export function logoutAuthSession(): Promise<{ success: boolean }> {
 
 export function getCurrentUser(accessToken: string): Promise<{ user: AuthUser }> {
   return apiRequest<{ user: AuthUser }>('/auth/me', {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    accessToken,
   })
 }

@@ -5,6 +5,10 @@ interface ApiErrorBody {
   field?: string
 }
 
+interface ApiRequestOptions extends RequestInit {
+  accessToken?: string | null
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -18,14 +22,21 @@ export class ApiError extends Error {
 
 const apiUrl = SITE_CONFIG.apiUrl.replace(/\/$/, '')
 
-export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiRequest<T>(path: string, init?: ApiRequestOptions): Promise<T> {
+  const {
+    accessToken,
+    headers: requestHeaders,
+    ...requestInit
+  } = init ?? {}
+  const headers = new Headers(requestHeaders)
+
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+
   const response = await fetch(`${apiUrl}${path}`, {
-    ...init,
+    ...requestInit,
     credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...init?.headers,
-    },
+    headers,
   })
 
   if (!response.ok) {

@@ -1,0 +1,259 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/auth/auth-provider'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { StoryStatus, StoryType } from '@/constants/story.constant'
+import { getMyContents } from '@/controllers/writer.controller'
+import type {
+  WriterContent,
+  WriterContentTab,
+  WriterContentsResponse,
+} from '@/interface/writer-content.interface'
+import { CreateContentDialog } from './create-content-dialog'
+
+const PAGE_LIMIT = 10
+
+const tabLabels: Record<WriterContentTab, string> = {
+  novel: 'นิยาย',
+  cartoon: 'การ์ตูน',
+}
+
+const typeLabels: Record<StoryType, string> = {
+  [StoryType.NOVEL]: 'นิยาย',
+  [StoryType.MANGA]: 'การ์ตูน',
+}
+
+const statusLabels: Record<StoryStatus, string> = {
+  [StoryStatus.DRAFT]: 'ฉบับร่าง',
+  [StoryStatus.ONGOING]: 'กำลังเผยแพร่',
+  [StoryStatus.COMPLETED]: 'จบแล้ว',
+  [StoryStatus.HIATUS]: 'หยุดชั่วคราว',
+  [StoryStatus.CANCELLED]: 'ยกเลิก',
+}
+
+function statusVariant(status: StoryStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
+  if (status === StoryStatus.ONGOING) return 'default'
+  if (status === StoryStatus.DRAFT) return 'secondary'
+  if (status === StoryStatus.CANCELLED) return 'destructive'
+  return 'outline'
+}
+
+function formatNumber(value: string): string {
+  return new Intl.NumberFormat('th-TH').format(Number(value))
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
+function LatestChapter({ content }: { content: WriterContent }) {
+  if (!content.latest_chapter) return <span className="text-muted-foreground">ยังไม่มีตอน</span>
+
+  return (
+    <span>
+      ตอนที่ {content.latest_chapter.chapter_number}: {content.latest_chapter.title}
+    </span>
+  )
+}
+
+function LoadingRows() {
+  return Array.from({ length: 5 }, (_, index) => (
+    <TableRow key={index}>
+      {Array.from({ length: 8 }, (_, cellIndex) => (
+        <TableCell key={cellIndex} className="px-4 py-4">
+          <Skeleton className="h-5 w-full min-w-16" />
+        </TableCell>
+      ))}
+    </TableRow>
+  ))
+}
+
+interface WriterContentsProps {
+  activeTab: WriterContentTab
+  page: number
+}
+
+export function WriterContents({ activeTab, page }: WriterContentsProps) {
+  const router = useRouter()
+  const { accessToken } = useAuth()
+  const [result, setResult] = useState<WriterContentsResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
+
+  useEffect(() => {
+    if (!accessToken) return
+
+    let cancelled = false
+    setIsLoading(true)
+    setHasError(false)
+
+    void getMyContents(activeTab, page, PAGE_LIMIT, accessToken)
+      .then((nextResult) => {
+        if (!cancelled) setResult(nextResult)
+      })
+      .catch(() => {
+        if (!cancelled) setHasError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, activeTab, page])
+
+  const changeTab = (value: string) => {
+    router.push(`/writer/contents?tab=${value}`)
+  }
+
+  const changePage = (nextPage: number) => {
+    router.push(`/writer/contents?tab=${activeTab}&page=${nextPage}`)
+  }
+
+  const contents = result?.contents ?? []
+  const pagination = result?.pagination
+
+  return (
+    <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto">
+        <Tabs value={activeTab} onValueChange={changeTab} className="block">
+          <div className="relative flex flex-col items-center gap-4 lg:min-h-14 lg:block">
+            <TabsList
+              aria-label="ประเภทผลงาน"
+              className="readji-surface mx-auto flex h-auto rounded-2xl bg-white p-1.5"
+            >
+              {(Object.entries(tabLabels) as [WriterContentTab, string][]).map(([value, label]) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="h-auto min-w-36 rounded-xl px-8 py-4 text-base font-bold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <CreateContentDialog defaultType={activeTab} />
+          </div>
+
+          <TabsContent
+            value={activeTab}
+            className="mt-6 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
+          >
+          <Table className="min-w-[980px]">
+            <TableHeader className="bg-muted/40">
+              <TableRow>
+                <TableHead className="px-5 py-4">ชื่อ</TableHead>
+                <TableHead className="px-4 py-4 text-right">จำนวนตอน</TableHead>
+                <TableHead className="px-4 py-4 text-right">จำนวนเข้าชม</TableHead>
+                <TableHead className="px-4 py-4">ตอนล่าสุด</TableHead>
+                <TableHead className="px-4 py-4">ประเภท</TableHead>
+                <TableHead className="px-4 py-4">สถานะ</TableHead>
+                <TableHead className="px-4 py-4">วันที่สร้าง</TableHead>
+                <TableHead className="px-5 py-4 text-right">จัดการ</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && <LoadingRows />}
+
+              {!isLoading && hasError && (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center text-destructive">
+                    ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!isLoading && !hasError && contents.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                    ยังไม่มี{tabLabels[activeTab]}
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!isLoading && !hasError && contents.map((content) => (
+                <TableRow key={content.id}>
+                  <TableCell className="max-w-72 px-5 py-4 font-semibold whitespace-normal">
+                    {content.title}
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-right tabular-nums">
+                    {formatNumber(content.chapter_count)}
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-right tabular-nums">
+                    {formatNumber(content.total_views)}
+                  </TableCell>
+                  <TableCell className="max-w-64 px-4 py-4 whitespace-normal">
+                    <LatestChapter content={content} />
+                  </TableCell>
+                  <TableCell className="px-4 py-4">{typeLabels[content.type]}</TableCell>
+                  <TableCell className="px-4 py-4">
+                    <Badge variant={statusVariant(content.status)}>
+                      {statusLabels[content.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4 py-4">{formatDate(content.created_at)}</TableCell>
+                  <TableCell className="px-5 py-4 text-right">
+                    <Button type="button" variant="outline" size="sm">
+                      จัดการ
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {!isLoading && !hasError && pagination && (
+            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                ทั้งหมด {new Intl.NumberFormat('th-TH').format(pagination.total)} รายการ
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page <= 1}
+                  onClick={() => changePage(pagination.page - 1)}
+                >
+                  ก่อนหน้า
+                </Button>
+                <span className="min-w-20 text-center text-sm text-muted-foreground">
+                  {pagination.page} / {Math.max(pagination.totalPages, 1)}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => changePage(pagination.page + 1)}
+                >
+                  ถัดไป
+                </Button>
+              </div>
+            </div>
+          )}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </main>
+  )
+}
