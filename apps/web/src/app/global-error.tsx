@@ -1,5 +1,6 @@
 'use client'
 
+import { notoSansThai } from '@/lib/fonts'
 import './globals.css'
 
 export default function GlobalError({
@@ -11,7 +12,7 @@ export default function GlobalError({
 }) {
   return (
     <html lang="th">
-      <body className="font-sans antialiased">
+      <body className={`${notoSansThai.variable} font-sans antialiased`}>
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
           <h1 className="text-xl font-bold text-foreground">เกิดข้อผิดพลาดบางอย่าง</h1>
           <p className="max-w-md text-sm text-muted-foreground">
