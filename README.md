@@ -85,3 +85,5 @@ any non-local database.
 
 Personal design notes and working documents belong in `note for developing/`.
 That directory is intentionally ignored and never uploaded to GitHub.
+
+# redji
