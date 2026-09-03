@@ -1,5 +1,0 @@
-[test]
-# Default (5000ms) is too short — test fixtures call registerUser(), which hashes with
-# argon2id at memoryCost: 65536 (64MB) by design (see auth.service.ts). That alone can take
-# a couple of seconds per call, and several tests create more than one fixture user.
-timeout = 20000
