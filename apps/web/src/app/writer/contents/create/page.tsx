@@ -1,18 +1,12 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { StoryType } from '@/constants/story.constant'
 import { WriterLayout } from '../../home/components/writer-layout'
 import { CoverImageUpload } from './components/cover-image-upload'
+import { CreateStoryForm } from './components/create-story-form'
 import { SlugField } from './components/slug-field'
 import { StoryGenreFields } from './components/story-genre-fields'
+import { StoryMetadataFields } from './components/story-metadata-fields'
 import { SynopsisField } from './components/synopsis-field'
 
 type ContentType = 'novel' | 'cartoon'
@@ -24,20 +18,12 @@ interface CreateContentPageProps {
   }>
 }
 
-const statusOptions = [
-  { value: 'draft', label: 'ฉบับร่าง' },
-  { value: 'ongoing', label: 'กำลังเผยแพร่' },
-  { value: 'completed', label: 'จบแล้ว' },
-  { value: 'hiatus', label: 'หยุดชั่วคราว' },
-  { value: 'cancelled', label: 'ยกเลิก' },
-] as const
-
 export default async function CreateContentPage({ searchParams }: CreateContentPageProps) {
   const params = await searchParams
   const contentType: ContentType = params.type === 'cartoon' ? 'cartoon' : 'novel'
   const isCartoon = contentType === 'cartoon'
   const contentLabel = isCartoon ? 'การ์ตูน' : 'นิยาย'
-  const databaseType = isCartoon ? 'manga' : 'novel'
+  const databaseType = isCartoon ? StoryType.MANGA : StoryType.NOVEL
   const initialTitle = typeof params.title === 'string' ? params.title : ''
 
   return (
@@ -63,58 +49,14 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
             </span>
           </div>
 
-          <form className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start">
+          <CreateStoryForm cancelHref={`/writer/contents/?tab=${contentType}`}>
             <input type="hidden" name="type" value={databaseType} />
 
             <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="title" className="text-sm font-semibold">
-                  ชื่อ{contentLabel} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="title"
-                  type="text"
-                  name="title"
-                  defaultValue={initialTitle}
-                  maxLength={255}
-                  required
-                  placeholder={`กรอกชื่อ${contentLabel}`}
-                  className="h-11 rounded-xl px-3"
-                />
-              </div>
-
-              <SlugField />
-
-              <SynopsisField contentLabel={contentLabel} />
-
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-sm font-semibold">
-                  สถานะ <span className="text-destructive">*</span>
-                </Label>
-                <Select name="status" defaultValue="draft" required>
-                  <SelectTrigger id="status" className="h-11! w-full rounded-xl px-3">
-                    <SelectValue placeholder="เลือกสถานะ" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map(({ value, label }) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="age-rating" className="text-sm font-semibold">เรทอายุ</Label>
-                <Input
-                  id="age-rating"
-                  type="number"
-                  name="age_rating"
-                  min={0}
-                  step={1}
-                  placeholder="ตัวอย่าง: 13"
-                  className="h-11 rounded-xl px-3"
-                />
-              </div>
+              <StoryMetadataFields contentLabel={contentLabel} initialTitle={initialTitle}>
+                <SlugField />
+                <SynopsisField contentLabel={contentLabel} />
+              </StoryMetadataFields>
 
               <StoryGenreFields />
             </section>
@@ -123,21 +65,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
               <CoverImageUpload />
             </aside>
 
-            <div className="flex justify-end gap-3 border-t border-border pt-5 lg:col-span-2">
-              <Link
-                href={`/writer/contents/?tab=${contentType}`}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold transition-colors hover:bg-accent"
-              >
-                ยกเลิก
-              </Link>
-              <button
-                type="submit"
-                className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                บันทึกฉบับร่าง
-              </button>
-            </div>
-          </form>
+          </CreateStoryForm>
         </div>
       </main>
     </WriterLayout>

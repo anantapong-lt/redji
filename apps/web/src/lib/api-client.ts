@@ -2,12 +2,14 @@ import { SITE_CONFIG } from '@/site.config'
 
 interface ApiErrorBody {
   message?: string
+  field?: string
 }
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly field?: string,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -28,7 +30,11 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
 
   if (!response.ok) {
     const body = await response.json().catch(() => null) as ApiErrorBody | null
-    throw new ApiError(body?.message ?? 'ไม่สามารถเชื่อมต่อกับระบบได้', response.status)
+    throw new ApiError(
+      body?.message ?? 'ไม่สามารถเชื่อมต่อกับระบบได้',
+      response.status,
+      body?.field,
+    )
   }
 
   return response.json() as Promise<T>

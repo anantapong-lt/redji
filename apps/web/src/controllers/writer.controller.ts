@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api-client'
+import type { StoryType } from '@/constants/story.constant'
 import type { WriterStats } from '@/interface/writer-stats.interface'
 
 export function getWriterStats(accessToken: string): Promise<{ stats: WriterStats }> {
@@ -7,14 +8,18 @@ export function getWriterStats(accessToken: string): Promise<{ stats: WriterStat
   })
 }
 
-export function uploadWriterCover(
-  file: File,
+export function createWriterContent(
+  body: FormData,
   accessToken: string,
-): Promise<{ key: string; cover_url: string }> {
-  const body = new FormData()
-  body.append('file', file)
-
-  return apiRequest<{ key: string; cover_url: string }>('/writer/contents/cover', {
+): Promise<{
+  story: {
+    id: string
+    type: StoryType
+    slug: string
+    cover_url: string | null
+  }
+}> {
+  return apiRequest('/writer/contents', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
     body,

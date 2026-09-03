@@ -7,10 +7,7 @@ const extensionByMimeType = {
   'image/webp': 'webp',
 } as const
 
-export async function uploadWriterCover(file: File) {
-  const extension = extensionByMimeType[file.type as keyof typeof extensionByMimeType]
-  if (!extension) throw new Error('Unsupported writer cover type')
-
+function createR2Client() {
   if (
     !env.R2_ACCOUNT_ID
     || !env.R2_ACCESS_KEY_ID
@@ -21,13 +18,20 @@ export async function uploadWriterCover(file: File) {
     throw new Error('R2 configuration is incomplete')
   }
 
-  const key = `stories/covers/${crypto.randomUUID()}.${extension}`
-  const r2 = new S3Client({
+  return new S3Client({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     bucket: env.R2_BUCKET_NAME,
     endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   })
+}
+
+export async function uploadWriterCover(file: File) {
+  const extension = extensionByMimeType[file.type as keyof typeof extensionByMimeType]
+  if (!extension) throw new Error('Unsupported writer cover type')
+
+  const key = `stories/covers/${crypto.randomUUID()}.${extension}`
+  const r2 = createR2Client()
 
   await r2.write(key, file, { type: file.type })
 
@@ -35,4 +39,8 @@ export async function uploadWriterCover(file: File) {
     key,
     cover_url: `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`,
   }
+}
+
+export async function deleteWriterCover(key: string): Promise<void> {
+  await createR2Client().delete(key)
 }

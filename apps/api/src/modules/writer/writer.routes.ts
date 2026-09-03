@@ -1,7 +1,11 @@
 import { Elysia, t } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
-import { uploadWriterCover } from './writer-cover.service'
+import { STORY_STATUSES, STORY_TYPES } from '../../models/story.model'
+import {
+  createWriterContent,
+  CreateWriterContentError,
+} from './writer-content.service'
 import { getWriterStats } from './writer.service'
 
 export const writerRoutes = new Elysia({ prefix: '/writer' })
@@ -12,22 +16,38 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     { auth: USER_ROLE.WRITER },
   )
   .post(
-    '/contents/cover',
-    async ({ body, status }) => {
+    '/contents',
+    async ({ body, currentUser, status }) => {
       try {
-        return await uploadWriterCover(body.file)
+        const story = await createWriterContent(currentUser.id, body)
+        return status(201, { story })
       } catch (error) {
-        console.error('Unable to upload writer cover', error)
-        return status(500, { message: 'ไม่สามารถอัปโหลดรูปปกได้ กรุณาลองใหม่อีกครั้ง' })
+        if (error instanceof CreateWriterContentError) {
+          return status(error.statusCode, {
+            message: error.message,
+            field: error.field,
+          })
+        }
+
+        console.error('Unable to create writer content', error)
+        return status(500, { message: 'ไม่สามารถสร้างเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
       }
     },
     {
       auth: USER_ROLE.WRITER,
       body: t.Object({
-        file: t.File({
+        type: t.UnionEnum(STORY_TYPES),
+        title: t.String({ minLength: 1, maxLength: 255 }),
+        slug: t.String({ minLength: 1, maxLength: 255 }),
+        synopsis: t.Optional(t.String({ maxLength: 140 })),
+        status: t.UnionEnum(STORY_STATUSES),
+        age_rating: t.Optional(t.String()),
+        primary_genre_id: t.String({ format: 'uuid' }),
+        secondary_genre_id: t.Optional(t.String()),
+        cover: t.Optional(t.File({
           type: ['image/jpeg', 'image/png', 'image/webp'],
           maxSize: '5m',
-        }),
+        })),
       }),
     },
   )

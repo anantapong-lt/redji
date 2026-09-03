@@ -17,6 +17,7 @@ interface GenreSelectProps {
   value: string
   onValueChange: (value: string) => void
   excludedValues?: string[]
+  error?: string
   required?: boolean
 }
 
@@ -27,6 +28,7 @@ export function GenreSelect({
   value,
   onValueChange,
   excludedValues = [],
+  error,
   required = false,
 }: GenreSelectProps) {
   const options = useGenreOptionsStore((state) => state.options)
@@ -44,7 +46,7 @@ export function GenreSelect({
         : 'เลือกหมวดหมู่'
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-field={name}>
       <Label htmlFor={id} className="text-sm font-semibold">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
@@ -55,7 +57,12 @@ export function GenreSelect({
         required={required}
         disabled={status !== 'success' || options.length === 0}
       >
-        <SelectTrigger id={id} className="h-11! w-full rounded-xl px-3">
+        <SelectTrigger
+          id={id}
+          className="h-11! w-full rounded-xl px-3"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -66,6 +73,9 @@ export function GenreSelect({
           ))}
         </SelectContent>
       </Select>
+      {error && (
+        <p id={`${id}-error`} className="text-xs text-destructive">{error}</p>
+      )}
     </div>
   )
 }
