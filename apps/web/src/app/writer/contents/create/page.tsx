@@ -1,4 +1,4 @@
-import { ContentEditor } from './components/content-editor'
+import { ContentEditor } from '../components/content-editor'
 
 type ContentType = 'novel' | 'cartoon'
 

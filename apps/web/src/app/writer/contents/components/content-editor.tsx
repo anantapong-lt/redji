@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StoryType } from '@/constants/story.constant'
 import { getWriterContent } from '@/controllers/writer.controller'
@@ -11,12 +12,12 @@ import type {
   WriterContentDetail,
   WriterContentTab,
 } from '@/interface/writer-content.interface'
-import { CoverImageUpload } from './cover-image-upload'
-import { CreateStoryForm } from './create-story-form'
-import { SlugField } from './slug-field'
-import { StoryGenreFields } from './story-genre-fields'
-import { StoryMetadataFields } from './story-metadata-fields'
-import { SynopsisField } from './synopsis-field'
+import { CoverImageUpload } from '../create/components/cover-image-upload'
+import { CreateStoryForm } from '../create/components/create-story-form'
+import { SlugField } from '../create/components/slug-field'
+import { StoryGenreFields } from '../create/components/story-genre-fields'
+import { StoryMetadataFields } from '../create/components/story-metadata-fields'
+import { SynopsisField } from '../create/components/synopsis-field'
 
 interface ContentEditorProps {
   contentId?: string
@@ -105,20 +106,28 @@ export function ContentEditor({
   if (showSkeleton) {
     return (
       <Root className={rootClassName}>
-        <div
-          className={`${containerClassName} transition-opacity duration-300 ease-out motion-reduce:transition-none ${
-            isLoading ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-3">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-9 w-52" />
+        <div className={containerClassName}>
+          <div className="flex items-center justify-between gap-4">
+            <Button asChild variant="outline" className="h-11 rounded-xl">
+              <Link href="/writer/contents">
+                <ArrowLeft />
+                ย้อนกลับ
+              </Link>
+            </Button>
+            <div
+              className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+                isLoading ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <Skeleton className="h-8 w-20 rounded-full" />
             </div>
-            <Skeleton className="h-8 w-20 rounded-full" />
           </div>
 
-          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start">
+          <div
+            className={`mt-6 grid gap-5 transition-opacity duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start ${
+              isLoading ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
             <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
               <div className="space-y-2 md:col-span-2">
                 <Skeleton className="h-4 w-24" />
@@ -164,12 +173,12 @@ export function ContentEditor({
           <p className="text-sm text-destructive">
             {loadError ?? 'ไม่พบเนื้อหาที่ต้องการแก้ไข'}
           </p>
-          <Link
-            href="/writer/contents"
-            className="mt-4 inline-flex text-sm font-semibold text-primary hover:underline"
-          >
-            กลับไปหน้าผลงาน
-          </Link>
+          <Button asChild variant="outline" className="mt-4 h-11 rounded-xl">
+            <Link href="/writer/contents">
+              <ArrowLeft />
+              ย้อนกลับ
+            </Link>
+          </Button>
         </div>
       </Root>
     )
@@ -190,16 +199,17 @@ export function ContentEditor({
       >
         <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
           <div>
-            <Link
-              href={cancelHref}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" strokeWidth={1.8} />
-              กลับไปหน้าผลงาน
-            </Link>
-            <h1 className="mt-3 text-2xl font-bold tracking-[-0.025em] md:text-3xl">
-              {contentId ? `แก้ไข${contentLabel}` : `สร้าง${contentLabel}ใหม่`}
-            </h1>
+            <Button asChild variant="outline" className="h-11 rounded-xl">
+              <Link href={cancelHref}>
+                <ArrowLeft />
+                ย้อนกลับ
+              </Link>
+            </Button>
+            {!contentId && (
+              <h1 className="mt-3 text-2xl font-bold tracking-[-0.025em] md:text-3xl">
+                สร้าง{contentLabel}ใหม่
+              </h1>
+            )}
           </div>
 
           <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary">

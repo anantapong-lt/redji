@@ -11,7 +11,7 @@ export default async function CreateChapterPage({ params }: CreateChapterPagePro
 
   return (
     <section className="mt-6">
-      <Button asChild variant="outline">
+      <Button asChild variant="outline" className="h-11 rounded-xl">
         <Link href={`/writer/content/${id}/chapters`}>
           <ArrowLeftIcon />
           ย้อนกลับ

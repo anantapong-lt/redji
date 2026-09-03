@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CoinsIcon, PlusIcon, SearchIcon } from 'lucide-react'
+import { ArrowLeftIcon, CoinsIcon, PlusIcon, SearchIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
@@ -228,23 +228,31 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
   return (
     <section className="mt-6 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <form onSubmit={handleSearch} className="relative w-full sm:max-w-md">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="ค้นหาเลขตอนหรือชื่อตอน"
-            aria-label="ค้นหาเลขตอนหรือชื่อตอน"
-            className="h-11 rounded-xl bg-white pl-9"
-          />
-        </form>
-        <Button asChild className="h-11 rounded-xl px-5 font-bold">
-          <Link href={`/writer/content/${contentId}/chapters/create`}>
-            <PlusIcon />
-            สร้างตอน
+        <Button asChild variant="outline" className="h-11 w-fit self-start rounded-xl">
+          <Link href="/writer/contents">
+            <ArrowLeftIcon />
+            ย้อนกลับ
           </Link>
         </Button>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <form onSubmit={handleSearch} className="relative w-full sm:w-80">
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="ค้นหาเลขตอนหรือชื่อตอน"
+              aria-label="ค้นหาเลขตอนหรือชื่อตอน"
+              className="h-11 rounded-xl bg-white pl-9"
+            />
+          </form>
+          <Button asChild className="h-11 rounded-xl px-5 font-bold">
+            <Link href={`/writer/content/${contentId}/chapters/create`}>
+              <PlusIcon />
+              สร้างตอน
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {selectedIds.size > 0 && (

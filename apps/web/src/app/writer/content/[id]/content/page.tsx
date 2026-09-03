@@ -1,4 +1,4 @@
-import { ContentEditor } from '../../../contents/create/components/content-editor'
+import { ContentEditor } from '../../../contents/components/content-editor'
 
 interface ContentDetailsPageProps {
   params: Promise<{ id: string }>
