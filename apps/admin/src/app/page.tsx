@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
-export default function RootPage() {
-  redirect('/users')
+export default function AdminHomePage() {
+  redirect('/site')
 }

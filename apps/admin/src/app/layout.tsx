@@ -1,29 +1,28 @@
 import type { Metadata } from 'next'
-import { Providers } from './providers'
-import { SITE_CONFIG } from '@/site.config'
-import { notoSansThai } from '@/lib/fonts'
+import { Noto_Sans_Thai } from 'next/font/google'
+import { Sidebar } from '@/components/sidebar'
 import './globals.css'
 
+const notoSansThai = Noto_Sans_Thai({
+  subsets: ['thai', 'latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: {
-    default: SITE_CONFIG.name,
-    template: `%s | ${SITE_CONFIG.name}`,
-  },
-  robots: {
-    index: false,
-    follow: false,
-  },
+  title: 'Readji Admin',
+  description: 'Readji control center',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="th" suppressHydrationWarning>
-      <body className={`${notoSansThai.variable} font-sans antialiased`}>
-        <Providers>{children}</Providers>
+    <html lang="th">
+      <body className={notoSansThai.variable}>
+        <div className="admin-shell">
+          <Sidebar />
+          <main className="admin-content">{children}</main>
+        </div>
       </body>
     </html>
   )
