@@ -1,25 +1,14 @@
 import { db } from '../../db'
-import type { StoryStatus, StoryType } from '../../models/story.model'
+import type {
+  CreatedStory,
+  CreateWriterContentInput,
+  GetMyContentsInput,
+  MyContentsResult,
+  WriterContent,
+  WriterContentCount,
+} from '../../models/writer-content.model'
+import type { StoryType } from '../../models/story.model'
 import { deleteWriterCover, uploadWriterCover } from './writer-cover.service'
-
-export interface CreateWriterContentInput {
-  type: StoryType
-  title: string
-  slug: string
-  synopsis?: string
-  status: StoryStatus
-  age_rating?: string
-  primary_genre_id: string
-  secondary_genre_id?: string
-  cover?: File
-}
-
-interface CreatedStory {
-  id: string
-  type: StoryType
-  slug: string
-  cover_url: string | null
-}
 
 export class CreateWriterContentError extends Error {
   constructor(
@@ -60,6 +49,80 @@ function isUniqueViolation(error: unknown): boolean {
     && 'code' in error
     && error.code === '23505',
   )
+}
+
+export async function getMyContents(
+  creatorUserId: string,
+  input: GetMyContentsInput,
+): Promise<MyContentsResult> {
+  const storyType: StoryType = input.tab === 'cartoon' ? 'manga' : 'novel'
+  const offset = (input.page - 1) * input.limit
+
+  const [contents, [count]] = await Promise.all([
+    db<WriterContent[]>`
+      SELECT
+        stories.id,
+        stories.title,
+        stories.slug,
+        stories.cover_url,
+        stories.type,
+        stories.status,
+        stories.total_views::TEXT,
+        COUNT(chapters.id)::TEXT AS chapter_count,
+        CASE
+          WHEN latest_chapter.id IS NULL THEN NULL
+          ELSE json_build_object(
+            'chapter_number', latest_chapter.chapter_number::TEXT,
+            'title', latest_chapter.title,
+            'status', latest_chapter.status,
+            'published_at', latest_chapter.published_at
+          )
+        END AS latest_chapter,
+        stories.created_at,
+        stories.updated_at
+      FROM stories
+      LEFT JOIN chapters ON chapters.story_id = stories.id
+      LEFT JOIN LATERAL (
+        SELECT
+          chapters.id,
+          chapters.chapter_number,
+          chapters.title,
+          chapters.status,
+          chapters.published_at
+        FROM chapters
+        WHERE chapters.story_id = stories.id
+        ORDER BY chapters.chapter_number DESC, chapters.id DESC
+        LIMIT 1
+      ) AS latest_chapter ON TRUE
+      WHERE stories.creator_user_id = ${creatorUserId}
+        AND stories.type = ${storyType}
+        AND stories.deleted_at IS NULL
+      GROUP BY stories.id, latest_chapter.id, latest_chapter.chapter_number,
+        latest_chapter.title, latest_chapter.status, latest_chapter.published_at
+      ORDER BY stories.updated_at DESC, stories.id DESC
+      LIMIT ${input.limit}
+      OFFSET ${offset}
+    `,
+    db<WriterContentCount[]>`
+      SELECT COUNT(*)::TEXT AS total
+      FROM stories
+      WHERE creator_user_id = ${creatorUserId}
+        AND type = ${storyType}
+        AND deleted_at IS NULL
+    `,
+  ])
+
+  const total = Number(count.total)
+
+  return {
+    contents,
+    pagination: {
+      page: input.page,
+      limit: input.limit,
+      total,
+      totalPages: Math.ceil(total / input.limit),
+    },
+  }
 }
 
 export async function createWriterContent(

@@ -5,6 +5,7 @@ import { STORY_STATUSES, STORY_TYPES } from '../../models/story.model'
 import {
   createWriterContent,
   CreateWriterContentError,
+  getMyContents,
 } from './writer-content.service'
 import { getWriterStats } from './writer.service'
 
@@ -14,6 +15,22 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     '/stats',
     async ({ currentUser }) => ({ stats: await getWriterStats(currentUser.id) }),
     { auth: USER_ROLE.WRITER },
+  )
+  .get(
+    '/contents',
+    async ({ currentUser, query }) => getMyContents(currentUser.id, {
+      tab: query.tab,
+      page: query.page ?? 1,
+      limit: query.limit ?? 10,
+    }),
+    {
+      auth: USER_ROLE.WRITER,
+      query: t.Object({
+        tab: t.UnionEnum(['novel', 'cartoon']),
+        page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
+      }),
+    },
   )
   .post(
     '/contents',
