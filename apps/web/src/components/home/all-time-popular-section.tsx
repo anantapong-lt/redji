@@ -26,7 +26,7 @@ export function AllTimePopularSection() {
                 <span
                   className={`flex size-6 items-center justify-center rounded-full text-xs font-black tabular-nums transition-colors ${
                     index === 0
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-primary text-white shadow-sm'
                       : index < 3
                         ? 'bg-secondary text-secondary-foreground'
                         : 'text-muted-foreground group-hover:text-primary'

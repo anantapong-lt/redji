@@ -25,7 +25,7 @@ export function PopularSection() {
   return (
     <section
       aria-labelledby="popular-heading"
-      className="rounded-3xl py-8 md:py-10"
+      className="rounded-3xl pt-2 pb-8 md:pb-10"
     >
       <h2 id="popular-heading" className="mb-6 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
         ยอดนิยม

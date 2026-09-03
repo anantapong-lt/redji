@@ -20,6 +20,17 @@ export function RisingAuthorsSection() {
                 href={`/author/${story.id}`}
                 className="group -mx-2 flex items-center gap-2.5 rounded-lg border border-transparent p-2 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/10 hover:shadow-sm"
               >
+                <span
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums transition-colors ${
+                    index === 0
+                      ? 'bg-primary text-white shadow-sm'
+                      : index < 3
+                        ? 'bg-secondary text-secondary-foreground'
+                        : 'text-muted-foreground group-hover:text-primary'
+                  }`}
+                >
+                  {index + 1}
+                </span>
                 <div className="relative size-9 shrink-0 overflow-hidden rounded-full border border-border bg-background">
                   <Image
                     src="/placeholder-user.jpg"
@@ -35,9 +46,6 @@ export function RisingAuthorsSection() {
                   </p>
                   <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{story.title}</p>
                 </div>
-                <span className="text-xs font-bold tabular-nums text-muted-foreground transition-colors group-hover:text-primary">
-                  {index + 1}
-                </span>
               </Link>
             </li>
           ))}
