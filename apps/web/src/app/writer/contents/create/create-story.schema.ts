@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import {
-  STORY_AGE_RATING_MAX,
+  STORY_AGE_RATING_OPTIONS,
   STORY_COVER_ACCEPTED_TYPES,
   STORY_COVER_MAX_FILE_SIZE,
   STORY_SLUG_MAX_LENGTH,
@@ -21,11 +21,13 @@ export const createStorySchema = z.object({
     `เรื่องย่อต้องไม่เกิน ${STORY_SYNOPSIS_MAX_LENGTH} ตัวอักษร`,
   ),
   status: z.enum(StoryStatus),
-  age_rating: z.string().refine((value) => {
-    if (!value.trim()) return true
-    const ageRating = Number(value)
-    return Number.isInteger(ageRating) && ageRating >= 0 && ageRating <= STORY_AGE_RATING_MAX
-  }, `เรทอายุต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง ${STORY_AGE_RATING_MAX}`),
+  age_rating: z.preprocess(
+    (value) => value ?? '',
+    z.string().refine(
+      (value) => STORY_AGE_RATING_OPTIONS.some((option) => option.value === value),
+      'กรุณาเลือกระดับเนื้อหา',
+    ),
+  ),
   primary_genre_id: z.string().min(1, 'กรุณาเลือกหมวดหมู่หลัก').uuid('หมวดหมู่หลักไม่ถูกต้อง'),
   secondary_genre_id: z.string().refine(
     (value) => !value || z.string().uuid().safeParse(value).success,

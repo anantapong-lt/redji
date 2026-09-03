@@ -60,7 +60,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
         slug: t.String({ minLength: 1, maxLength: 255 }),
         synopsis: t.Optional(t.String({ maxLength: 140 })),
         status: t.UnionEnum(STORY_STATUSES),
-        age_rating: t.Optional(t.String()),
+        age_rating: t.UnionEnum(['0', '18']),
         primary_genre_id: t.String({ format: 'uuid' }),
         secondary_genre_id: t.Optional(t.String()),
         cover: t.Optional(t.File({
@@ -123,7 +123,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
         slug: t.String({ minLength: 1, maxLength: 255 }),
         synopsis: t.Optional(t.String({ maxLength: 140 })),
         status: t.UnionEnum(STORY_STATUSES),
-        age_rating: t.Optional(t.String()),
+        age_rating: t.UnionEnum(['0', '18']),
         primary_genre_id: t.String({ format: 'uuid' }),
         secondary_genre_id: t.Optional(t.String()),
         cover: t.Optional(t.File({

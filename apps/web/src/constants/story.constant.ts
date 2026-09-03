@@ -14,7 +14,10 @@ export enum StoryStatus {
 export const STORY_TITLE_MAX_LENGTH = 255
 export const STORY_SLUG_MAX_LENGTH = 255
 export const STORY_SYNOPSIS_MAX_LENGTH = 140
-export const STORY_AGE_RATING_MAX = 32_767
+export const STORY_AGE_RATING_OPTIONS = [
+  { value: '0', label: 'ทั่วไป (PG)' },
+  { value: '18', label: '18+ ขึ้นไป (NC)' },
+] as const
 export const STORY_COVER_MAX_FILE_SIZE = 5 * 1024 * 1024
 export const STORY_COVER_ACCEPTED_TYPES = [
   'image/jpeg',

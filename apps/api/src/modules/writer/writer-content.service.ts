@@ -62,14 +62,13 @@ function optionalText(value?: string): string | null {
   return trimmedValue ? trimmedValue : null
 }
 
-function parseAgeRating(value?: string): number | null {
-  const trimmedValue = value?.trim()
-  if (!trimmedValue) return null
+function parseAgeRating(value: string): number {
+  const trimmedValue = value.trim()
 
   const ageRating = Number(trimmedValue)
-  if (!Number.isInteger(ageRating) || ageRating < 0 || ageRating > 32_767) {
+  if (ageRating !== 0 && ageRating !== 18) {
     throw new CreateWriterContentError(
-      'เรทอายุต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 32767',
+      'กรุณาเลือกระดับเนื้อหา',
       400,
       'age_rating',
     )

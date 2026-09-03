@@ -4,13 +4,17 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { LoaderCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { createWriterContent, updateWriterContent } from '@/controllers/writer.controller'
 import { ApiError } from '@/lib/api-client'
@@ -23,6 +27,21 @@ interface CreateStoryFormContextValue {
 
 const CreateStoryFormContext = createContext<CreateStoryFormContextValue | null>(null)
 
+function getFormData(form: HTMLFormElement): FormData {
+  const body = new FormData(form)
+  const cover = body.get('cover')
+  if (cover instanceof File && cover.size === 0) body.delete('cover')
+  return body
+}
+
+function getFormSnapshot(form: HTMLFormElement): string {
+  return JSON.stringify(Array.from(getFormData(form).entries()).map(([name, value]) => (
+    value instanceof File
+      ? [name, value.name, value.size, value.type, value.lastModified]
+      : [name, value]
+  )))
+}
+
 interface CreateStoryFormProps {
   cancelHref: string
   contentId?: string
@@ -30,14 +49,49 @@ interface CreateStoryFormProps {
 }
 
 export function CreateStoryForm({ cancelHref, children, contentId }: CreateStoryFormProps) {
+  const router = useRouter()
   const { accessToken } = useAuth()
+  const formRef = useRef<HTMLFormElement>(null)
+  const initialSnapshotRef = useRef<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  const [isFormValid, setIsFormValid] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const updateFormState = useCallback(() => {
+    const form = formRef.current
+    if (!form) return
+
+    const body = getFormData(form)
+    setIsFormValid(createStorySchema.safeParse(Object.fromEntries(body.entries())).success)
+    setIsDirty(
+      initialSnapshotRef.current !== null
+      && getFormSnapshot(form) !== initialSnapshotRef.current,
+    )
+  }, [])
+
+  const scheduleFormStateUpdate = useCallback(() => {
+    window.requestAnimationFrame(updateFormState)
+  }, [updateFormState])
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const form = formRef.current
+      if (!form) return
+
+      initialSnapshotRef.current = getFormSnapshot(form)
+      updateFormState()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [updateFormState])
+
   const clearFieldError = useCallback((name: string) => {
     setMessage(null)
+    if (contentId) setIsSaved(false)
+    scheduleFormStateUpdate()
     setErrors((currentErrors) => {
       if (!currentErrors[name]) return currentErrors
 
@@ -45,7 +99,7 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
       delete nextErrors[name]
       return nextErrors
     })
-  }, [])
+  }, [contentId, scheduleFormStateUpdate])
 
   const contextValue = useMemo(() => ({ errors, clearFieldError }), [clearFieldError, errors])
 
@@ -65,12 +119,11 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
     if (isSubmitting || isSaved) return
 
     const form = event.currentTarget
-    const body = new FormData(form)
-    const cover = body.get('cover')
-    if (cover instanceof File && cover.size === 0) body.delete('cover')
+    const body = getFormData(form)
     const validation = createStorySchema.safeParse(Object.fromEntries(body.entries()))
 
     if (!validation.success) {
+      setIsFormValid(false)
       const nextErrors: Record<string, string> = {}
       for (const issue of validation.error.issues) {
         const fieldName = String(issue.path[0] ?? '')
@@ -100,7 +153,10 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
         await createWriterContent(body, accessToken)
       }
       setIsSaved(true)
-      setMessage(contentId ? 'แก้ไขเนื้อหาเรียบร้อยแล้ว' : 'บันทึกเนื้อหาเรียบร้อยแล้ว')
+      initialSnapshotRef.current = getFormSnapshot(form)
+      setIsDirty(false)
+      toast.success(contentId ? 'แก้ไขเนื้อหาเรียบร้อยแล้ว' : 'บันทึกเนื้อหาเรียบร้อยแล้ว')
+      router.push('/writer/contents?tab=novel')
     } catch (error) {
       if (error instanceof ApiError && error.field) {
         setErrors({ [error.field]: error.message })
@@ -121,7 +177,9 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
+      onChange={scheduleFormStateUpdate}
       noValidate
       className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start"
     >
@@ -146,7 +204,7 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
         </Link>
         <button
           type="submit"
-          disabled={isSubmitting || isSaved}
+          disabled={isSubmitting || isSaved || !isFormValid || (Boolean(contentId) && !isDirty)}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting && <LoaderCircle className="size-4 animate-spin" strokeWidth={2} />}
@@ -154,7 +212,7 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
             ? 'กำลังบันทึก...'
             : isSaved
               ? 'บันทึกแล้ว'
-              : contentId ? 'บันทึกการแก้ไข' : 'บันทึกฉบับร่าง'}
+              : 'บันทึก'}
         </button>
       </div>
     </form>

@@ -50,8 +50,8 @@ export function GenreSelect({
       <Label htmlFor={id} className="text-sm font-semibold">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
+      <input type="hidden" name={name} value={value} />
       <Select
-        name={name}
         value={value}
         onValueChange={onValueChange}
         required={required}

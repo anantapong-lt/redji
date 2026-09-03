@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  STORY_AGE_RATING_MAX,
+  STORY_AGE_RATING_OPTIONS,
   STORY_STATUS_OPTIONS,
   STORY_TITLE_MAX_LENGTH,
   StoryStatus,
@@ -98,24 +98,34 @@ export function StoryMetadataFields({
       </div>
 
       <div className="space-y-2" data-field="age_rating">
-        <Label htmlFor="age-rating" className="text-sm font-semibold">เรทอายุ</Label>
-        <Input
-          id="age-rating"
-          type="number"
-          name="age_rating"
+        <Label htmlFor="age-rating" className="text-sm font-semibold">
+          เรทอายุ <span className="text-destructive">*</span>
+        </Label>
+        <input type="hidden" name="age_rating" value={ageRating} />
+        <Select
           value={ageRating}
-          onChange={(event) => {
-            setAgeRating(event.target.value)
+          onValueChange={(value) => {
+            setAgeRating(value)
             clearFieldError('age_rating')
           }}
-          min={0}
-          max={STORY_AGE_RATING_MAX}
-          step={1}
-          aria-invalid={Boolean(errors.age_rating)}
-          aria-describedby={errors.age_rating ? 'age-rating-error' : undefined}
-          placeholder="ตัวอย่าง: 13"
-          className="h-11 rounded-xl px-3"
-        />
+          required
+        >
+          <SelectTrigger
+            id="age-rating"
+            className="h-11! w-full rounded-xl px-3"
+            aria-invalid={Boolean(errors.age_rating)}
+            aria-describedby={errors.age_rating ? 'age-rating-error' : undefined}
+          >
+            <SelectValue placeholder="เลือกระดับเนื้อหา" />
+          </SelectTrigger>
+          <SelectContent>
+            {STORY_AGE_RATING_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {errors.age_rating && (
           <p id="age-rating-error" className="text-xs text-destructive">{errors.age_rating}</p>
         )}

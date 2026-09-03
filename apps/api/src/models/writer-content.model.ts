@@ -61,7 +61,7 @@ export interface CreateWriterContentInput {
   slug: string
   synopsis?: string
   status: StoryStatus
-  age_rating?: string
+  age_rating: string
   primary_genre_id: string
   secondary_genre_id?: string
   cover?: File
