@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/select'
 import { WriterLayout } from '../../home/components/writer-layout'
 import { CoverImageUpload } from './components/cover-image-upload'
-import { GenreSelect } from './components/genre-select'
 import { SlugField } from './components/slug-field'
+import { StoryGenreFields } from './components/story-genre-fields'
 import { SynopsisField } from './components/synopsis-field'
 
 type ContentType = 'novel' | 'cartoon'
@@ -116,7 +116,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                 />
               </div>
 
-              <GenreSelect />
+              <StoryGenreFields />
             </section>
 
             <aside className="readji-surface rounded-2xl p-5 md:p-6">
