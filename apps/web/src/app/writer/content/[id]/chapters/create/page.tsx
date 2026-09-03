@@ -40,7 +40,6 @@ const chapterStatusOptions: { value: ChapterStatus; label: string }[] = [
   { value: 'hidden', label: 'ซ่อน' },
 ]
 
-
 interface ChapterImage {
   id: string
   file: File
@@ -50,7 +49,6 @@ interface ChapterImage {
 interface CreateChapterPageProps {
   params: Promise<{ id: string }>
 }
-
 
 export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const { id } = use(params)
