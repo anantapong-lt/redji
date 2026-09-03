@@ -61,7 +61,7 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
           setContentType(defaultType)
           setIsOpen(true)
         }}
-        className="order-first flex min-h-12 self-end items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 lg:absolute lg:top-0 lg:right-0 lg:order-none"
+        className="cursor-pointer hover:text-white order-first flex min-h-12 self-end items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 lg:absolute lg:top-0 lg:right-0 lg:order-none"
       >
         <Plus className="size-4" strokeWidth={2} />
         สร้างเนื้อหาใหม่
@@ -141,7 +141,7 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
                       <Icon className="mt-0.5 size-5 shrink-0 text-primary" strokeWidth={1.8} />
                       <span>
                         <span className="block text-sm font-bold">{label}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                        <span className="mt-0.5 block text-xs text-muted-foreground ">
                           {description}
                         </span>
                       </span>
