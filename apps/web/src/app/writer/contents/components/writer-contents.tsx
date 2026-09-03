@@ -5,6 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -23,6 +29,7 @@ import type {
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
 import { CreateContentDialog } from './create-content-dialog'
+import { ChevronDownIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 
 const PAGE_LIMIT = 10
 
@@ -70,6 +77,29 @@ function LatestChapter({ content }: { content: WriterContent }) {
     <span>
       ตอนที่ {content.latest_chapter.chapter_number}: {content.latest_chapter.title}
     </span>
+  )
+}
+
+function ManageContentMenu() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="shrink-0">
+          จัดการ
+          <ChevronDownIcon data-icon="inline-end" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem>
+          <PencilIcon />
+          แก้ไข
+        </DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+          <Trash2Icon />
+          ลบ
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -230,9 +260,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     <p>{typeLabels[content.type]}</p>
                     <p className="mt-0.5">สร้างเมื่อ {formatDate(content.created_at)}</p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0">
-                    จัดการ
-                  </Button>
+                  <ManageContentMenu />
                 </div>
               </article>
             ))}
@@ -296,9 +324,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </TableCell>
                   <TableCell className="px-4 py-4">{formatDate(content.created_at)}</TableCell>
                   <TableCell className="px-5 py-4 text-right">
-                    <Button type="button" variant="outline" size="sm">
-                      จัดการ
-                    </Button>
+                    <ManageContentMenu />
                   </TableCell>
                 </TableRow>
               ))}
