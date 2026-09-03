@@ -1,9 +1,17 @@
+import { cors } from '@elysiajs/cors'
 import { Elysia } from 'elysia'
-
-const port = Number(process.env.PORT ?? 3001)
+import { env } from './config/env'
+import { authRoutes } from './modules/auth/auth.routes'
 
 const app = new Elysia()
+  .use(
+    cors({
+      origin: env.WEB_ORIGIN,
+      credentials: true,
+    }),
+  )
+  .use(authRoutes)
 
-app.listen(port)
+app.listen(env.PORT)
 
-console.log(`API server is running on http://localhost:${port}`)
+console.log(`API server is running on http://localhost:${env.PORT}`)

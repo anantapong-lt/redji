@@ -7,6 +7,8 @@
     "start": "bun run src/index.ts"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/jwt": "^1.4.2",
     "elysia": "latest"
   },
   "devDependencies": {
