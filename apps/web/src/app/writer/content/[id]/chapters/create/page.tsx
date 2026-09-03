@@ -8,12 +8,32 @@ import {
   type ChangeEvent,
   type DragEvent,
   type FormEvent,
+  type ReactNode,
 } from 'react'
 import Link from 'next/link'
+import { Extension } from '@tiptap/core'
+import TextAlign from '@tiptap/extension-text-align'
+import Underline from '@tiptap/extension-underline'
+import { Fragment, Slice } from '@tiptap/pm/model'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
 import {
+  AlignCenterIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
   ArrowLeftIcon,
+  BoldIcon,
+  Heading2Icon,
   ImagePlusIcon,
+  ItalicIcon,
+  ListIcon,
+  ListOrderedIcon,
+  QuoteIcon,
+  Redo2Icon,
+  StrikethroughIcon,
   Trash2Icon,
+  UnderlineIcon,
+  Undo2Icon,
   XIcon,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -28,7 +48,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Textarea } from '@/components/ui/textarea'
 import { StoryType } from '@/constants/story.constant'
 import { getWriterContent } from '@/controllers/writer.controller'
 import type { ChapterStatus } from '@/interface/writer-chapter.interface'
@@ -40,6 +59,35 @@ const chapterStatusOptions: { value: ChapterStatus; label: string }[] = [
   { value: 'hidden', label: 'ซ่อน' },
 ]
 
+const lineHeightOptions = [
+  { value: 'normal', label: 'ปกติ' },
+  { value: '1', label: '1.0' },
+  { value: '1.5', label: '1.5' },
+  { value: '2', label: '2.0' },
+] as const
+
+const LineHeight = Extension.create({
+  name: 'lineHeight',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['heading', 'paragraph'],
+        attributes: {
+          lineHeight: {
+            default: null,
+            parseHTML: (element) => element.style.lineHeight || null,
+            renderHTML: (attributes) => (
+              attributes.lineHeight
+                ? { style: `line-height: ${attributes.lineHeight}` }
+                : {}
+            ),
+          },
+        },
+      },
+    ]
+  },
+})
+
 interface ChapterImage {
   id: string
   file: File
@@ -48,6 +96,239 @@ interface ChapterImage {
 
 interface CreateChapterPageProps {
   params: Promise<{ id: string }>
+}
+
+interface EditorButtonProps {
+  label: string
+  active?: boolean
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+}
+
+function EditorButton({
+  active = false,
+  children,
+  disabled = false,
+  label,
+  onClick,
+}: EditorButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant={active ? 'secondary' : 'ghost'}
+      size="icon"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={active}
+      title={label}
+    >
+      {children}
+    </Button>
+  )
+}
+
+function NovelTextEditor() {
+  const [html, setHtml] = useState('')
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit,
+      LineHeight,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Underline,
+    ],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'min-h-96 whitespace-pre-wrap px-4 py-3 text-sm leading-7 outline-none [tab-size:4]',
+      },
+      handlePaste: (view, event) => {
+        const clipboardText = event.clipboardData?.getData('text/plain')
+        if (!clipboardText) return false
+
+        event.preventDefault()
+        const paragraphs = clipboardText
+          .replace(/\r\n?/g, '\n')
+          .replace(/\u00a0/g, ' ')
+          .split('\n')
+          .map((line) => view.state.schema.nodes.paragraph.create(
+            null,
+            line ? view.state.schema.text(line) : undefined,
+          ))
+        const plainTextSlice = Slice.maxOpen(Fragment.fromArray(paragraphs))
+        view.dispatch(view.state.tr.replaceSelection(plainTextSlice).scrollIntoView())
+        return true
+      },
+    },
+    onUpdate: ({ editor: currentEditor }) => {
+      setHtml(currentEditor.getHTML())
+    },
+  })
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-input bg-transparent focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+      <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-2">
+        <EditorButton
+          label="หัวข้อ"
+          active={editor?.isActive('heading', { level: 2 })}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+        >
+          <Heading2Icon />
+        </EditorButton>
+        <EditorButton
+          label="ตัวหนา"
+          active={editor?.isActive('bold')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleBold().run()}
+        >
+          <BoldIcon />
+        </EditorButton>
+        <EditorButton
+          label="ตัวเอียง"
+          active={editor?.isActive('italic')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleItalic().run()}
+        >
+          <ItalicIcon />
+        </EditorButton>
+        <EditorButton
+          label="ขีดเส้นใต้"
+          active={editor?.isActive('underline')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleUnderline().run()}
+        >
+          <UnderlineIcon />
+        </EditorButton>
+        <EditorButton
+          label="ขีดทับ"
+          active={editor?.isActive('strike')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleStrike().run()}
+        >
+          <StrikethroughIcon />
+        </EditorButton>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <EditorButton
+          label="รายการหัวข้อย่อย"
+          active={editor?.isActive('bulletList')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleBulletList().run()}
+        >
+          <ListIcon />
+        </EditorButton>
+        <EditorButton
+          label="รายการแบบลำดับเลข"
+          active={editor?.isActive('orderedList')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+        >
+          <ListOrderedIcon />
+        </EditorButton>
+        <EditorButton
+          label="ข้อความอ้างอิง"
+          active={editor?.isActive('blockquote')}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+        >
+          <QuoteIcon />
+        </EditorButton>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <EditorButton
+          label="จัดชิดซ้าย"
+          active={editor?.isActive({ textAlign: 'left' })}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+        >
+          <AlignLeftIcon />
+        </EditorButton>
+        <EditorButton
+          label="จัดกึ่งกลาง"
+          active={editor?.isActive({ textAlign: 'center' })}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+        >
+          <AlignCenterIcon />
+        </EditorButton>
+        <EditorButton
+          label="จัดชิดขวา"
+          active={editor?.isActive({ textAlign: 'right' })}
+          disabled={!editor}
+          onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+        >
+          <AlignRightIcon />
+        </EditorButton>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <Select
+          value={String(
+            editor?.getAttributes('paragraph').lineHeight
+              ?? editor?.getAttributes('heading').lineHeight
+              ?? 'normal',
+          )}
+          onValueChange={(value) => {
+            if (!editor) return
+
+            if (value === 'normal') {
+              editor
+                .chain()
+                .focus()
+                .resetAttributes('paragraph', 'lineHeight')
+                .resetAttributes('heading', 'lineHeight')
+                .run()
+              return
+            }
+
+            editor
+              .chain()
+              .focus()
+              .updateAttributes('paragraph', { lineHeight: value })
+              .updateAttributes('heading', { lineHeight: value })
+              .run()
+          }}
+          disabled={!editor}
+        >
+          <SelectTrigger
+            className="h-8! w-28 rounded-lg px-2"
+            aria-label="ระยะห่างบรรทัด"
+            title="ระยะห่างบรรทัด"
+          >
+            <span className="text-xs text-muted-foreground">บรรทัด</span>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {lineHeightOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <EditorButton
+          label="ย้อนกลับ"
+          disabled={!editor?.can().chain().focus().undo().run()}
+          onClick={() => editor?.chain().focus().undo().run()}
+        >
+          <Undo2Icon />
+        </EditorButton>
+        <EditorButton
+          label="ทำซ้ำ"
+          disabled={!editor?.can().chain().focus().redo().run()}
+          onClick={() => editor?.chain().focus().redo().run()}
+        >
+          <Redo2Icon />
+        </EditorButton>
+      </div>
+
+      <EditorContent
+        editor={editor}
+        className="[&_.tiptap_blockquote]:border-l-4 [&_.tiptap_blockquote]:border-border [&_.tiptap_blockquote]:pl-4 [&_.tiptap_h2]:my-3 [&_.tiptap_h2]:text-xl [&_.tiptap_h2]:font-bold [&_.tiptap_ol]:my-2 [&_.tiptap_ol]:list-decimal [&_.tiptap_ol]:pl-6 [&_.tiptap_p]:my-2 [&_.tiptap_ul]:my-2 [&_.tiptap_ul]:list-disc [&_.tiptap_ul]:pl-6"
+      />
+      <input type="hidden" name="content" value={html} />
+    </div>
+  )
 }
 
 export default function CreateChapterPage({ params }: CreateChapterPageProps) {
@@ -339,13 +620,10 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               <Label htmlFor="chapter-content" className="text-sm font-semibold">
                 เนื้อหา <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="chapter-content"
-                name="content"
-                placeholder="เริ่มเขียนเนื้อหาของตอนนี้..."
-                required
-                className="min-h-96 resize-y rounded-xl px-4 py-3 leading-7"
-              />
+              <NovelTextEditor />
+              <p className="text-xs text-muted-foreground">
+                การวางข้อความจะคงย่อหน้า บรรทัดว่าง และระยะห่าง แต่ใช้รูปแบบเดียวกับตัวแก้ไข
+              </p>
             </div>
           </section>
         )}
