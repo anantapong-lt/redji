@@ -83,9 +83,19 @@ export function CoverImageUpload({
 
       {previewUrl ? (
         <div className="rounded-2xl border border-border p-3">
-          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-muted">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            aria-label="เลือกรูปปกใหม่"
+            className="group relative aspect-[3/4] w-full cursor-pointer overflow-hidden rounded-xl bg-muted"
+          >
             <img src={previewUrl} alt="ตัวอย่างรูปปก" className="size-full object-cover" />
-          </div>
+            <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+              <span className="flex size-12 items-center justify-center rounded-full bg-white/90 text-primary shadow-sm">
+                <UploadCloud className="size-6" strokeWidth={1.8} />
+              </span>
+            </span>
+          </button>
 
           <div className="mt-3 min-w-0">
             <p className="truncate text-sm font-semibold">
@@ -98,7 +108,7 @@ export function CoverImageUpload({
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
+                className="cursor-pointer rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
               >
                 เปลี่ยนรูป
               </button>
