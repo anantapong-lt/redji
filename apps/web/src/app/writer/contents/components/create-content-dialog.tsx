@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { STORY_TITLE_MAX_LENGTH } from '@/constants/story.constant'
 import type { WriterContentTab } from '@/interface/writer-content.interface'
 
 interface CreateContentDialogProps {
@@ -98,14 +99,19 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
 
         <form className="mt-6" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="content-title" className="font-semibold">
-              ชื่อเรื่อง <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="content-title" className="font-semibold">
+                ชื่อเรื่อง <span className="text-destructive">*</span>
+              </Label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {title.length}/{STORY_TITLE_MAX_LENGTH}
+              </span>
+            </div>
             <Input
               id="content-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              maxLength={255}
+              maxLength={STORY_TITLE_MAX_LENGTH}
               required
               autoFocus
               placeholder="กรอกชื่อเรื่อง"

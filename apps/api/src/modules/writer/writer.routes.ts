@@ -62,7 +62,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
       auth: USER_ROLE.WRITER,
       body: t.Object({
         type: t.UnionEnum(STORY_TYPES),
-        title: t.String({ minLength: 1, maxLength: 255 }),
+        title: t.String({ minLength: 1, maxLength: 120 }),
         slug: t.Optional(t.String({ maxLength: 255 })),
         auto_generate_slug: t.Optional(t.Literal('true')),
         synopsis: t.Optional(t.String({ maxLength: 140 })),
@@ -126,7 +126,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
       }),
       body: t.Object({
         type: t.UnionEnum(STORY_TYPES),
-        title: t.String({ minLength: 1, maxLength: 255 }),
+        title: t.String({ minLength: 1, maxLength: 120 }),
         slug: t.String({ minLength: 1, maxLength: 255 }),
         synopsis: t.Optional(t.String({ maxLength: 140 })),
         status: t.UnionEnum(STORY_STATUSES),

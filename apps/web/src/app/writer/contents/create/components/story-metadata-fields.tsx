@@ -41,9 +41,14 @@ export function StoryMetadataFields({
   return (
     <>
       <div className="space-y-2 md:col-span-2" data-field="title">
-        <Label htmlFor="title" className="text-sm font-semibold">
-          ชื่อ{contentLabel} <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="title" className="text-sm font-semibold">
+            ชื่อ{contentLabel} <span className="text-destructive">*</span>
+          </Label>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {title.length}/{STORY_TITLE_MAX_LENGTH}
+          </span>
+        </div>
         <Input
           id="title"
           type="text"

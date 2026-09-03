@@ -11,7 +11,7 @@ export enum StoryStatus {
   CANCELLED = 'cancelled',
 }
 
-export const STORY_TITLE_MAX_LENGTH = 255
+export const STORY_TITLE_MAX_LENGTH = 120
 export const STORY_SLUG_MAX_LENGTH = 255
 export const STORY_SYNOPSIS_MAX_LENGTH = 140
 export const STORY_AGE_RATING_OPTIONS = [
