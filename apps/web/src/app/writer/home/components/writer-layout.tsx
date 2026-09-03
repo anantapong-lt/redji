@@ -95,7 +95,9 @@ export function WriterLayout({ children }: { children: ReactNode }) {
         <nav className="mt-3 flex flex-1 flex-col px-3 pb-3" aria-label="เมนูนักเขียน">
           <div className="space-y-0.5">
             {writerNavigation.map(({ enabled, href, icon: Icon, label }) => {
-              const isActive = pathname === href.split('?')[0].replace(/\/$/, '')
+              const basePath = href.split('?')[0].replace(/\/$/, '')
+              const isActive = pathname === basePath
+                || (basePath !== '/writer' && pathname.startsWith(`${basePath}/`))
 
               return enabled ? (
                 <Link

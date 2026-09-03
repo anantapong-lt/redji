@@ -123,13 +123,13 @@ export default async function WriterContentsPage({ searchParams }: WriterContent
               })}
             </nav>
 
-            <button
-              type="button"
+            <Link
+              href={`/writer/contents/create?type=${activeTab}`}
               className="order-first flex min-h-12 self-end items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 lg:absolute lg:top-0 lg:right-0 lg:order-none"
             >
               <Plus className="size-4" strokeWidth={2} />
               สร้างเนื้อหาใหม่
-            </button>
+            </Link>
           </div>
 
           <section className="readji-surface mt-6 rounded-2xl p-4" aria-label="ตัวกรองเนื้อหา">
