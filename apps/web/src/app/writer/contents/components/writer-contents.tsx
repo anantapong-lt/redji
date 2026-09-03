@@ -30,7 +30,7 @@ import type {
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
 import { CreateContentDialog } from './create-content-dialog'
-import { ChevronDownIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, CoinsIcon, ImageIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 
 const PAGE_LIMIT = 10
 
@@ -109,7 +109,7 @@ function ManageContentMenu({ contentId }: { contentId: string }) {
 function LoadingRows() {
   return Array.from({ length: 5 }, (_, index) => (
     <TableRow key={index}>
-      {Array.from({ length: 9 }, (_, cellIndex) => (
+      {Array.from({ length: 10 }, (_, cellIndex) => (
         <TableCell key={cellIndex} className="px-4 py-4">
           <Skeleton className="h-5 w-full min-w-16" />
         </TableCell>
@@ -246,7 +246,10 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     </dd>
                   </div>
                   <div className="rounded-xl bg-muted/50 p-3">
-                    <dt className="text-xs text-muted-foreground">ยอดขาย</dt>
+                    <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <CoinsIcon className="size-3.5 text-orange-500" strokeWidth={1.8} />
+                      ยอดขาย
+                    </dt>
                     <dd className="mt-1 font-semibold tabular-nums">
                       {formatNumber(content.sales_count)}
                     </dd>
@@ -272,10 +275,16 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
           <Table className="hidden min-w-[1080px] md:table">
             <TableHeader className="bg-muted/40">
               <TableRow>
+                <TableHead className="w-20 px-5 py-4">ปก</TableHead>
                 <TableHead className="px-5 py-4">ชื่อ</TableHead>
                 <TableHead className="px-4 py-4 text-right">จำนวนตอน</TableHead>
                 <TableHead className="px-4 py-4 text-right">จำนวนเข้าชม</TableHead>
-                <TableHead className="px-4 py-4 text-right">ยอดขาย</TableHead>
+                <TableHead className="px-4 py-4">
+                  <span className="flex items-center justify-end gap-1">
+                    <CoinsIcon className="size-4 text-orange-500" strokeWidth={1.8} />
+                    ยอดขาย
+                  </span>
+                </TableHead>
                 <TableHead className="px-4 py-4">ตอนล่าสุด</TableHead>
                 <TableHead className="px-4 py-4">ประเภท</TableHead>
                 <TableHead className="px-4 py-4">สถานะ</TableHead>
@@ -288,7 +297,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
               {!isLoading && hasError && (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-destructive">
+                  <TableCell colSpan={10} className="h-32 text-center text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </TableCell>
                 </TableRow>
@@ -296,7 +305,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
               {!isLoading && !hasError && contents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </TableCell>
                 </TableRow>
@@ -304,8 +313,32 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
               {!isLoading && !hasError && contents.map((content) => (
                 <TableRow key={content.id}>
-                  <TableCell className="max-w-72 px-5 py-4 font-semibold whitespace-normal">
-                    {content.title}
+                  <TableCell className="p-0">
+                    <Link
+                      href={`/writer/contents/${content.id}/edit`}
+                      aria-label={`แก้ไข ${content.title}`}
+                      className="flex px-5 py-3"
+                    >
+                      <div className="flex h-16 w-12 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                        {content.cover_url ? (
+                          <img
+                            src={content.cover_url}
+                            alt={`ปก ${content.title}`}
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="size-5 text-muted-foreground" strokeWidth={1.6} />
+                        )}
+                      </div>
+                    </Link>
+                  </TableCell>
+                  <TableCell className="max-w-72 p-0 font-semibold whitespace-normal">
+                    <Link
+                      href={`/writer/contents/${content.id}/edit`}
+                      className="block px-5 py-4 transition-colors hover:text-primary"
+                    >
+                      {content.title}
+                    </Link>
                   </TableCell>
                   <TableCell className="px-4 py-4 text-right tabular-nums">
                     {formatNumber(content.chapter_count)}
