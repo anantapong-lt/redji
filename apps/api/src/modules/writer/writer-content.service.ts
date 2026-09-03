@@ -280,13 +280,21 @@ export async function updateWriterContent(
 ): Promise<CreatedStory> {
   const existingStory = await getWriterContent(creatorUserId, contentId)
   const title = input.title.trim()
-  const slug = input.slug.trim()
+  const submittedSlug = input.slug.trim()
+  const slug = existingStory.slug
   const synopsis = optionalText(input.synopsis)
   const secondaryGenreId = optionalText(input.secondary_genre_id)
   const ageRating = parseAgeRating(input.age_rating)
 
   if (!title) throw new CreateWriterContentError('กรุณากรอกชื่อเรื่อง', 400, 'title')
   if (!slug) throw new CreateWriterContentError('กรุณากรอกลิงก์ URL', 400, 'slug')
+  if (submittedSlug !== slug) {
+    throw new CreateWriterContentError(
+      'ลิงก์ URL ไม่สามารถแก้ไขได้หลังสร้างเนื้อหาแล้ว',
+      400,
+      'slug',
+    )
+  }
 
   if (secondaryGenreId === input.primary_genre_id) {
     throw new CreateWriterContentError(

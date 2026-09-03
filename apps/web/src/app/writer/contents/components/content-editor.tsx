@@ -230,6 +230,7 @@ export function ContentEditor({
               <SlugField
                 initialSlug={story?.slug}
                 allowAutoGenerate={!contentId}
+                readOnly={Boolean(contentId)}
               />
               <SynopsisField
                 contentLabel={contentLabel}
