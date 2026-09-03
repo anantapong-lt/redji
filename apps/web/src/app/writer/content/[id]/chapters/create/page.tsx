@@ -458,8 +458,8 @@ function normalizePastedSlice(slice: Slice): Slice {
   const nodes: ProseMirrorNode[] = []
   slice.content.forEach((node) => nodes.push(node))
 
-  const normalizedNodes = nodes.map((node, index) => {
-    if (node.type.name !== 'paragraph' || node.textContent.trim()) return node
+  const normalizedNodes = nodes.flatMap((node, index) => {
+    if (node.type.name !== 'paragraph' || node.textContent.trim()) return [node]
 
     const previousNode = nodes
       .slice(0, index)
@@ -486,27 +486,24 @@ function normalizePastedSlice(slice: Slice): Slice {
       }
     }
 
-    const children: ProseMirrorNode[] = []
-    node.content.forEach((child) => children.push(child))
-    let lastHardBreakIndex = -1
-    for (let childIndex = children.length - 1; childIndex >= 0; childIndex -= 1) {
-      if (children[childIndex].type.name !== 'hardBreak') continue
-      lastHardBreakIndex = childIndex
-      break
-    }
-    if (lastHardBreakIndex >= 0) children.splice(lastHardBreakIndex, 1)
+    let explicitRowCount = 0
+    node.content.forEach((child) => {
+      if (child.type.name === 'hardBreak') explicitRowCount += 1
+    })
 
-    return node.type.create(
-      {
-        ...node.attrs,
-        blockStyle: paragraphStyle.cssText || node.attrs.blockStyle,
-        direction: node.attrs.direction
-          || previousNode?.attrs.direction
-          || nextNode?.attrs.direction
-          || null,
-      },
-      Fragment.fromArray(children),
-      node.marks,
+    const rowCount = Math.max(1, explicitRowCount)
+    const attributes = {
+      ...node.attrs,
+      blockStyle: paragraphStyle.cssText || node.attrs.blockStyle,
+      direction: node.attrs.direction
+        || previousNode?.attrs.direction
+        || nextNode?.attrs.direction
+        || null,
+    }
+
+    return Array.from(
+      { length: rowCount },
+      () => node.type.create(attributes, Fragment.empty, node.marks),
     )
   })
 
