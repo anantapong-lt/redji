@@ -1,31 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { Eye, Image as ImageIcon, LoaderCircle, UploadCloud, X } from 'lucide-react'
+import { Image as ImageIcon, LoaderCircle, UploadCloud, X } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
-import { StoryCard } from '@/components/common/story-card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { uploadWriterCover } from '@/lib/api'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const placeholderStories = [
-  { id: 'placeholder-1', title: 'ตัวอย่างเนื้อหา 1' },
-  { id: 'placeholder-2', title: 'ตัวอย่างเนื้อหา 2' },
-  { id: 'placeholder-3', title: 'ตัวอย่างเนื้อหา 3' },
-] as const
 
 export function CoverImageUpload() {
-  const { accessToken, user } = useAuth()
+  const { accessToken } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -33,8 +19,6 @@ export function CoverImageUpload() {
   const [fileName, setFileName] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [previewTitle, setPreviewTitle] = useState('ชื่อเรื่องของคุณ')
-  const [previewType, setPreviewType] = useState<'novel' | 'manga'>('novel')
 
   useEffect(() => {
     return () => {
@@ -108,20 +92,6 @@ export function CoverImageUpload() {
     setFileName(file.name)
   }
 
-  const prepareWebsitePreview = () => {
-    const form = inputRef.current?.form
-    const titleInput = form?.elements.namedItem('title')
-    const typeInput = form?.elements.namedItem('type')
-
-    if (titleInput instanceof HTMLInputElement) {
-      setPreviewTitle(titleInput.value.trim() || 'ชื่อเรื่องของคุณ')
-    }
-
-    if (typeInput instanceof HTMLInputElement) {
-      setPreviewType(typeInput.value === 'manga' ? 'manga' : 'novel')
-    }
-  }
-
   return (
     <div className="space-y-3">
       <Label htmlFor="cover-file" className="text-sm font-semibold">รูปปก</Label>
@@ -182,64 +152,7 @@ export function CoverImageUpload() {
       )}
 
       {previewUrl && (
-        <>
-          <p className="text-xs text-muted-foreground">ขนาดแนะนำ 1200 × 1600 px</p>
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                onClick={prepareWebsitePreview}
-                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-accent"
-              >
-                <Eye className="size-4" strokeWidth={1.8} />
-                แสดงตัวอย่าง
-              </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>ตัวอย่างการแสดงผลหน้าเว็บ</DialogTitle>
-                <DialogDescription>
-                  ตัวอย่างนี้ใช้รูปปกและข้อมูลที่กรอกในปัจจุบัน
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="rounded-2xl bg-white p-4 md:p-6">
-                <h3 className="mb-4 text-lg font-bold text-zinc-950">เนื้อหาอัปเดตล่าสุด</h3>
-                <div className="pointer-events-none grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <StoryCard
-                    title={placeholderStories[0].title}
-                    image="/placeholder.svg"
-                    episode="ตอนล่าสุด"
-                    author="ชื่อผู้เขียน"
-                    meta="0 ครั้ง"
-                    type={previewType}
-                  />
-                  <StoryCard
-                    title={previewTitle}
-                    image={previewUrl}
-                    episode="ยังไม่มีตอน"
-                    author={user?.display_name || 'ชื่อผู้เขียน'}
-                    meta="0 ครั้ง"
-                    type={previewType}
-                    eager
-                  />
-                  {placeholderStories.slice(1).map((story) => (
-                    <StoryCard
-                      key={story.id}
-                      title={story.title}
-                      image="/placeholder.svg"
-                      episode="ตอนล่าสุด"
-                      author="ชื่อผู้เขียน"
-                      meta="0 ครั้ง"
-                      type={previewType}
-                    />
-                  ))}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </>
+        <p className="text-xs text-muted-foreground">ขนาดแนะนำ 1200 × 1600 px</p>
       )}
 
       <Input
