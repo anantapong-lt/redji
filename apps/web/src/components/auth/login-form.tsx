@@ -21,7 +21,7 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
   const router = useRouter()
-  const { login, status } = useAuth()
+  const { login, status, user } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
   const {
     register,
@@ -31,15 +31,17 @@ export function LoginForm() {
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/')
-  }, [router, status])
+    if (status === 'authenticated' && user) {
+      router.replace(user.role === 'writer' ? '/writer' : '/')
+    }
+  }, [router, status, user])
 
   async function onSubmit(values: LoginValues) {
     setPreviewMessage('')
 
     try {
-      await login(values.email, values.password)
-      router.replace('/')
+      const session = await login(values.email, values.password)
+      router.replace(session.user.role === 'writer' ? '/writer' : '/')
     } catch (error) {
       setError('root', {
         message: error instanceof ApiError

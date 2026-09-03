@@ -23,7 +23,7 @@ interface AuthContextValue {
   accessToken: string | null
   user: AuthUser | null
   status: AuthStatus
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<AuthSession>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
 }
@@ -72,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const nextSession = await loginWithPassword(email, password)
     setSession(nextSession)
     setStatus('authenticated')
+    return nextSession
   }, [])
 
   const logout = useCallback(async () => {

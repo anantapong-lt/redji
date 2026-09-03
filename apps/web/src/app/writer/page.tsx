@@ -92,20 +92,7 @@ export default function WriterPage() {
           <p className="mt-0.5 text-xl font-bold text-primary">฿{formattedBalance}</p>
         </div>
 
-        <div className="mx-4 mt-3 flex items-center gap-3 rounded-xl px-1 py-2.5">
-          <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
-            {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="size-full object-cover" />
-            ) : userInitial}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{user.display_name}</p>
-            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-          </div>
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.7} />
-        </div>
-
-        <nav className="flex flex-1 flex-col px-3 pb-5" aria-label="เมนูนักเขียน">
+        <nav className="mt-3 flex flex-1 flex-col px-3 pb-3" aria-label="เมนูนักเขียน">
           <div className="space-y-0.5">
             {writerNavigation.map(({ enabled, href, icon: Icon, label }) => (
               enabled ? (
@@ -140,6 +127,20 @@ export default function WriterPage() {
             </Link>
           </div>
         </nav>
+
+        <footer className="border-t border-sidebar-border p-3">
+          <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="size-full object-cover" />
+              ) : userInitial}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold">{user.display_name}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          </div>
+        </footer>
       </aside>
 
       <main className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-10">

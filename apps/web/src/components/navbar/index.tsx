@@ -90,7 +90,18 @@ export function Navbar() {
 
           <div className="hidden shrink-0 items-center gap-1 md:flex">
             <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
-            <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
+            {user?.role === 'writer' ? (
+              <Link
+                href="/writer"
+                aria-label="โหมดนักเขียน"
+                title="โหมดนักเขียน"
+                className="readji-icon-button"
+              >
+                <PenLine className="size-5" />
+              </Link>
+            ) : (
+              <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
+            )}
             <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>
             <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end gap-2">
               {status === 'loading' ? (
@@ -183,8 +194,18 @@ export function Navbar() {
                 { label: 'ฟีด', icon: Rss },
                 { label: 'ประวัติ', icon: History },
                 { label: 'ค้นหานิยาย', icon: Search },
-                { label: 'Writer Studio', icon: PenLine },
-              ].map(({ label, icon: Icon }) => (
+                { label: 'Writer Studio', icon: PenLine, href: user?.role === 'writer' ? '/writer' : undefined },
+              ].map(({ label, icon: Icon, href }) => href ? (
+                <Link
+                  key={label}
+                  href={href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                >
+                  <Icon className="size-5 text-primary" />
+                  {label}
+                </Link>
+              ) : (
                 <span
                   key={label}
                   aria-disabled="true"
