@@ -29,7 +29,7 @@ function DesktopNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="hidden items-center gap-1.5 text-sm font-medium md:flex">
+    <nav className="hidden items-center gap-1.5 text-sm font-medium xl:flex">
       {NAV_ITEMS.map(({ label, icon: Icon, href }) =>
         href ? (
           <Link
@@ -64,7 +64,8 @@ export function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/78 shadow-[0_8px_28px_-24px_rgb(45_29_32_/_0.72)] backdrop-blur-xl">
-        <div className="mx-auto flex h-[4.35rem] max-w-[1280px] items-center justify-between px-4 md:px-8">
+        <div className="w-full px-4 md:px-8 lg:grid lg:grid-cols-[minmax(10rem,1fr)_minmax(0,960px)_minmax(10rem,1fr)] lg:gap-4">
+          <div className="flex h-[4.35rem] items-center justify-between lg:col-start-2">
           <div className="flex min-w-0 items-center gap-5 md:gap-7">
             <Link href="/" className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80">
               <span
@@ -102,6 +103,7 @@ export function Navbar() {
             >
               <Menu className="size-5" />
             </button>
+          </div>
           </div>
         </div>
       </header>
