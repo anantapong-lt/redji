@@ -36,6 +36,7 @@ export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const clearFieldError = useCallback((name: string) => {
+    setMessage(null)
     setErrors((currentErrors) => {
       if (!currentErrors[name]) return currentErrors
 
@@ -64,6 +65,8 @@ export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) 
 
     const form = event.currentTarget
     const body = new FormData(form)
+    const cover = body.get('cover')
+    if (cover instanceof File && cover.size === 0) body.delete('cover')
     const validation = createStorySchema.safeParse(Object.fromEntries(body.entries()))
 
     if (!validation.success) {
