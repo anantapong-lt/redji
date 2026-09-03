@@ -49,15 +49,15 @@
 }
 
 :root {
-  /* Brand palette: #F1F1EF แทนขาว, #471F21 แทนน้ำตาล */
-  --background: #f8f7f4;
+  /* Brand palette: #F1EFEB background, #FF6F63 primary */
+  --background: #f1efeb;
   --foreground: #2d1d20;
   --card: #fffdfa;
   --card-foreground: #2d1d20;
   --popover: #fffdfa;
   --popover-foreground: #2d1d20;
-  --primary: #54252b;
-  --primary-foreground: #fffdfa;
+  --primary: #ff6f63;
+  --primary-foreground: #2d1d20;
   --secondary: #f1e8e2;
   --secondary-foreground: #3a2428;
   --muted: #f0efeb;
@@ -65,10 +65,10 @@
   --accent: #f7ece8;
   --accent-foreground: #3a2428;
   --destructive: oklch(0.577 0.245 27.325);
-  /* เข้มขึ้นจาก 0.922 — ค่าเดิมจางเกินไปจนแยกไม่ออกจาก --background (#F1F1EF) */
+  /* เข้มขึ้นจาก 0.922 — ค่าเดิมจางเกินไปจนแยกไม่ออกจาก --background (#F1EFEB) */
   --border: #e5dfd9;
   --input: #ddd5ce;
-  --ring: #b56871;
+  --ring: #ff6f63;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -77,8 +77,8 @@
   --radius: 0.875rem;
   --sidebar: #fffdfa;
   --sidebar-foreground: #2d1d20;
-  --sidebar-primary: #54252b;
-  --sidebar-primary-foreground: #fffdfa;
+  --sidebar-primary: #ff6f63;
+  --sidebar-primary-foreground: #2d1d20;
   --sidebar-accent: #f7ece8;
   --sidebar-accent-foreground: #3a2428;
   --sidebar-border: #e5dfd9;

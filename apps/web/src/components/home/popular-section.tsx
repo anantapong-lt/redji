@@ -1,4 +1,4 @@
-import { StoryCard } from '@/components/story-card'
+import { StoryGrid } from '@/components/story-grid'
 
 const POPULAR_NOVELS = [
   { id: 1, title: 'จักรพรรดิเหนือบัลลังก์', episode: 'ตอนที่ 48', author: 'เมฆาพเนจร', reads: '1.8M อ่าน', image: '/covers/cartoon-cover-04.png' },
@@ -13,27 +13,31 @@ const POPULAR_NOVELS = [
   { id: 10, title: 'เจ้าหญิงแห่งนครลอยฟ้า', episode: 'ตอนที่ 63', author: 'ดาวเหนือ', reads: '580K อ่าน', image: '/covers/cartoon-cover-04.png' },
   { id: 11, title: 'ภารกิจพิชิตใจจอมมาร', episode: 'ตอนที่ 34', author: 'ลูกกวาด', reads: '524K อ่าน', image: '/covers/cartoon-cover-01.png' },
   { id: 12, title: 'ความลับของห้องหมายเลขสิบสาม', episode: 'ตอนที่ 26', author: 'อีกาดำ', reads: '498K อ่าน', image: '/covers/cartoon-cover-06.png' },
+  { id: 13, title: 'ราชันมังกรหวนคืน', episode: 'ตอนที่ 68', author: 'ดาบคราม', reads: '472K อ่าน', image: '/covers/cartoon-cover-01.png' },
+  { id: 14, title: 'สัญญารักใต้ต้นซากุระ', episode: 'ตอนที่ 32', author: 'กลีบดอกไม้', reads: '450K อ่าน', image: '/covers/cartoon-cover-02.png' },
+  { id: 15, title: 'นักสืบแห่งนครเวทมนตร์', episode: 'ตอนที่ 44', author: 'แว่นขยาย', reads: '421K อ่าน', image: '/covers/cartoon-cover-03.png' },
+  { id: 16, title: 'สงครามบัลลังก์ลอยฟ้า', episode: 'ตอนที่ 76', author: 'ปีกสีขาว', reads: '398K อ่าน', image: '/covers/cartoon-cover-04.png' },
+  { id: 17, title: 'คาเฟ่ลับรับสมัครภูต', episode: 'ตอนที่ 19', author: 'น้ำตาลปั้น', reads: '376K อ่าน', image: '/covers/cartoon-cover-05.png' },
+  { id: 18, title: 'นักบินคนสุดท้ายแห่งกาแล็กซี', episode: 'ตอนที่ 51', author: 'ดาวหาง', reads: '354K อ่าน', image: '/covers/cartoon-cover-07.png' },
 ] as const
 
 export function PopularSection() {
   return (
-    <section className="mx-auto max-w-[1280px] rounded-3xl px-4 py-8 md:px-8 md:py-10">
-      <h2 className="mb-6 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
+    <section
+      aria-labelledby="popular-heading"
+      className="mx-auto max-w-[1280px] rounded-3xl px-4 py-8 md:px-8 md:py-10"
+    >
+      <h2 id="popular-heading" className="mb-6 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
         ยอดนิยม
       </h2>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-5">
-        {POPULAR_NOVELS.map((item) => (
-          <StoryCard
-            key={item.id}
-            title={item.title}
-            image={item.image}
-            episode={item.episode}
-            author={item.author}
-            meta={item.reads}
-          />
-        ))}
-      </div>
+      <StoryGrid
+        stories={POPULAR_NOVELS.map((item) => ({
+          ...item,
+          type: 'novel' as const,
+          meta: item.reads,
+        }))}
+      />
     </section>
   )
 }

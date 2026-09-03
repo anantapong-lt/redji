@@ -1,4 +1,4 @@
-import { StoryCard } from '@/components/story-card'
+import { StoryGrid } from '@/components/story-grid'
 
 const LATEST_UPDATES = [
   {
@@ -7,7 +7,7 @@ const LATEST_UPDATES = [
     episode: 'ตอนที่ 12',
     author: 'ปลายปากกาสีคราม',
     updatedAt: '4 นาที',
-    image: '/covers/cartoon-cover-01.png',
+    image: '/covers/612230205_853260300955627_3408929932829384039_n.jpg',
   },
   {
     id: 2,
@@ -97,27 +97,74 @@ const LATEST_UPDATES = [
     updatedAt: '14 ชั่วโมง',
     image: '/covers/cartoon-cover-05.png',
   },
+  {
+    id: 13,
+    title: 'ผู้กล้าแห่งหุบเขามังกร',
+    episode: 'ตอนที่ 18',
+    author: 'ดาบสีเงิน',
+    updatedAt: '15 ชั่วโมง',
+    image: '/covers/cartoon-cover-06.png',
+  },
+  {
+    id: 14,
+    title: 'รักแรกในร้านหนังสือ',
+    episode: 'ตอนที่ 10',
+    author: 'กระดาษสีครีม',
+    updatedAt: '16 ชั่วโมง',
+    image: '/covers/cartoon-cover-02.png',
+  },
+  {
+    id: 15,
+    title: 'จอมเวทฝึกหัดกับภารกิจลับ',
+    episode: 'ตอนที่ 31',
+    author: 'ไม้กายสิทธิ์',
+    updatedAt: '17 ชั่วโมง',
+    image: '/covers/cartoon-cover-03.png',
+  },
+  {
+    id: 16,
+    title: 'เมืองลับแลใต้แสงจันทร์',
+    episode: 'ตอนที่ 20',
+    author: 'คืนเดือนเพ็ญ',
+    updatedAt: '18 ชั่วโมง',
+    image: '/covers/cartoon-cover-04.png',
+  },
+  {
+    id: 17,
+    title: 'สูตรรักฉบับแม่มดน้อย',
+    episode: 'ตอนที่ 14',
+    author: 'ขนมหวาน',
+    updatedAt: '19 ชั่วโมง',
+    image: '/covers/cartoon-cover-05.png',
+  },
+  {
+    id: 18,
+    title: 'ปลายทางของดวงดาว',
+    episode: 'ตอนที่ 27',
+    author: 'กาแล็กซี',
+    updatedAt: '20 ชั่วโมง',
+    image: '/covers/cartoon-cover-07.png',
+  },
 ] as const
 
 export function LatestUpdatesSection() {
   return (
-    <section className="mx-auto mt-8 max-w-[1280px] rounded-3xl px-4 py-8 md:px-8 md:py-10">
-      <h2 className="mb-6 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
+    <section
+      aria-labelledby="latest-updates-heading"
+      className="mx-auto mt-8 max-w-[1280px] rounded-3xl px-4 py-8 md:px-8 md:py-10"
+    >
+      <h2 id="latest-updates-heading" className="mb-6 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
         อัพเดตใหม่
       </h2>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-5">
-        {LATEST_UPDATES.map((item) => (
-          <StoryCard
-            key={item.id}
-            title={item.title}
-            image={item.image}
-            episode={item.episode}
-            author={item.author}
-            meta={`อัพเดตเมื่อ ${item.updatedAt}ที่แล้ว`}
-          />
-        ))}
-      </div>
+      <StoryGrid
+        eagerFirst
+        stories={LATEST_UPDATES.map((item) => ({
+          ...item,
+          type: 'novel' as const,
+          meta: `อัพเดตเมื่อ ${item.updatedAt}ที่แล้ว`,
+        }))}
+      />
     </section>
   )
 }

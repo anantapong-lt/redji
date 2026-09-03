@@ -4,7 +4,7 @@
  * components/navbar/index.tsx — Navbar หลักของเว็บ
  *
  * มี:
- * - Logo + เมนู (หน้าแรก / ฟีด / ประวัติ) — active state (พื้นน้ำตาล) ตาม path ปัจจุบัน
+ * - Logo + เมนู (หน้าแรก / ฟีด / ประวัติ) — active state (ข้อความสี primary) ตาม path ปัจจุบัน
  * - ค้นหา (ไอคอน → ลิงก์ไปหน้า /search แยกต่างหาก สำหรับค้นแบบละเอียด)
  * - ปากกา (โหมดนักเขียน)
  * - Notification bell → popup เล็กๆ ทับหน้า (ไม่ redirect ไปหน้าใหม่)
@@ -92,7 +92,7 @@ function NavPills() {
             className={cn(
               'flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all duration-200',
               active
-                ? 'bg-primary text-primary-foreground shadow-[0_8px_18px_-12px_rgb(84_37_43_/_0.8)]'
+                ? 'text-primary'
                 : 'text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-sm',
             )}
           >
