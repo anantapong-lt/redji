@@ -69,6 +69,13 @@ export async function getMyContents(
         stories.status,
         stories.total_views::TEXT,
         COUNT(chapters.id)::TEXT AS chapter_count,
+        (
+          SELECT COUNT(*)
+          FROM chapter_purchases
+          INNER JOIN chapters AS purchased_chapters
+            ON purchased_chapters.id = chapter_purchases.chapter_id
+          WHERE purchased_chapters.story_id = stories.id
+        )::TEXT AS sales_count,
         CASE
           WHEN latest_chapter.id IS NULL THEN NULL
           ELSE json_build_object(

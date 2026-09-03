@@ -2,6 +2,7 @@ import { cors } from '@elysiajs/cors'
 import { Elysia } from 'elysia'
 import { env } from './config/env'
 import { authRoutes } from './modules/auth/auth.routes'
+import { chapterPurchaseRoutes } from './modules/chapter-purchase/chapter-purchase.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { writerRoutes } from './modules/writer/writer.routes'
 
@@ -13,6 +14,7 @@ const app = new Elysia()
     }),
   )
   .use(authRoutes)
+  .use(chapterPurchaseRoutes)
   .use(genreOptionsRoutes)
   .use(writerRoutes)
 

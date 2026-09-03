@@ -76,7 +76,7 @@ function LatestChapter({ content }: { content: WriterContent }) {
 function LoadingRows() {
   return Array.from({ length: 5 }, (_, index) => (
     <TableRow key={index}>
-      {Array.from({ length: 8 }, (_, cellIndex) => (
+      {Array.from({ length: 9 }, (_, cellIndex) => (
         <TableCell key={cellIndex} className="px-4 py-4">
           <Skeleton className="h-5 w-full min-w-16" />
         </TableCell>
@@ -92,7 +92,8 @@ function LoadingCards() {
         <Skeleton className="h-5 w-2/3" />
         <Skeleton className="h-5 w-16" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
+        <Skeleton className="h-12 w-full" />
         <Skeleton className="h-12 w-full" />
         <Skeleton className="h-12 w-full" />
       </div>
@@ -198,7 +199,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </Badge>
                 </div>
 
-                <dl className="mt-4 grid grid-cols-2 gap-3">
+                <dl className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
                   <div className="rounded-xl bg-muted/50 p-3">
                     <dt className="text-xs text-muted-foreground">จำนวนตอน</dt>
                     <dd className="mt-1 font-semibold tabular-nums">
@@ -209,6 +210,12 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     <dt className="text-xs text-muted-foreground">จำนวนเข้าชม</dt>
                     <dd className="mt-1 font-semibold tabular-nums">
                       {formatNumber(content.total_views)}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <dt className="text-xs text-muted-foreground">ยอดขาย</dt>
+                    <dd className="mt-1 font-semibold tabular-nums">
+                      {formatNumber(content.sales_count)}
                     </dd>
                   </div>
                 </dl>
@@ -231,12 +238,13 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
             ))}
           </div>
 
-          <Table className="hidden min-w-[980px] md:table">
+          <Table className="hidden min-w-[1080px] md:table">
             <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead className="px-5 py-4">ชื่อ</TableHead>
                 <TableHead className="px-4 py-4 text-right">จำนวนตอน</TableHead>
                 <TableHead className="px-4 py-4 text-right">จำนวนเข้าชม</TableHead>
+                <TableHead className="px-4 py-4 text-right">ยอดขาย</TableHead>
                 <TableHead className="px-4 py-4">ตอนล่าสุด</TableHead>
                 <TableHead className="px-4 py-4">ประเภท</TableHead>
                 <TableHead className="px-4 py-4">สถานะ</TableHead>
@@ -249,7 +257,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
               {!isLoading && hasError && (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-destructive">
+                  <TableCell colSpan={9} className="h-32 text-center text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </TableCell>
                 </TableRow>
@@ -257,7 +265,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
               {!isLoading && !hasError && contents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </TableCell>
                 </TableRow>
@@ -273,6 +281,9 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </TableCell>
                   <TableCell className="px-4 py-4 text-right tabular-nums">
                     {formatNumber(content.total_views)}
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-right tabular-nums">
+                    {formatNumber(content.sales_count)}
                   </TableCell>
                   <TableCell className="max-w-64 px-4 py-4 whitespace-normal">
                     <LatestChapter content={content} />

@@ -11,6 +11,7 @@ export interface WriterContent {
   status: StoryStatus
   total_views: string
   chapter_count: string
+  sales_count: string
   latest_chapter: {
     chapter_number: string
     title: string
