@@ -26,9 +26,9 @@
  */
 
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+// import { useQuery } from '@tanstack/react-query'
 import { Home, Rss, Search, Coins, PenLine, UserRound, UsersRound, History, ShieldCheck } from 'lucide-react'
-import { api } from '@/lib/api'
+// import { api } from '@/lib/api'
 import { SITE_CONFIG } from '@/site.config'
 import { contactIcon } from '@/lib/contact-icon'
 
@@ -72,21 +72,27 @@ const ACCOUNT_LINKS = [
 // แค่ไม่ apply สไตล์ — เจอบั๊กนี้เองระหว่างเขียนไฟล์นี้ แก้เป็น literal ทั้งหมดแล้ว)
 
 export function Footer() {
+  const contacts: WebContact[] = []
+  /*
   const { data: contacts = [] } = useQuery({
     queryKey: ['web-contacts'],
     queryFn: () =>
       api.get<{ data: WebContact[] }>('/web-contacts', { public: true }).then((res) => res.data),
     staleTime: 5 * 60 * 1000, // แทบไม่เปลี่ยนเลย — cache ไว้นานหน่อยกันยิงซ้ำทุกหน้า
   })
+  */
 
   // โชว์หมดทุกหมวดที่แอดมินเปิดไว้ (status=true, กรองแล้วตั้งแต่ฝั่ง backend) ตามที่ user ขอ —
   // ไม่กรอง work_count > 0 ซ้ำแบบที่ทำก่อนหน้านี้ ต่างจากแถบหมวดหมู่หน้าแรก (category-row.tsx)
   // ที่ตั้งใจซ่อนหมวดว่างเพราะเป็นพื้นที่จำกัด — Footer มีพื้นที่พอโชว์ครบทุกหมวดได้เลย
+  const categories: FooterCategory[] = []
+  /*
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: () => api.get<{ data: FooterCategory[] }>('/categories', { public: true }).then((res) => res.data),
     staleTime: 5 * 60 * 1000,
   })
+  */
 
   return (
     <footer className="mt-16 bg-[linear-gradient(135deg,#34181d_0%,#54252b_56%,#713b44_100%)] shadow-[0_-18px_44px_-40px_rgb(45_29_32_/_0.8)]">
