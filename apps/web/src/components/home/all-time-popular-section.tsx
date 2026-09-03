@@ -2,17 +2,17 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { POPULAR_NOVELS } from '@/components/home/popular-section'
 
-const ALL_TIME_POPULAR = POPULAR_NOVELS.slice(0, 8)
+const ALL_TIME_POPULAR = POPULAR_NOVELS.slice(0, 5)
 
 export function AllTimePopularSection() {
   return (
     <aside
       aria-labelledby="all-time-popular-heading"
-      className="hidden w-4/5 self-start justify-self-start px-3 pt-16 lg:block"
+      className="w-full"
     >
       <div className="rounded-md bg-card p-4">
         <h2 id="all-time-popular-heading" className="text-lg font-bold tracking-tight text-foreground">
-          All-time Popular
+          ยอดนิยมตลอดกาล
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">เรื่องยอดนิยมตลอดกาล</p>
 
@@ -21,9 +21,17 @@ export function AllTimePopularSection() {
             <li key={story.id}>
               <Link
                 href="/novel"
-                className="group grid grid-cols-[1rem_2.25rem_minmax(0,1fr)] items-center gap-2"
+                className="group grid grid-cols-[1.5rem_2.25rem_minmax(0,1fr)] items-center gap-2"
               >
-                <span className="text-center text-sm font-black tabular-nums text-muted-foreground group-hover:text-primary">
+                <span
+                  className={`flex size-6 items-center justify-center rounded-full text-xs font-black tabular-nums transition-colors ${
+                    index === 0
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : index < 3
+                        ? 'bg-secondary text-secondary-foreground'
+                        : 'text-muted-foreground group-hover:text-primary'
+                  }`}
+                >
                   {index + 1}
                 </span>
                 <div className="relative aspect-[3/4] overflow-hidden rounded-sm">

@@ -107,8 +107,7 @@ a {
 
 .sidebar-link[data-active] {
   background: var(--primary);
-  color: var(--primary-foreground);
-  box-shadow: inset 3px 0 0 var(--foreground);
+  color: #ffffff;
 }
 
 .sidebar-level {

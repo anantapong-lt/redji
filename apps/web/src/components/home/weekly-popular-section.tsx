@@ -14,18 +14,26 @@ const WEEKLY_POPULAR = [
 
 export function WeeklyPopularSection() {
   return (
-    <aside aria-labelledby="weekly-popular-heading" className="hidden w-4/5 self-start justify-self-end px-3 pt-16 lg:block">
+    <aside aria-labelledby="weekly-popular-heading" className="w-full">
       <div className="rounded-md bg-card p-4">
         <h2 id="weekly-popular-heading" className="text-lg font-bold tracking-tight text-foreground">
-          Weekly Popular
+          ยอดนิยมประจำสัปดาห์
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">เรื่องที่ได้รับความนิยมในสัปดาห์นี้</p>
 
         <ol className="mt-4 space-y-3.5">
-          {WEEKLY_POPULAR.map((story, index) => (
+          {WEEKLY_POPULAR.slice(0, 5).map((story, index) => (
             <li key={story.id}>
-              <Link href="/novel" className="group grid grid-cols-[1rem_2.25rem_minmax(0,1fr)] items-center gap-2">
-                <span className="text-center text-sm font-black tabular-nums text-muted-foreground group-hover:text-primary">
+              <Link href="/novel" className="group grid grid-cols-[1.5rem_2.25rem_minmax(0,1fr)] items-center gap-2">
+                <span
+                  className={`flex size-6 items-center justify-center rounded-full text-xs font-black tabular-nums transition-colors ${
+                    index === 0
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : index < 3
+                        ? 'bg-secondary text-secondary-foreground'
+                        : 'text-muted-foreground group-hover:text-primary'
+                  }`}
+                >
                   {index + 1}
                 </span>
                 <div className="relative aspect-[3/4] overflow-hidden rounded-sm">

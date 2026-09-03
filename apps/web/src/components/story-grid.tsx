@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { StoryCard, type StoryCardProps } from '@/components/story-card'
+import { StoryCard, type StoryCardProps } from '@/components/common/story-card'
 
 interface StoryGridItem extends Omit<StoryCardProps, 'eager'> {
   id: string | number
