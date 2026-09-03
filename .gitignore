@@ -1,0 +1,49 @@
+# dependencies
+node_modules/
+.bun/
+
+# output
+out/
+dist/
+build/
+.next/
+*.tgz
+
+# code coverage
+coverage/
+*.lcov
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# dotenv environment variable files
+.env*
+!.env.example
+
+# Personal development notes and local design documents.
+/note for developing/
+
+# caches
+.eslintcache
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# editors and local tooling
+.idea/
+.vscode/
+.claude/
+
+# operating system files
+.DS_Store
+Thumbs.db
+
+# local DB dumps — contain real user emails/password hashes, never commit
+data_dump.sql
+*.dump.sql
