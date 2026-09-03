@@ -92,7 +92,7 @@ function ManageContentMenu({ contentId }: { contentId: string }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild>
-          <Link href={`/writer/contents/${contentId}/edit`}>
+          <Link href={`/writer/content/${contentId}/content`}>
             <PencilIcon />
             แก้ไข
           </Link>
@@ -315,7 +315,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow key={content.id}>
                   <TableCell className="p-0">
                     <Link
-                      href={`/writer/contents/${content.id}/edit`}
+                      href={`/writer/content/${content.id}/overview`}
                       aria-label={`แก้ไข ${content.title}`}
                       className="flex px-5 py-3"
                     >
@@ -334,7 +334,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </TableCell>
                   <TableCell className="max-w-72 p-0 font-semibold whitespace-normal">
                     <Link
-                      href={`/writer/contents/${content.id}/edit`}
+                      href={`/writer/content/${content.id}/overview`}
                       className="block px-5 py-4 transition-colors hover:text-primary"
                     >
                       {content.title}

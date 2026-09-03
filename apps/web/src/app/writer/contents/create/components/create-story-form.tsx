@@ -147,20 +147,27 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
     setMessage(null)
 
     try {
+      let savedContentId = contentId
       if (contentId) {
         await updateWriterContent(contentId, body, accessToken)
       } else {
-        await createWriterContent(body, accessToken)
+        const { story } = await createWriterContent(body, accessToken)
+        savedContentId = story.id
       }
       setIsSaved(true)
       initialSnapshotRef.current = getFormSnapshot(form)
       setIsDirty(false)
       toast.success(contentId ? 'แก้ไขเนื้อหาเรียบร้อยแล้ว' : 'บันทึกเนื้อหาเรียบร้อยแล้ว')
-      router.push('/writer/contents?tab=novel')
+      router.push(
+        contentId
+          ? '/writer/contents?tab=novel'
+          : `/writer/content/${savedContentId}/overview`,
+      )
     } catch (error) {
       if (error instanceof ApiError && error.field) {
         setErrors({ [error.field]: error.message })
         setMessage('กรุณาตรวจสอบข้อมูลที่กรอก')
+        toast.error(error.message)
         scrollToFirstError(form, error.field)
         return
       }

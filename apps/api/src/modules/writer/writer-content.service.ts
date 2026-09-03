@@ -78,12 +78,10 @@ function parseAgeRating(value: string): number {
 }
 
 function isUniqueViolation(error: unknown): boolean {
-  return Boolean(
-    error
-    && typeof error === 'object'
-    && 'code' in error
-    && error.code === '23505',
-  )
+  if (!error || typeof error !== 'object') return false
+
+  const postgresError = error as Record<string, unknown>
+  return postgresError.code === '23505' || postgresError.errno === '23505'
 }
 
 export async function getMyContents(

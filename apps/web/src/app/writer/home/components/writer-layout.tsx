@@ -123,6 +123,7 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
               const basePath = href.split('?')[0].replace(/\/$/, '')
               const isActive = pathname === basePath
                 || (basePath !== '/writer' && pathname.startsWith(`${basePath}/`))
+                || (basePath === '/writer/contents' && pathname.startsWith('/writer/content/'))
 
               return enabled ? (
                 <Link

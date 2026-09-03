@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StoryType } from '@/constants/story.constant'
 import { getWriterContent } from '@/controllers/writer.controller'
 import type {
@@ -19,12 +20,14 @@ import { SynopsisField } from './synopsis-field'
 
 interface ContentEditorProps {
   contentId?: string
+  embedded?: boolean
   initialContentType?: WriterContentTab
   initialTitle?: string
 }
 
 export function ContentEditor({
   contentId,
+  embedded = false,
   initialContentType = 'novel',
   initialTitle = '',
 }: ContentEditorProps) {
@@ -32,6 +35,11 @@ export function ContentEditor({
   const [story, setStory] = useState<WriterContentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(Boolean(contentId))
   const [loadError, setLoadError] = useState<string | null>(null)
+  const Root = embedded ? 'div' : 'main'
+  const rootClassName = embedded
+    ? 'mt-6'
+    : 'min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8'
+  const containerClassName = embedded ? '' : 'mx-auto max-w-7xl'
 
   useEffect(() => {
     if (!contentId) return
@@ -67,17 +75,56 @@ export function ContentEditor({
 
   if (isLoading) {
     return (
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
-        <div className="readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center text-sm text-muted-foreground">
-          กำลังโหลดข้อมูลเนื้อหา...
+      <Root className={rootClassName}>
+        <div className={containerClassName}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-9 w-52" />
+            </div>
+            <Skeleton className="h-8 w-20 rounded-full" />
+          </div>
+
+          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start">
+            <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
+              <div className="space-y-2 md:col-span-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-36 w-full rounded-xl" />
+              </div>
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-11 w-full rounded-xl" />
+                </div>
+              ))}
+            </section>
+
+            <aside className="readji-surface rounded-2xl p-5 md:p-6">
+              <Skeleton className="mb-3 h-4 w-16" />
+              <Skeleton className="aspect-[3/4] w-full rounded-2xl" />
+            </aside>
+
+            <div className="flex justify-end gap-3 border-t border-border pt-5 lg:col-span-2">
+              <Skeleton className="h-11 w-24 rounded-xl" />
+              <Skeleton className="h-11 w-28 rounded-xl" />
+            </div>
+          </div>
         </div>
-      </main>
+      </Root>
     )
   }
 
   if (contentId && (loadError || !story)) {
     return (
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
+      <Root className={rootClassName}>
         <div className="readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center">
           <p className="text-sm text-destructive">
             {loadError ?? 'ไม่พบเนื้อหาที่ต้องการแก้ไข'}
@@ -89,7 +136,7 @@ export function ContentEditor({
             กลับไปหน้าผลงาน
           </Link>
         </div>
-      </main>
+      </Root>
     )
   }
 
@@ -102,8 +149,8 @@ export function ContentEditor({
   const cancelHref = `/writer/contents/?tab=${contentType}`
 
   return (
-    <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto max-w-7xl">
+    <Root className={rootClassName}>
+      <div className={containerClassName}>
         <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
           <div>
             <Link
@@ -154,6 +201,6 @@ export function ContentEditor({
           </aside>
         </CreateStoryForm>
       </div>
-    </main>
+    </Root>
   )
 }
