@@ -73,7 +73,6 @@ CREATE TABLE stories (
   synopsis TEXT,
   cover_url TEXT,
   status story_status NOT NULL DEFAULT 'draft',
-  language_code VARCHAR(10) NOT NULL,
   age_rating SMALLINT,
   total_views BIGINT NOT NULL DEFAULT 0,
   published_at TIMESTAMPTZ,

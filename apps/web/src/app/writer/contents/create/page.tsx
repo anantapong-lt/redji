@@ -1,11 +1,22 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { WriterLayout } from '../../home/components/writer-layout'
+import { CoverImageUpload } from './components/cover-image-upload'
 
 type ContentType = 'novel' | 'cartoon'
 
 interface CreateContentPageProps {
-  searchParams: Promise<{ type?: string | string[] }>
+  searchParams: Promise<{
+    type?: string | string[]
+    title?: string | string[]
+  }>
 }
 
 const statusOptions = [
@@ -24,6 +35,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
   const isCartoon = contentType === 'cartoon'
   const contentLabel = isCartoon ? 'การ์ตูน' : 'นิยาย'
   const databaseType = isCartoon ? 'manga' : 'novel'
+  const initialTitle = typeof params.title === 'string' ? params.title : ''
 
   return (
     <WriterLayout>
@@ -48,10 +60,10 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
             </span>
           </div>
 
-          <form className="readji-surface mt-6 rounded-2xl p-5 md:p-6">
+          <form className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start">
             <input type="hidden" name="type" value={databaseType} />
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
               <label className="space-y-2 md:col-span-2">
                 <span className="block text-sm font-semibold">
                   ชื่อ{contentLabel} <span className="text-destructive">*</span>
@@ -59,6 +71,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                 <input
                   type="text"
                   name="title"
+                  defaultValue={initialTitle}
                   maxLength={255}
                   required
                   placeholder={`กรอกชื่อ${contentLabel}`}
@@ -93,39 +106,20 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                 />
               </label>
 
-              <label className="space-y-2 md:col-span-2">
-                <span className="block text-sm font-semibold">URL รูปปก</span>
-                <input
-                  type="url"
-                  name="cover_url"
-                  placeholder="https://example.com/cover.jpg"
-                  className={inputClassName}
-                />
-              </label>
-
               <label className="space-y-2">
                 <span className="block text-sm font-semibold">
                   สถานะ <span className="text-destructive">*</span>
                 </span>
-                <select name="status" defaultValue="draft" required className={inputClassName}>
-                  {statusOptions.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="space-y-2">
-                <span className="block text-sm font-semibold">
-                  รหัสภาษา <span className="text-destructive">*</span>
-                </span>
-                <input
-                  type="text"
-                  name="language_code"
-                  maxLength={10}
-                  required
-                  placeholder="ตัวอย่าง: th"
-                  className={inputClassName}
-                />
+                <Select name="status" defaultValue="draft" required>
+                  <SelectTrigger className="h-11! w-full rounded-xl px-3">
+                    <SelectValue placeholder="เลือกสถานะ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
 
               <label className="space-y-2">
@@ -146,9 +140,13 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                   <option value="">ยังไม่มีข้อมูลหมวดหมู่</option>
                 </select>
               </label>
-            </div>
+            </section>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-border pt-5">
+            <aside className="readji-surface rounded-2xl p-5 md:p-6">
+              <CoverImageUpload />
+            </aside>
+
+            <div className="flex justify-end gap-3 border-t border-border pt-5 lg:col-span-2">
               <Link
                 href={`/writer/contents/?tab=${contentType}`}
                 className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold transition-colors hover:bg-accent"
@@ -156,7 +154,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                 ยกเลิก
               </Link>
               <button
-                type="button"
+                type="submit"
                 className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 บันทึกฉบับร่าง

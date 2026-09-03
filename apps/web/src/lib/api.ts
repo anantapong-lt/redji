@@ -64,3 +64,17 @@ export function getWriterStats(accessToken: string): Promise<{ stats: WriterStat
     headers: { Authorization: `Bearer ${accessToken}` },
   })
 }
+
+export function uploadWriterCover(
+  file: File,
+  accessToken: string,
+): Promise<{ key: string; cover_url: string }> {
+  const body = new FormData()
+  body.append('file', file)
+
+  return apiRequest<{ key: string; cover_url: string }>('/writer/contents/cover', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body,
+  })
+}

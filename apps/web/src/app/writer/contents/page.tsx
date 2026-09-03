@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { Plus, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { WriterLayout } from '../home/components/writer-layout'
+import { CreateContentDialog } from './components/create-content-dialog'
 
 type ContentTab = 'novel' | 'cartoon'
 
@@ -123,13 +124,7 @@ export default async function WriterContentsPage({ searchParams }: WriterContent
               })}
             </nav>
 
-            <Link
-              href={`/writer/contents/create?type=${activeTab}`}
-              className="order-first flex min-h-12 self-end items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 lg:absolute lg:top-0 lg:right-0 lg:order-none"
-            >
-              <Plus className="size-4" strokeWidth={2} />
-              สร้างเนื้อหาใหม่
-            </Link>
+            <CreateContentDialog defaultType={activeTab} />
           </div>
 
           <section className="readji-surface mt-6 rounded-2xl p-4" aria-label="ตัวกรองเนื้อหา">
