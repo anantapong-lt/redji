@@ -86,6 +86,8 @@ const nextConfig: NextConfig = {
     return [{ source: '/:path*', headers: securityHeaders }]
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
+    qualities: [60, 75],
     remotePatterns: [
       // Unsplash — ใช้ตอน mock data
       {

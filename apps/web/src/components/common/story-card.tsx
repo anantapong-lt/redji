@@ -30,11 +30,12 @@ export function StoryCard({
             src={image}
             alt={`ปกเรื่อง ${title}`}
             fill
-            sizes="(min-width: 1024px) 186px, 22vw"
-            quality={70}
-            loading={eager ? 'eager' : 'lazy'}
-            fetchPriority={eager ? 'high' : 'auto'}
-            className="object-fit transition-transform duration-300 ease-out group-hover:scale-105"
+            sizes="(min-width: 1536px) 147px, (min-width: 1024px) 180px, calc((100vw - 56px) / 4)"
+            quality={60}
+            preload={eager}
+            loading={eager ? undefined : 'lazy'}
+            fetchPriority={eager ? 'high' : undefined}
+            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
           <span className="absolute bottom-2 left-2 rounded-md bg-zinc-950/75 px-1.5 py-0.5 text-[9px] font-semibold text-white lg:px-2 lg:py-1 lg:text-[11px]">
             {episode}
