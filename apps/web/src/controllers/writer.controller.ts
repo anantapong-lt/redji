@@ -6,6 +6,10 @@ import type {
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
 import type { WriterStats } from '@/interface/writer-stats.interface'
+import type {
+  ChapterStatus,
+  WriterChaptersResponse,
+} from '@/interface/writer-chapter.interface'
 
 export function getWriterStats(accessToken: string): Promise<{ stats: WriterStats }> {
   return apiRequest<{ stats: WriterStats }>('/writer/stats', {
@@ -73,5 +77,56 @@ export function updateWriterContent(
     method: 'PATCH',
     accessToken,
     body,
+  })
+}
+
+export function getWriterChapters(
+  contentId: string,
+  search: string,
+  page: number,
+  limit: number,
+  accessToken: string,
+): Promise<WriterChaptersResponse> {
+  const searchParams = new URLSearchParams({
+    search,
+    page: String(page),
+    limit: String(limit),
+  })
+
+  return apiRequest(`/writer/contents/${contentId}/chapters?${searchParams.toString()}`, {
+    accessToken,
+  })
+}
+
+export function bulkUpdateWriterChapterPrice(
+  contentId: string,
+  chapterIds: string[],
+  price: number,
+  accessToken: string,
+): Promise<{ updated_count: number }> {
+  return apiRequest(`/writer/contents/${contentId}/chapters/bulk-price`, {
+    method: 'PATCH',
+    accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chapter_ids: chapterIds, price }),
+  })
+}
+
+export function bulkUpdateWriterChapterStatus(
+  contentId: string,
+  chapterIds: string[],
+  status: ChapterStatus,
+  publishedAt: string | undefined,
+  accessToken: string,
+): Promise<{ updated_count: number }> {
+  return apiRequest(`/writer/contents/${contentId}/chapters/bulk-status`, {
+    method: 'PATCH',
+    accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chapter_ids: chapterIds,
+      status,
+      ...(publishedAt ? { published_at: publishedAt } : {}),
+    }),
   })
 }

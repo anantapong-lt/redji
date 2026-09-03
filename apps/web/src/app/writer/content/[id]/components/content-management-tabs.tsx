@@ -16,7 +16,10 @@ const tabs = [
 
 export function ContentManagementTabs({ contentId }: ContentManagementTabsProps) {
   const pathname = usePathname()
-  const activeTab = tabs.find(({ value }) => pathname.endsWith(`/${value}`))?.value
+  const activeTab = tabs.find(({ value }) => (
+    pathname === `/writer/content/${contentId}/${value}`
+    || pathname.startsWith(`/writer/content/${contentId}/${value}/`)
+  ))?.value
     ?? 'overview'
 
   return (

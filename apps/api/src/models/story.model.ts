@@ -24,5 +24,13 @@ export const STORY_STATUSES = [
   STORY_STATUS.CANCELLED,
 ] as const
 
+export const CHAPTER_STATUSES = [
+  'draft',
+  'scheduled',
+  'published',
+  'hidden',
+] as const
+
 export type StoryType = (typeof STORY_TYPES)[number]
 export type StoryStatus = (typeof STORY_STATUSES)[number]
+export type ChapterStatus = (typeof CHAPTER_STATUSES)[number]

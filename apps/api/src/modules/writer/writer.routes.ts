@@ -1,7 +1,13 @@
 import { Elysia, t } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
-import { STORY_STATUSES, STORY_TYPES } from '../../models/story.model'
+import { CHAPTER_STATUSES, STORY_STATUSES, STORY_TYPES } from '../../models/story.model'
+import {
+  bulkUpdateChapterPrice,
+  bulkUpdateChapterStatus,
+  getWriterChapters,
+  WriterChapterError,
+} from './writer-chapter.service'
 import {
   createWriterContent,
   CreateWriterContentError,
@@ -131,6 +137,89 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
           maxSize: '5m',
         })),
         remove_cover: t.Optional(t.Literal('true')),
+      }),
+    },
+  )
+  .get(
+    '/contents/:id/chapters',
+    async ({ currentUser, params, query, status }) => {
+      try {
+        return await getWriterChapters(currentUser.id, params.id, {
+          search: query.search,
+          page: query.page ?? 1,
+          limit: query.limit ?? 10,
+        })
+      } catch (error) {
+        if (error instanceof WriterChapterError) {
+          return status(error.statusCode, { message: error.message })
+        }
+
+        console.error('Unable to load writer chapters', error)
+        return status(500, { message: 'ไม่สามารถโหลดรายการตอนได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: t.Object({
+        id: t.String({ format: 'uuid' }),
+      }),
+      query: t.Object({
+        search: t.Optional(t.String({ maxLength: 255 })),
+        page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
+      }),
+    },
+  )
+  .patch(
+    '/contents/:id/chapters/bulk-price',
+    async ({ body, currentUser, params, status }) => {
+      try {
+        const updatedCount = await bulkUpdateChapterPrice(currentUser.id, params.id, body)
+        return { updated_count: updatedCount }
+      } catch (error) {
+        if (error instanceof WriterChapterError) {
+          return status(error.statusCode, { message: error.message })
+        }
+
+        console.error('Unable to bulk update chapter price', error)
+        return status(500, { message: 'ไม่สามารถอัปเดตราคาตอนได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: t.Object({
+        id: t.String({ format: 'uuid' }),
+      }),
+      body: t.Object({
+        chapter_ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 }),
+        price: t.Number({ minimum: 0, maximum: 9_999_999_999.99 }),
+      }),
+    },
+  )
+  .patch(
+    '/contents/:id/chapters/bulk-status',
+    async ({ body, currentUser, params, status }) => {
+      try {
+        const updatedCount = await bulkUpdateChapterStatus(currentUser.id, params.id, body)
+        return { updated_count: updatedCount }
+      } catch (error) {
+        if (error instanceof WriterChapterError) {
+          return status(error.statusCode, { message: error.message })
+        }
+
+        console.error('Unable to bulk update chapter status', error)
+        return status(500, { message: 'ไม่สามารถอัปเดตสถานะตอนได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: t.Object({
+        id: t.String({ format: 'uuid' }),
+      }),
+      body: t.Object({
+        chapter_ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 }),
+        status: t.UnionEnum(CHAPTER_STATUSES),
+        published_at: t.Optional(t.String({ format: 'date-time' })),
       }),
     },
   )

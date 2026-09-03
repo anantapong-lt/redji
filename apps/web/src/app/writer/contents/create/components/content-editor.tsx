@@ -34,6 +34,8 @@ export function ContentEditor({
   const { accessToken, status } = useAuth()
   const [story, setStory] = useState<WriterContentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(Boolean(contentId))
+  const [showSkeleton, setShowSkeleton] = useState(Boolean(contentId))
+  const [showContent, setShowContent] = useState(!contentId)
   const [loadError, setLoadError] = useState<string | null>(null)
   const Root = embedded ? 'div' : 'main'
   const rootClassName = embedded
@@ -73,10 +75,41 @@ export function ContentEditor({
     }
   }, [accessToken, contentId, status])
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!contentId) {
+      setShowSkeleton(false)
+      setShowContent(true)
+      return
+    }
+
+    if (isLoading) {
+      setShowSkeleton(true)
+      setShowContent(false)
+      return
+    }
+
+    let revealTimer: number | undefined
+    const fadeTimer = window.setTimeout(() => {
+      setShowSkeleton(false)
+      revealTimer = window.setTimeout(() => setShowContent(true), 50)
+    }, 300)
+
+    return () => {
+      window.clearTimeout(fadeTimer)
+      if (revealTimer !== undefined) window.clearTimeout(revealTimer)
+    }
+  }, [contentId, isLoading])
+
+  const contentOpacity = showContent ? 'opacity-100' : 'opacity-0'
+
+  if (showSkeleton) {
     return (
       <Root className={rootClassName}>
-        <div className={containerClassName}>
+        <div
+          className={`${containerClassName} transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+            isLoading ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-3">
               <Skeleton className="h-5 w-36" />
@@ -125,7 +158,9 @@ export function ContentEditor({
   if (contentId && (loadError || !story)) {
     return (
       <Root className={rootClassName}>
-        <div className="readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center">
+        <div
+          className={`readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+        >
           <p className="text-sm text-destructive">
             {loadError ?? 'ไม่พบเนื้อหาที่ต้องการแก้ไข'}
           </p>
@@ -150,7 +185,9 @@ export function ContentEditor({
 
   return (
     <Root className={rootClassName}>
-      <div className={containerClassName}>
+      <div
+        className={`${containerClassName} transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+      >
         <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
           <div>
             <Link

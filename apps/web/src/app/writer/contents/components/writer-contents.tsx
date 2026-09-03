@@ -106,9 +106,14 @@ function ManageContentMenu({ contentId }: { contentId: string }) {
   )
 }
 
-function LoadingRows() {
+function LoadingRows({ isVisible }: { isVisible: boolean }) {
   return Array.from({ length: 5 }, (_, index) => (
-    <TableRow key={index}>
+    <TableRow
+      key={index}
+      className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
       {Array.from({ length: 10 }, (_, cellIndex) => (
         <TableCell key={cellIndex} className="px-4 py-4">
           <Skeleton className="h-5 w-full min-w-16" />
@@ -118,21 +123,29 @@ function LoadingRows() {
   ))
 }
 
-function LoadingCards() {
-  return Array.from({ length: 3 }, (_, index) => (
-    <div key={index} className="space-y-4 border-b p-4 last:border-b-0">
-      <div className="flex items-start justify-between gap-3">
-        <Skeleton className="h-5 w-2/3" />
-        <Skeleton className="h-5 w-16" />
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-      <Skeleton className="h-4 w-full" />
+function LoadingCards({ isVisible }: { isVisible: boolean }) {
+  return (
+    <div
+      className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="space-y-4 border-b p-4 last:border-b-0">
+          <div className="flex items-start justify-between gap-3">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+          <Skeleton className="h-4 w-full" />
+        </div>
+      ))}
     </div>
-  ))
+  )
 }
 
 interface WriterContentsProps {
@@ -145,6 +158,8 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
   const { accessToken } = useAuth()
   const [result, setResult] = useState<WriterContentsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showSkeleton, setShowSkeleton] = useState(true)
+  const [showContent, setShowContent] = useState(false)
   const [hasError, setHasError] = useState(false)
 
   useEffect(() => {
@@ -170,6 +185,25 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
     }
   }, [accessToken, activeTab, page])
 
+  useEffect(() => {
+    if (isLoading) {
+      setShowSkeleton(true)
+      setShowContent(false)
+      return
+    }
+
+    let revealTimer: number | undefined
+    const fadeTimer = window.setTimeout(() => {
+      setShowSkeleton(false)
+      revealTimer = window.setTimeout(() => setShowContent(true), 50)
+    }, 300)
+
+    return () => {
+      window.clearTimeout(fadeTimer)
+      if (revealTimer !== undefined) window.clearTimeout(revealTimer)
+    }
+  }, [isLoading])
+
   const changeTab = (value: string) => {
     router.push(`/writer/contents?tab=${value}`)
   }
@@ -180,6 +214,8 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
   const contents = result?.contents ?? []
   const pagination = result?.pagination
+  const showResolvedState = !isLoading && !showSkeleton
+  const contentOpacity = showContent ? 'opacity-100' : 'opacity-0'
 
   return (
     <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
@@ -209,21 +245,25 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
             className="mt-6 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
           >
           <div className="md:hidden">
-            {isLoading && <LoadingCards />}
+            {showSkeleton && <LoadingCards isVisible={isLoading} />}
 
-            {!isLoading && hasError && (
-              <div className="px-4 py-12 text-center text-sm text-destructive">
-                ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
-              </div>
-            )}
+            {showResolvedState && (
+              <div
+                className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+              >
+                {hasError && (
+                  <div className="px-4 py-12 text-center text-sm text-destructive">
+                    ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
+                  </div>
+                )}
 
-            {!isLoading && !hasError && contents.length === 0 && (
-              <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-                ยังไม่มี{tabLabels[activeTab]}
-              </div>
-            )}
+                {!hasError && contents.length === 0 && (
+                  <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    ยังไม่มี{tabLabels[activeTab]}
+                  </div>
+                )}
 
-            {!isLoading && !hasError && contents.map((content) => (
+                {!hasError && contents.map((content) => (
               <article key={content.id} className="border-b p-4 last:border-b-0">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="min-w-0 font-semibold break-words">{content.title}</h2>
@@ -269,7 +309,9 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   <ManageContentMenu contentId={content.id} />
                 </div>
               </article>
-            ))}
+                ))}
+              </div>
+            )}
           </div>
 
           <Table className="hidden min-w-[1080px] md:table">
@@ -293,26 +335,33 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <LoadingRows />}
+              {showSkeleton && <LoadingRows isVisible={isLoading} />}
 
-              {!isLoading && hasError && (
-                <TableRow>
+              {showResolvedState && hasError && (
+                <TableRow
+                  className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+                >
                   <TableCell colSpan={10} className="h-32 text-center text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </TableCell>
                 </TableRow>
               )}
 
-              {!isLoading && !hasError && contents.length === 0 && (
-                <TableRow>
+              {showResolvedState && !hasError && contents.length === 0 && (
+                <TableRow
+                  className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+                >
                   <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </TableCell>
                 </TableRow>
               )}
 
-              {!isLoading && !hasError && contents.map((content) => (
-                <TableRow key={content.id}>
+              {showResolvedState && !hasError && contents.map((content) => (
+                <TableRow
+                  key={content.id}
+                  className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+                >
                   <TableCell className="p-0">
                     <Link
                       href={`/writer/content/${content.id}/overview`}
@@ -367,8 +416,10 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
             </TableBody>
           </Table>
 
-          {!isLoading && !hasError && pagination && (
-            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          {showResolvedState && !hasError && pagination && (
+            <div
+              className={`flex flex-col gap-3 border-t px-4 py-3 transition-opacity duration-300 ease-out motion-reduce:transition-none sm:flex-row sm:items-center sm:justify-between ${contentOpacity}`}
+            >
               <p className="text-sm text-muted-foreground">
                 ทั้งหมด {new Intl.NumberFormat('th-TH').format(pagination.total)} รายการ
               </p>
