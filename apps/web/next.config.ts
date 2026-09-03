@@ -27,7 +27,7 @@ function trustedPublicMediaUrl(value: string | undefined): URL | null {
 
 const isProduction = process.env.NODE_ENV === 'production'
 const apiOrigin = trustedHttpOrigin(process.env.NEXT_PUBLIC_API_URL)
-  ?? (isProduction ? null : 'http://localhost:3001')
+  ?? (isProduction ? null : 'http://localhost:4000')
 const publicMediaUrl = trustedPublicMediaUrl(process.env.NEXT_PUBLIC_R2_PUBLIC_URL)
 const publicMediaOrigin = publicMediaUrl?.origin
 const publicMediaRemotePattern = publicMediaUrl
@@ -83,7 +83,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3001/:path*',
+        destination: 'http://localhost:4000/:path*',
       },
     ]
   },

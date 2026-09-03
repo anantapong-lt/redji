@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE TYPE user_role AS ENUM ('user', 'admin', 'super_admin');
+CREATE TYPE user_role AS ENUM ('user', 'writer', 'super_admin');
 CREATE TYPE user_status AS ENUM ('active', 'suspended', 'banned');
 CREATE TYPE oauth_provider AS ENUM ('google');
 CREATE TYPE story_type AS ENUM ('novel', 'manga');

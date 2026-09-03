@@ -1,43 +1,65 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Lock, User } from 'lucide-react'
+import { Lock, Mail } from 'lucide-react'
+import { useAuth } from './auth-provider'
 import { CloudflarePlaceholder } from './cloudflare-placeholder'
 import { IconInput, PasswordInput } from './form-inputs'
+import { ApiError } from '@/lib/api'
 
 const loginSchema = z.object({
-  login: z.string().min(1, 'กรุณากรอกชื่อบัญชีผู้ใช้งานหรืออีเมล'),
+  email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
   password: z.string().min(1, 'กรุณากรอกรหัสผ่าน'),
 })
 
 type LoginValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
+  const router = useRouter()
+  const { login, status } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
 
-  function onSubmit() {
-    setPreviewMessage('โหมดตัวอย่าง UI — ระบบเข้าสู่ระบบยังไม่เปิดใช้งาน')
+  useEffect(() => {
+    if (status === 'authenticated') router.replace('/')
+  }, [router, status])
+
+  async function onSubmit(values: LoginValues) {
+    setPreviewMessage('')
+
+    try {
+      await login(values.email, values.password)
+      router.replace('/')
+    } catch (error) {
+      setError('root', {
+        message: error instanceof ApiError
+          ? error.message
+          : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+      })
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" aria-busy={isSubmitting}>
       <div>
         <IconInput
-          icon={<User className="size-4" />}
-          placeholder="ชื่อบัญชีผู้ใช้งานหรืออีเมล"
-          autoComplete="username"
-          {...register('login')}
+          type="email"
+          icon={<Mail className="size-4" />}
+          placeholder="อีเมล"
+          autoComplete="email"
+          {...register('email')}
         />
-        {errors.login && <p className="mt-1 text-xs text-destructive">{errors.login.message}</p>}
+        {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
       </div>
 
       <div>
@@ -52,9 +74,19 @@ export function LoginForm() {
 
       <CloudflarePlaceholder />
 
-      <button type="submit" className="h-11 w-full cursor-pointer rounded-lg bg-primary px-4 text-base font-medium text-white transition-colors hover:bg-primary/90">
-        เข้าสู่ระบบ
+      <button
+        type="submit"
+        disabled={isSubmitting || status === 'loading'}
+        className="h-11 w-full cursor-pointer rounded-lg bg-primary px-4 text-base font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
       </button>
+
+      {errors.root?.message && (
+        <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+          {errors.root.message}
+        </p>
+      )}
 
       <div className="flex items-center gap-3" aria-hidden="true">
         <div className="h-px flex-1 bg-border" />

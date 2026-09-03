@@ -1,4 +1,4 @@
-export const USER_ROLES = ['user', 'admin', 'super_admin'] as const
+export const USER_ROLES = ['user', 'writer', 'super_admin'] as const
 export const USER_STATUSES = ['active', 'suspended', 'banned'] as const
 
 export type UserRole = (typeof USER_ROLES)[number]

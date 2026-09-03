@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, History, Home, LogIn, Menu, PenLine, Rss, Search, X } from 'lucide-react'
+import { Bell, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, X } from 'lucide-react'
+import { useAuth } from '@/components/auth/auth-provider'
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
@@ -60,6 +61,16 @@ function DesktopNav() {
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { logout, status, user } = useAuth()
+
+  async function handleLogout() {
+    await logout()
+    setMobileMenuOpen(false)
+  }
+
+  const userInitial = user?.display_name.trim().charAt(0)
+    || user?.username.trim().charAt(0)
+    || '?'
 
   return (
     <>
@@ -81,13 +92,39 @@ export function Navbar() {
             <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
             <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
             <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>
-            <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end">
-              <Link
-                href="/login"
-                className="rounded-full border border-primary/25 bg-card/70 px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:-translate-y-px hover:bg-primary hover:text-primary-foreground hover:shadow-md"
-              >
-                เข้าสู่ระบบ
-              </Link>
+            <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end gap-2">
+              {status === 'loading' ? (
+                <div className="h-10 w-32 animate-pulse rounded-full bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
+              ) : user ? (
+                <>
+                  <div className="flex min-w-0 items-center gap-2 rounded-full border border-border bg-card/70 py-1.5 pr-3 pl-1.5">
+                    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                      ) : userInitial}
+                    </span>
+                    <span className="max-w-32 truncate text-sm font-semibold text-foreground">
+                      {user.display_name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    aria-label="ออกจากระบบ"
+                    title="ออกจากระบบ"
+                    className="readji-icon-button cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    <LogOut className="size-5" />
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full border border-primary/25 bg-card/70 px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:-translate-y-px hover:bg-primary hover:text-primary-foreground hover:shadow-md"
+                >
+                  เข้าสู่ระบบ
+                </Link>
+              )}
             </div>
           </div>
 
@@ -161,21 +198,49 @@ export function Navbar() {
             </nav>
 
             <div className="shrink-0 space-y-2 border-t border-border p-4">
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <LogIn className="size-4" />
-                เข้าสู่ระบบ
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex w-full items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
-              >
-                สมัครสมาชิก
-              </Link>
+              {status === 'loading' ? (
+                <div className="h-12 w-full animate-pulse rounded-xl bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
+              ) : user ? (
+                <>
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                      ) : userInitial}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{user.display_name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
+                  >
+                    <LogOut className="size-4" />
+                    ออกจากระบบ
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    <LogIn className="size-4" />
+                    เข้าสู่ระบบ
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex w-full items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
+                  >
+                    สมัครสมาชิก
+                  </Link>
+                </>
+              )}
             </div>
           </aside>
         </div>
