@@ -30,7 +30,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
     <WriterLayout>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
         <div className="mx-auto max-w-7xl">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
             <div>
               <Link
                 href={`/writer/contents/?tab=${contentType}`}
@@ -44,7 +44,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
               </h1>
             </div>
 
-            <span className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary">
+            <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary">
               {contentLabel}
             </span>
           </div>

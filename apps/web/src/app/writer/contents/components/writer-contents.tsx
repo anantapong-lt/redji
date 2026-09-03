@@ -85,6 +85,22 @@ function LoadingRows() {
   ))
 }
 
+function LoadingCards() {
+  return Array.from({ length: 3 }, (_, index) => (
+    <div key={index} className="space-y-4 border-b p-4 last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <Skeleton className="h-5 w-2/3" />
+        <Skeleton className="h-5 w-16" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+      <Skeleton className="h-4 w-full" />
+    </div>
+  ))
+}
+
 interface WriterContentsProps {
   activeTab: WriterContentTab
   page: number
@@ -135,16 +151,16 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
     <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto">
         <Tabs value={activeTab} onValueChange={changeTab} className="block">
-          <div className="relative flex flex-col items-center gap-4 lg:min-h-14 lg:block">
+          <div className="relative flex flex-col gap-4 lg:min-h-14 lg:block">
             <TabsList
               aria-label="ประเภทผลงาน"
-              className="readji-surface mx-auto flex h-auto rounded-2xl bg-white p-1.5"
+              className="readji-surface mx-auto flex h-auto w-fit rounded-2xl bg-white p-1.5"
             >
               {(Object.entries(tabLabels) as [WriterContentTab, string][]).map(([value, label]) => (
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="h-auto min-w-36 rounded-xl px-8 py-4 text-base font-bold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+                  className="h-auto min-w-28 flex-none rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground sm:min-w-36 sm:px-8 sm:py-4 sm:text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                 >
                   {label}
                 </TabsTrigger>
@@ -158,7 +174,64 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
             value={activeTab}
             className="mt-6 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
           >
-          <Table className="min-w-[980px]">
+          <div className="md:hidden">
+            {isLoading && <LoadingCards />}
+
+            {!isLoading && hasError && (
+              <div className="px-4 py-12 text-center text-sm text-destructive">
+                ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
+              </div>
+            )}
+
+            {!isLoading && !hasError && contents.length === 0 && (
+              <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+                ยังไม่มี{tabLabels[activeTab]}
+              </div>
+            )}
+
+            {!isLoading && !hasError && contents.map((content) => (
+              <article key={content.id} className="border-b p-4 last:border-b-0">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="min-w-0 font-semibold break-words">{content.title}</h2>
+                  <Badge className="shrink-0" variant={statusVariant(content.status)}>
+                    {statusLabels[content.status]}
+                  </Badge>
+                </div>
+
+                <dl className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <dt className="text-xs text-muted-foreground">จำนวนตอน</dt>
+                    <dd className="mt-1 font-semibold tabular-nums">
+                      {formatNumber(content.chapter_count)}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <dt className="text-xs text-muted-foreground">จำนวนเข้าชม</dt>
+                    <dd className="mt-1 font-semibold tabular-nums">
+                      {formatNumber(content.total_views)}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="mt-4 space-y-1 text-sm">
+                  <p className="text-xs text-muted-foreground">ตอนล่าสุด</p>
+                  <p className="break-words"><LatestChapter content={content} /></p>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3">
+                  <div className="min-w-0 text-xs text-muted-foreground">
+                    <p>{typeLabels[content.type]}</p>
+                    <p className="mt-0.5">สร้างเมื่อ {formatDate(content.created_at)}</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0">
+                    จัดการ
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <Table className="hidden min-w-[980px] md:table">
             <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead className="px-5 py-4">ชื่อ</TableHead>
@@ -226,7 +299,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
               <p className="text-sm text-muted-foreground">
                 ทั้งหมด {new Intl.NumberFormat('th-TH').format(pagination.total)} รายการ
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2 sm:justify-start">
                 <Button
                   type="button"
                   variant="outline"

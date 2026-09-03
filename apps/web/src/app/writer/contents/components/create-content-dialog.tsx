@@ -63,7 +63,7 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="order-first min-h-12 self-end rounded-xl px-5 py-3 text-sm font-bold hover:text-white lg:absolute lg:top-0 lg:right-0 lg:order-none">
+        <Button className="order-first min-h-12 w-full rounded-xl px-5 py-3 text-sm font-bold hover:text-white sm:w-auto sm:self-end lg:absolute lg:top-0 lg:right-0 lg:order-none">
           <Plus className="size-4" strokeWidth={2} />
           สร้างเนื้อหาใหม่
         </Button>
@@ -72,7 +72,7 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
       <DialogContent
         showCloseButton={false}
         overlayClassName="bg-black/50 backdrop-blur-none"
-        className="w-full max-w-lg gap-0 rounded-2xl border border-border bg-background p-5 text-foreground shadow-2xl ring-0 md:p-6 sm:max-w-lg"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] overflow-y-auto gap-0 rounded-2xl border border-border bg-background p-4 text-foreground shadow-2xl ring-0 sm:max-w-lg sm:p-6"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -149,7 +149,7 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
             </RadioGroup>
           </fieldset>
 
-          <div className="mt-6 flex justify-end gap-3 border-t border-border pt-5">
+          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:justify-end">
             <DialogClose asChild>
               <Button type="button" variant="outline" className="min-h-11 rounded-xl px-5 font-semibold">
                 ยกเลิก

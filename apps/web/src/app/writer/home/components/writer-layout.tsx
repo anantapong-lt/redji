@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -10,8 +10,10 @@ import {
   FileText,
   Flag,
   Home,
+  Menu,
   MessageSquare,
   UserCog,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
 import { userRole } from '@/interface/user.interface'
@@ -52,6 +54,7 @@ export function WriterLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { status, user } = useAuth()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -63,6 +66,10 @@ export function WriterLayout({ children }: { children: ReactNode }) {
       router.replace('/')
     }
   }, [router, status, user])
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   if (status === 'loading' || status === 'unauthenticated' || user?.role !== userRole.WRITER) {
     return (
@@ -82,9 +89,49 @@ export function WriterLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background md:flex">
-      <aside className="flex min-h-screen w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:h-screen md:w-64 md:min-h-0 md:shrink-0">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-sidebar-border bg-sidebar/95 px-4 text-sidebar-foreground backdrop-blur md:hidden">
+        <div className="min-w-0">
+          <p className="truncate font-bold tracking-[-0.025em]">หน้านักเขียน</p>
+          <p className="truncate text-xs text-muted-foreground">฿{formattedBalance}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(true)}
+          aria-label="เปิดเมนูนักเขียน"
+          aria-expanded={isMobileMenuOpen}
+          className="flex size-10 cursor-pointer items-center justify-center rounded-xl transition-colors hover:bg-sidebar-accent"
+        >
+          <Menu className="size-5" strokeWidth={1.8} />
+        </button>
+      </header>
+
+      {isMobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="ปิดเมนูนักเขียน"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 z-50 cursor-default bg-foreground/35 md:hidden"
+        />
+      )}
+
+      <aside
+        aria-label="เมนูนักเขียน"
+        className={`fixed inset-y-0 left-0 z-[60] flex h-[100dvh] w-[min(20rem,calc(100vw-1rem))] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:w-64 md:shrink-0 md:translate-x-0 md:shadow-none ${
+          isMobileMenuOpen ? 'visible translate-x-0' : 'invisible -translate-x-full md:visible'
+        }`}
+      >
         <div className="px-5 pt-6 pb-5">
-          <p className="text-lg font-bold tracking-[-0.025em]">หน้านักเขียน</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-lg font-bold tracking-[-0.025em]">หน้านักเขียน</p>
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="ปิดเมนูนักเขียน"
+              className="flex size-9 cursor-pointer items-center justify-center rounded-xl transition-colors hover:bg-sidebar-accent md:hidden"
+            >
+              <X className="size-5" strokeWidth={1.8} />
+            </button>
+          </div>
         </div>
 
         <div className="mx-4 rounded-2xl bg-sidebar-accent px-4 py-3.5">
@@ -92,7 +139,7 @@ export function WriterLayout({ children }: { children: ReactNode }) {
           <p className="mt-0.5 text-xl font-bold text-primary">฿{formattedBalance}</p>
         </div>
 
-        <nav className="mt-3 flex flex-1 flex-col px-3 pb-3" aria-label="เมนูนักเขียน">
+        <nav className="mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3" aria-label="เมนูนักเขียน">
           <div className="space-y-0.5">
             {writerNavigation.map(({ enabled, href, icon: Icon, label }) => {
               const basePath = href.split('?')[0].replace(/\/$/, '')
@@ -103,6 +150,7 @@ export function WriterLayout({ children }: { children: ReactNode }) {
                 <Link
                   key={href}
                   href={href}
+                  onClick={() => setIsMobileMenuOpen(false)}
                   aria-current={isActive ? 'page' : undefined}
                   className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent data-[active]:bg-sidebar-primary data-[active]:text-white"
                   data-active={isActive || undefined}
@@ -124,6 +172,7 @@ export function WriterLayout({ children }: { children: ReactNode }) {
             ))}
             <Link
               href="/"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
             >
               <Home className="size-4 shrink-0" strokeWidth={1.8} />

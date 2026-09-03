@@ -120,11 +120,11 @@ export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) 
         {children}
       </CreateStoryFormContext.Provider>
 
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-5 lg:col-span-2">
+      <div className="grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:col-span-2">
         {message && (
           <p
             role="status"
-            className={`mr-auto text-sm ${isSaved ? 'text-primary' : 'text-destructive'}`}
+            className={`col-span-2 mr-auto text-sm sm:col-span-1 ${isSaved ? 'text-primary' : 'text-destructive'}`}
           >
             {message}
           </p>
