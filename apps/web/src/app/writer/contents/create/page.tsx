@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { WriterLayout } from '../../home/components/writer-layout'
 import { CoverImageUpload } from './components/cover-image-upload'
+import { GenreSelect } from './components/genre-select'
 import { SlugField } from './components/slug-field'
 import { SynopsisField } from './components/synopsis-field'
 
@@ -115,15 +116,7 @@ export default async function CreateContentPage({ searchParams }: CreateContentP
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="genre" className="text-sm font-semibold">หมวดหมู่</Label>
-                <Select name="genre_ids" disabled>
-                  <SelectTrigger id="genre" className="h-11! w-full rounded-xl px-3">
-                    <SelectValue placeholder="ยังไม่มีข้อมูลหมวดหมู่" />
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
-              </div>
+              <GenreSelect />
             </section>
 
             <aside className="readji-surface rounded-2xl p-5 md:p-6">
