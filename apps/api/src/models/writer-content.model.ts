@@ -32,6 +32,19 @@ export interface WriterContentCount {
   total: string
 }
 
+export interface WriterContentDetail {
+  id: string
+  title: string
+  slug: string
+  synopsis: string | null
+  cover_url: string | null
+  type: StoryType
+  status: StoryStatus
+  age_rating: number | null
+  primary_genre_id: string
+  secondary_genre_id: string | null
+}
+
 export interface MyContentsResult {
   contents: WriterContent[]
   pagination: {
@@ -52,6 +65,10 @@ export interface CreateWriterContentInput {
   primary_genre_id: string
   secondary_genre_id?: string
   cover?: File
+}
+
+export interface UpdateWriterContentInput extends CreateWriterContentInput {
+  remove_cover?: 'true'
 }
 
 export interface CreatedStory {

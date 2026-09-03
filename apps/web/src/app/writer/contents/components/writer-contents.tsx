@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
@@ -80,7 +81,7 @@ function LatestChapter({ content }: { content: WriterContent }) {
   )
 }
 
-function ManageContentMenu() {
+function ManageContentMenu({ contentId }: { contentId: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -90,9 +91,11 @@ function ManageContentMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem>
-          <PencilIcon />
-          แก้ไข
+        <DropdownMenuItem asChild>
+          <Link href={`/writer/contents/${contentId}/edit`}>
+            <PencilIcon />
+            แก้ไข
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
           <Trash2Icon />
@@ -260,7 +263,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     <p>{typeLabels[content.type]}</p>
                     <p className="mt-0.5">สร้างเมื่อ {formatDate(content.created_at)}</p>
                   </div>
-                  <ManageContentMenu />
+                  <ManageContentMenu contentId={content.id} />
                 </div>
               </article>
             ))}
@@ -324,7 +327,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </TableCell>
                   <TableCell className="px-4 py-4">{formatDate(content.created_at)}</TableCell>
                   <TableCell className="px-5 py-4 text-right">
-                    <ManageContentMenu />
+                    <ManageContentMenu contentId={content.id} />
                   </TableCell>
                 </TableRow>
               ))}

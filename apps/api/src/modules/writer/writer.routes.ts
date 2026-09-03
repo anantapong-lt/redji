@@ -6,6 +6,8 @@ import {
   createWriterContent,
   CreateWriterContentError,
   getMyContents,
+  getWriterContent,
+  updateWriterContent,
 } from './writer-content.service'
 import { getWriterStats } from './writer.service'
 
@@ -65,6 +67,70 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
           type: ['image/jpeg', 'image/png', 'image/webp'],
           maxSize: '5m',
         })),
+      }),
+    },
+  )
+  .get(
+    '/contents/:id',
+    async ({ currentUser, params, status }) => {
+      try {
+        return { story: await getWriterContent(currentUser.id, params.id) }
+      } catch (error) {
+        if (error instanceof CreateWriterContentError) {
+          return status(error.statusCode, {
+            message: error.message,
+            field: error.field,
+          })
+        }
+
+        console.error('Unable to load writer content', error)
+        return status(500, { message: 'ไม่สามารถโหลดเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: t.Object({
+        id: t.String({ format: 'uuid' }),
+      }),
+    },
+  )
+  .patch(
+    '/contents/:id',
+    async ({ body, currentUser, params, status }) => {
+      try {
+        const story = await updateWriterContent(currentUser.id, params.id, body)
+        return { story }
+      } catch (error) {
+        if (error instanceof CreateWriterContentError) {
+          return status(error.statusCode, {
+            message: error.message,
+            field: error.field,
+          })
+        }
+
+        console.error('Unable to update writer content', error)
+        return status(500, { message: 'ไม่สามารถแก้ไขเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: t.Object({
+        id: t.String({ format: 'uuid' }),
+      }),
+      body: t.Object({
+        type: t.UnionEnum(STORY_TYPES),
+        title: t.String({ minLength: 1, maxLength: 255 }),
+        slug: t.String({ minLength: 1, maxLength: 255 }),
+        synopsis: t.Optional(t.String({ maxLength: 140 })),
+        status: t.UnionEnum(STORY_STATUSES),
+        age_rating: t.Optional(t.String()),
+        primary_genre_id: t.String({ format: 'uuid' }),
+        secondary_genre_id: t.Optional(t.String()),
+        cover: t.Optional(t.File({
+          type: ['image/jpeg', 'image/png', 'image/webp'],
+          maxSize: '5m',
+        })),
+        remove_cover: t.Optional(t.Literal('true')),
       }),
     },
   )

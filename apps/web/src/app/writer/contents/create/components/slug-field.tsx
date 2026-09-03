@@ -7,9 +7,13 @@ import { STORY_SLUG_MAX_LENGTH } from '@/constants/story.constant'
 import { SITE_CONFIG } from '@/site.config'
 import { useCreateStoryForm } from './create-story-form'
 
-export function SlugField() {
+interface SlugFieldProps {
+  initialSlug?: string
+}
+
+export function SlugField({ initialSlug = '' }: SlugFieldProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
-  const [slug, setSlug] = useState('')
+  const [slug, setSlug] = useState(initialSlug)
   const previewSlug = slug.trim() || 'your-story-slug'
   const siteUrl = SITE_CONFIG.siteUrl.replace(/\/$/, '')
 

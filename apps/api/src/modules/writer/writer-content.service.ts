@@ -4,21 +4,57 @@ import type {
   CreateWriterContentInput,
   GetMyContentsInput,
   MyContentsResult,
+  UpdateWriterContentInput,
   WriterContent,
   WriterContentCount,
+  WriterContentDetail,
 } from '../../models/writer-content.model'
 import type { StoryType } from '../../models/story.model'
-import { deleteWriterCover, uploadWriterCover } from './writer-cover.service'
+import {
+  deleteWriterCover,
+  deleteWriterCoverByUrl,
+  uploadWriterCover,
+} from './writer-cover.service'
 
 export class CreateWriterContentError extends Error {
   constructor(
     message: string,
-    readonly statusCode: 400 | 409,
+    readonly statusCode: 400 | 404 | 409,
     readonly field?: string,
   ) {
     super(message)
     this.name = 'CreateWriterContentError'
   }
+}
+
+export async function getWriterContent(
+  creatorUserId: string,
+  contentId: string,
+): Promise<WriterContentDetail> {
+  const [story] = await db<WriterContentDetail[]>`
+    SELECT
+      id,
+      title,
+      slug,
+      synopsis,
+      cover_url,
+      type,
+      status,
+      age_rating,
+      primary_genre_id,
+      secondary_genre_id
+    FROM stories
+    WHERE id = ${contentId}
+      AND creator_user_id = ${creatorUserId}
+      AND deleted_at IS NULL
+    LIMIT 1
+  `
+
+  if (!story) {
+    throw new CreateWriterContentError('ไม่พบเนื้อหาที่ต้องการแก้ไข', 404)
+  }
+
+  return story
 }
 
 function optionalText(value?: string): string | null {
@@ -206,6 +242,111 @@ export async function createWriterContent(
       )
       RETURNING id, type, slug, cover_url
     `
+
+    return story
+  } catch (error) {
+    if (uploadedCover) {
+      try {
+        await deleteWriterCover(uploadedCover.key)
+      } catch (deleteError) {
+        console.error('Unable to remove orphaned writer cover', deleteError)
+      }
+    }
+
+    if (isUniqueViolation(error)) {
+      throw new CreateWriterContentError('ลิงก์ URL นี้ถูกใช้งานแล้ว', 409, 'slug')
+    }
+
+    throw error
+  }
+}
+
+export async function updateWriterContent(
+  creatorUserId: string,
+  contentId: string,
+  input: UpdateWriterContentInput,
+): Promise<CreatedStory> {
+  const existingStory = await getWriterContent(creatorUserId, contentId)
+  const title = input.title.trim()
+  const slug = input.slug.trim()
+  const synopsis = optionalText(input.synopsis)
+  const secondaryGenreId = optionalText(input.secondary_genre_id)
+  const ageRating = parseAgeRating(input.age_rating)
+
+  if (!title) throw new CreateWriterContentError('กรุณากรอกชื่อเรื่อง', 400, 'title')
+  if (!slug) throw new CreateWriterContentError('กรุณากรอกลิงก์ URL', 400, 'slug')
+
+  if (secondaryGenreId === input.primary_genre_id) {
+    throw new CreateWriterContentError(
+      'หมวดหมู่หลักและหมวดหมู่รองต้องไม่ซ้ำกัน',
+      400,
+      'secondary_genre_id',
+    )
+  }
+
+  const [genres] = await db<{
+    primary_exists: boolean
+    secondary_exists: boolean
+  }[]>`
+    SELECT
+      EXISTS (
+        SELECT 1 FROM genres WHERE id = ${input.primary_genre_id}
+      ) AS primary_exists,
+      (
+        ${secondaryGenreId}::UUID IS NULL
+        OR EXISTS (
+          SELECT 1 FROM genres WHERE id = ${secondaryGenreId}
+        )
+      ) AS secondary_exists
+  `
+
+  if (!genres.primary_exists) {
+    throw new CreateWriterContentError('ไม่พบหมวดหมู่หลักที่เลือก', 400, 'primary_genre_id')
+  }
+
+  if (!genres.secondary_exists) {
+    throw new CreateWriterContentError('ไม่พบหมวดหมู่รองที่เลือก', 400, 'secondary_genre_id')
+  }
+
+  const uploadedCover = input.cover ? await uploadWriterCover(input.cover) : null
+  const shouldRemoveCover = input.remove_cover === 'true'
+  const previousCoverUrl = existingStory.cover_url
+  const hasCoverChanged = Boolean(uploadedCover) || shouldRemoveCover
+  const nextCoverUrl = uploadedCover?.cover_url
+    ?? (shouldRemoveCover ? null : previousCoverUrl)
+
+  try {
+    const [story] = await db<CreatedStory[]>`
+      UPDATE stories
+      SET
+        type = ${input.type},
+        title = ${title},
+        slug = ${slug},
+        synopsis = ${synopsis},
+        cover_url = ${nextCoverUrl},
+        status = ${input.status},
+        age_rating = ${ageRating},
+        primary_genre_id = ${input.primary_genre_id},
+        secondary_genre_id = ${secondaryGenreId},
+        updated_at = NOW()
+      WHERE id = ${contentId}
+        AND creator_user_id = ${creatorUserId}
+        AND deleted_at IS NULL
+      RETURNING id, type, slug, cover_url
+    `
+
+    if (!story) {
+      throw new CreateWriterContentError('ไม่พบเนื้อหาที่ต้องการแก้ไข', 404)
+    }
+
+    // Keep the previous object until the database points to the new cover.
+    if (previousCoverUrl && hasCoverChanged) {
+      try {
+        await deleteWriterCoverByUrl(previousCoverUrl)
+      } catch (deleteError) {
+        console.error('Unable to remove replaced writer cover', deleteError)
+      }
+    }
 
     return story
   } catch (error) {

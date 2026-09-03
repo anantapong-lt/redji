@@ -12,7 +12,7 @@ import {
 import Link from 'next/link'
 import { LoaderCircle } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
-import { createWriterContent } from '@/controllers/writer.controller'
+import { createWriterContent, updateWriterContent } from '@/controllers/writer.controller'
 import { ApiError } from '@/lib/api-client'
 import { createStorySchema } from '../create-story.schema'
 
@@ -25,10 +25,11 @@ const CreateStoryFormContext = createContext<CreateStoryFormContextValue | null>
 
 interface CreateStoryFormProps {
   cancelHref: string
+  contentId?: string
   children: ReactNode
 }
 
-export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) {
+export function CreateStoryForm({ cancelHref, children, contentId }: CreateStoryFormProps) {
   const { accessToken } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -93,9 +94,13 @@ export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) 
     setMessage(null)
 
     try {
-      await createWriterContent(body, accessToken)
+      if (contentId) {
+        await updateWriterContent(contentId, body, accessToken)
+      } else {
+        await createWriterContent(body, accessToken)
+      }
       setIsSaved(true)
-      setMessage('บันทึกเนื้อหาเรียบร้อยแล้ว')
+      setMessage(contentId ? 'แก้ไขเนื้อหาเรียบร้อยแล้ว' : 'บันทึกเนื้อหาเรียบร้อยแล้ว')
     } catch (error) {
       if (error instanceof ApiError && error.field) {
         setErrors({ [error.field]: error.message })
@@ -104,7 +109,11 @@ export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) 
         return
       }
 
-      setMessage(error instanceof Error ? error.message : 'ไม่สามารถสร้างเนื้อหาได้')
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : contentId ? 'ไม่สามารถแก้ไขเนื้อหาได้' : 'ไม่สามารถสร้างเนื้อหาได้',
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -141,7 +150,11 @@ export function CreateStoryForm({ cancelHref, children }: CreateStoryFormProps) 
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting && <LoaderCircle className="size-4 animate-spin" strokeWidth={2} />}
-          {isSubmitting ? 'กำลังบันทึก...' : isSaved ? 'บันทึกแล้ว' : 'บันทึกฉบับร่าง'}
+          {isSubmitting
+            ? 'กำลังบันทึก...'
+            : isSaved
+              ? 'บันทึกแล้ว'
+              : contentId ? 'บันทึกการแก้ไข' : 'บันทึกฉบับร่าง'}
         </button>
       </div>
     </form>

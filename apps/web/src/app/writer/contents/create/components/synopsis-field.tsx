@@ -8,11 +8,12 @@ import { useCreateStoryForm } from './create-story-form'
 
 interface SynopsisFieldProps {
   contentLabel: string
+  initialSynopsis?: string
 }
 
-export function SynopsisField({ contentLabel }: SynopsisFieldProps) {
+export function SynopsisField({ contentLabel, initialSynopsis = '' }: SynopsisFieldProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
-  const [synopsis, setSynopsis] = useState('')
+  const [synopsis, setSynopsis] = useState(initialSynopsis)
 
   return (
     <div className="space-y-2 md:col-span-2" data-field="synopsis">

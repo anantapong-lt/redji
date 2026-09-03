@@ -10,26 +10,45 @@ import {
 } from '@/constants/story.constant'
 import { useCreateStoryForm } from './create-story-form'
 
-export function CoverImageUpload() {
+interface CoverImageUploadProps {
+  initialCoverUrl?: string | null
+  showRemoveButton?: boolean
+}
+
+export function CoverImageUpload({
+  initialCoverUrl = null,
+  showRemoveButton = true,
+}: CoverImageUploadProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialCoverUrl)
   const [fileName, setFileName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isExistingCoverRemoved, setIsExistingCoverRemoved] = useState(false)
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
 
   const clearSelection = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
     if (inputRef.current) inputRef.current.value = ''
     setPreviewUrl(null)
     setFileName('')
     setError(null)
+    setIsExistingCoverRemoved(Boolean(initialCoverUrl))
     clearFieldError('cover')
+  }
+
+  const rejectSelection = (message: string) => {
+    if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+    if (inputRef.current) inputRef.current.value = ''
+    setPreviewUrl(initialCoverUrl)
+    setFileName('')
+    setError(message)
+    setIsExistingCoverRemoved(false)
   }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -42,21 +61,20 @@ export function CoverImageUpload() {
     if (!STORY_COVER_ACCEPTED_TYPES.includes(
       file.type as (typeof STORY_COVER_ACCEPTED_TYPES)[number],
     )) {
-      clearSelection()
-      setError('รองรับเฉพาะไฟล์ JPG, PNG และ WebP')
+      rejectSelection('รองรับเฉพาะไฟล์ JPG, PNG และ WebP')
       return
     }
 
     if (file.size > STORY_COVER_MAX_FILE_SIZE) {
-      clearSelection()
-      setError('ขนาดไฟล์ต้องไม่เกิน 5 MB')
+      rejectSelection('ขนาดไฟล์ต้องไม่เกิน 5 MB')
       return
     }
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
     const nextPreviewUrl = URL.createObjectURL(file)
     setPreviewUrl(nextPreviewUrl)
     setFileName(file.name)
+    setIsExistingCoverRemoved(false)
   }
 
   return (
@@ -70,11 +88,13 @@ export function CoverImageUpload() {
           </div>
 
           <div className="mt-3 min-w-0">
-            <p className="truncate text-sm font-semibold">{fileName}</p>
-            <p className={`mt-1 text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {error ?? 'พร้อมส่งพร้อมข้อมูลเมื่อกดบันทึกฉบับร่าง'}
+            <p className="truncate text-sm font-semibold">
+              {fileName || 'รูปปกปัจจุบัน'}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <p className={`mt-1 text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {error ?? (fileName ? 'พร้อมส่งพร้อมข้อมูลเมื่อกดบันทึก' : 'รูปปกที่ใช้งานอยู่')}
+            </p>
+            <div className={`mt-3 grid gap-2 ${showRemoveButton ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
@@ -82,14 +102,16 @@ export function CoverImageUpload() {
               >
                 เปลี่ยนรูป
               </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
-              >
-                <X className="size-3.5" strokeWidth={2} />
-                นำรูปออก
-              </button>
+              {showRemoveButton && (
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                >
+                  <X className="size-3.5" strokeWidth={2} />
+                  นำรูปออก
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -124,6 +146,10 @@ export function CoverImageUpload() {
         aria-invalid={Boolean(errors.cover)}
         aria-describedby={errors.cover ? 'cover-error' : undefined}
       />
+
+      {isExistingCoverRemoved && (
+        <input type="hidden" name="remove_cover" value="true" />
+      )}
 
       {error && !previewUrl && (
         <p className="flex items-center gap-1.5 text-xs text-destructive">

@@ -1,6 +1,7 @@
 import { apiRequest } from '@/lib/api-client'
 import type { StoryType } from '@/constants/story.constant'
 import type {
+  WriterContentDetail,
   WriterContentTab,
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
@@ -42,6 +43,34 @@ export function createWriterContent(
 }> {
   return apiRequest('/writer/contents', {
     method: 'POST',
+    accessToken,
+    body,
+  })
+}
+
+export function getWriterContent(
+  contentId: string,
+  accessToken: string,
+): Promise<{ story: WriterContentDetail }> {
+  return apiRequest(`/writer/contents/${contentId}`, {
+    accessToken,
+  })
+}
+
+export function updateWriterContent(
+  contentId: string,
+  body: FormData,
+  accessToken: string,
+): Promise<{
+  story: {
+    id: string
+    type: StoryType
+    slug: string
+    cover_url: string | null
+  }
+}> {
+  return apiRequest(`/writer/contents/${contentId}`, {
+    method: 'PATCH',
     accessToken,
     body,
   })

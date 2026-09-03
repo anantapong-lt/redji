@@ -44,3 +44,11 @@ export async function uploadWriterCover(file: File) {
 export async function deleteWriterCover(key: string): Promise<void> {
   await createR2Client().delete(key)
 }
+
+export async function deleteWriterCoverByUrl(coverUrl: string): Promise<void> {
+  const publicUrl = env.R2_PUBLIC_URL.replace(/\/$/, '')
+  const prefix = `${publicUrl}/`
+  if (!publicUrl || !coverUrl.startsWith(prefix)) return
+
+  await deleteWriterCover(coverUrl.slice(prefix.length))
+}

@@ -4,10 +4,18 @@ import { useState } from 'react'
 import { GenreSelect } from '@/components/common/genre-select'
 import { useCreateStoryForm } from './create-story-form'
 
-export function StoryGenreFields() {
+interface StoryGenreFieldsProps {
+  initialPrimaryGenreId?: string
+  initialSecondaryGenreId?: string
+}
+
+export function StoryGenreFields({
+  initialPrimaryGenreId = '',
+  initialSecondaryGenreId = '',
+}: StoryGenreFieldsProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
-  const [primaryGenreId, setPrimaryGenreId] = useState('')
-  const [secondaryGenreId, setSecondaryGenreId] = useState('')
+  const [primaryGenreId, setPrimaryGenreId] = useState(initialPrimaryGenreId)
+  const [secondaryGenreId, setSecondaryGenreId] = useState(initialSecondaryGenreId)
 
   return (
     <>

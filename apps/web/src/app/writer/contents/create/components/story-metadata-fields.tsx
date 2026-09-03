@@ -21,18 +21,22 @@ import { useCreateStoryForm } from './create-story-form'
 interface StoryMetadataFieldsProps {
   contentLabel: string
   initialTitle: string
+  initialStatus?: StoryStatus
+  initialAgeRating?: string
   children: ReactNode
 }
 
 export function StoryMetadataFields({
   children,
   contentLabel,
+  initialAgeRating = '',
+  initialStatus = StoryStatus.DRAFT,
   initialTitle,
 }: StoryMetadataFieldsProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
   const [title, setTitle] = useState(initialTitle)
-  const [status, setStatus] = useState<StoryStatus>(StoryStatus.DRAFT)
-  const [ageRating, setAgeRating] = useState('')
+  const [status, setStatus] = useState<StoryStatus>(initialStatus)
+  const [ageRating, setAgeRating] = useState(initialAgeRating)
 
   return (
     <>

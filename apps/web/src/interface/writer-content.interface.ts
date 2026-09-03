@@ -31,3 +31,16 @@ export interface WriterContentsResponse {
     totalPages: number
   }
 }
+
+export interface WriterContentDetail {
+  id: string
+  title: string
+  slug: string
+  synopsis: string | null
+  cover_url: string | null
+  type: StoryType
+  status: StoryStatus
+  age_rating: number | null
+  primary_genre_id: string
+  secondary_genre_id: string | null
+}
