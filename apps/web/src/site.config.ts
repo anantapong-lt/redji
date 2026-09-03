@@ -7,6 +7,7 @@ export const SITE_CONFIG = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
   adminUrl: process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002',
   pageSize: 24,
+  coinName: 'เบรี',
 } as const
 
 export const isNovelFirst = SITE_CONFIG.type === 'novel'
