@@ -2,6 +2,7 @@ import { cors } from '@elysiajs/cors'
 import { Elysia } from 'elysia'
 import { env } from './config/env'
 import { authRoutes } from './modules/auth/auth.routes'
+import { writerRoutes } from './modules/writer/writer.routes'
 
 const app = new Elysia()
   .use(
@@ -11,6 +12,7 @@ const app = new Elysia()
     }),
   )
   .use(authRoutes)
+  .use(writerRoutes)
 
 app.listen(env.PORT)
 

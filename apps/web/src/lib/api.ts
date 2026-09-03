@@ -1,22 +1,7 @@
 import { SITE_CONFIG } from '@/site.config'
-
-export interface AuthUser {
-  id: string
-  email: string
-  username: string
-  display_name: string
-  avatar_url: string | null
-  balance: string
-  role: 'user' | 'writer' | 'super_admin'
-  status: 'active'
-}
-
-export interface AuthSession {
-  access_token: string
-  token_type: 'Bearer'
-  expires_in: number
-  user: AuthUser
-}
+import type { AuthSession } from '@/interface/auth-session.interface'
+import type { AuthUser } from '@/interface/user.interface'
+import type { WriterStats } from '@/interface/writer-stats.interface'
 
 interface ApiErrorBody {
   message?: string
@@ -70,6 +55,12 @@ export function logoutAuthSession(): Promise<{ success: boolean }> {
 
 export function getCurrentUser(accessToken: string): Promise<{ user: AuthUser }> {
   return apiRequest<{ user: AuthUser }>('/auth/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+export function getWriterStats(accessToken: string): Promise<{ stats: WriterStats }> {
+  return apiRequest<{ stats: WriterStats }>('/writer/stats', {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
 }

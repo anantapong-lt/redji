@@ -10,12 +10,12 @@ import {
   useState,
 } from 'react'
 import {
-  type AuthSession,
-  type AuthUser,
   loginWithPassword,
   logoutAuthSession,
   refreshAuthSession,
 } from '@/lib/api'
+import type { AuthSession } from '@/interface/auth-session.interface'
+import type { AuthUser } from '@/interface/user.interface'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 

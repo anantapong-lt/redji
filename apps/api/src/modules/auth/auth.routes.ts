@@ -1,6 +1,7 @@
 import { jwt } from '@elysiajs/jwt'
 import { Elysia } from 'elysia'
 import { env } from '../../config/env'
+import { authMiddleware } from '../../middleware/auth.middleware'
 import { loginBodySchema } from './auth.schema'
 import {
   authenticateWithPassword,
@@ -20,21 +21,8 @@ const REFRESH_COOKIE_OPTIONS = {
   path: '/',
 }
 
-function bearerToken(authorization: string | null): string | null {
-  if (!authorization?.startsWith('Bearer ')) return null
-
-  const token = authorization.slice(7).trim()
-  return token || null
-}
-
 export const authRoutes = new Elysia({ prefix: '/auth' })
-  .use(
-    jwt({
-      name: 'accessJwt',
-      secret: env.JWT_ACCESS_SECRET,
-      exp: '15m',
-    }),
-  )
+  .use(authMiddleware)
   .use(
     jwt({
       name: 'refreshJwt',
@@ -173,23 +161,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       user,
     }
   })
-  .get('/me', async ({ accessJwt, request, set }) => {
-    const token = bearerToken(request.headers.get('authorization'))
-    const payload = token ? await accessJwt.verify(token) : false
-
-    if (!payload || payload.token_type !== 'access' || typeof payload.sub !== 'string') {
-      set.status = 401
-      return { message: 'กรุณาเข้าสู่ระบบ' }
-    }
-
-    const user = await findActiveUserById(payload.sub)
-    if (!user) {
-      set.status = 401
-      return { message: 'ไม่พบบัญชีผู้ใช้ที่พร้อมใช้งาน' }
-    }
-
-    return { user }
-  })
+  .get('/me', ({ currentUser }) => ({ user: currentUser }), { auth: true })
   .post('/logout', async ({ cookie, refreshJwt }) => {
     const refreshCookie = cookie[REFRESH_COOKIE_NAME]
     const refreshToken = refreshCookie.value

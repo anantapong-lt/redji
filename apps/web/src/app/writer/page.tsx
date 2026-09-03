@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -10,11 +10,18 @@ import {
   ChevronDown,
   FileText,
   Flag,
+  Heart,
   Home,
+  LibraryBig,
+  ListOrdered,
   MessageSquare,
+  Unlock,
   UserCog,
+  Eye,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
+import { getWriterStats } from '@/lib/api'
+import type { WriterStats } from '@/interface/writer-stats.interface'
 
 const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
@@ -27,6 +34,14 @@ const writerInformationNavigation = [
   { label: 'ข้อมูลนักเขียน', icon: UserCog },
   { label: 'ข่าวสาร', icon: MessageSquare },
   { label: 'ข้อกำหนดการใช้งาน', icon: FileText },
+] as const
+
+const statCards = [
+  { key: 'story_count', label: 'จำนวนเรื่อง', icon: LibraryBig },
+  { key: 'chapter_count', label: 'จำนวนตอน', icon: ListOrdered },
+  { key: 'total_views', label: 'จำนวนยอดวิว', icon: Eye },
+  { key: 'favorite_count', label: 'จำนวนคนชื่นชอบ', icon: Heart },
+  { key: 'free_chapter_count', label: 'จำนวนตอนฟรี', icon: Unlock },
 ] as const
 
 function DisabledNavigationItem({
@@ -51,7 +66,9 @@ function DisabledNavigationItem({
 export default function WriterPage() {
   const pathname = usePathname()
   const router = useRouter()
-  const { status, user } = useAuth()
+  const { accessToken, status, user } = useAuth()
+  const [stats, setStats] = useState<WriterStats | null>(null)
+  const [statsError, setStatsError] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -63,6 +80,25 @@ export default function WriterPage() {
       router.replace('/')
     }
   }, [router, status, user])
+
+  useEffect(() => {
+    if (!accessToken || user?.role !== 'writer') return
+
+    let cancelled = false
+    setStatsError(false)
+
+    void getWriterStats(accessToken)
+      .then(({ stats: nextStats }) => {
+        if (!cancelled) setStats(nextStats)
+      })
+      .catch(() => {
+        if (!cancelled) setStatsError(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, user])
 
   if (status === 'loading' || status === 'unauthenticated' || user?.role !== 'writer') {
     return (
@@ -147,12 +183,29 @@ export default function WriterPage() {
         <div className="mx-auto max-w-5xl">
           <p className="text-sm font-semibold text-primary">WRITER STUDIO</p>
           <h1 className="mt-1 text-2xl font-bold tracking-[-0.025em] md:text-3xl">แดชบอร์ดนักเขียน</h1>
-          <section className="readji-surface mt-6 rounded-2xl p-6 md:p-8">
-            <h2 className="text-lg font-bold">ยินดีต้อนรับ, {user.display_name}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              จัดการผลงานและติดตามข้อมูลของคุณได้จากเมนูนักเขียน
-            </p>
-          </section>
+          {statsError ? (
+            <div className="mt-6 rounded-2xl border border-destructive/20 bg-destructive/5 p-5 text-sm text-destructive">
+              ไม่สามารถโหลดสถิตินักเขียนได้ กรุณาลองใหม่อีกครั้ง
+            </div>
+          ) : (
+            <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="สถิตินักเขียน">
+              {statCards.map(({ key, label, icon: Icon }) => (
+                <article key={key} className="readji-surface rounded-2xl p-5">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+                    <Icon className="size-5" strokeWidth={1.8} />
+                  </div>
+                  <p className="mt-4 text-sm font-medium text-muted-foreground">{label}</p>
+                  {stats ? (
+                    <p className="mt-1 text-2xl font-bold tracking-[-0.025em]">
+                      {new Intl.NumberFormat('th-TH').format(Number(stats[key]))}
+                    </p>
+                  ) : (
+                    <div className="mt-2 h-7 w-16 animate-pulse rounded-md bg-muted" aria-label={`กำลังโหลด${label}`} />
+                  )}
+                </article>
+              ))}
+            </section>
+          )}
         </div>
       </main>
     </div>
