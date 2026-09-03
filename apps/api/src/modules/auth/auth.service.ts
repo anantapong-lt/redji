@@ -7,7 +7,7 @@ interface UserWithPassword extends UserModel {
 
 export type AuthenticatedUser = Pick<
   UserModel,
-  'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'role' | 'status'
+  'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'balance' | 'role' | 'status'
 >
 
 export type AuthenticationResult =
@@ -29,6 +29,7 @@ export async function findActiveUserById(id: string): Promise<AuthenticatedUser 
       username,
       display_name,
       avatar_url,
+      balance,
       role,
       status
     FROM users
@@ -130,6 +131,7 @@ export async function authenticateWithPassword(
       username: user.username,
       display_name: user.display_name,
       avatar_url: user.avatar_url,
+      balance: user.balance,
       role: user.role,
       status: user.status,
     },

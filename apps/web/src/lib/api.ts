@@ -6,6 +6,7 @@ export interface AuthUser {
   username: string
   display_name: string
   avatar_url: string | null
+  balance: string
   role: 'user' | 'writer' | 'super_admin'
   status: 'active'
 }

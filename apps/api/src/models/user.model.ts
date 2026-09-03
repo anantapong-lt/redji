@@ -11,6 +11,7 @@ export interface UserModel {
   display_name: string
   phone_number: string | null
   avatar_url: string | null
+  balance: string
   role: UserRole
   status: UserStatus
   email_verified_at: Date | null
