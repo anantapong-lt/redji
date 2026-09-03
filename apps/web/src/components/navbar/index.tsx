@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, X } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
+import { userRole } from '@/interface/user.interface'
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
@@ -90,7 +91,7 @@ export function Navbar() {
 
           <div className="hidden shrink-0 items-center gap-1 md:flex">
             <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
-            {user?.role === 'writer' ? (
+            {user?.role === userRole.WRITER ? (
               <Link
                 href="/writer"
                 aria-label="โหมดนักเขียน"
@@ -194,7 +195,7 @@ export function Navbar() {
                 { label: 'ฟีด', icon: Rss },
                 { label: 'ประวัติ', icon: History },
                 { label: 'ค้นหานิยาย', icon: Search },
-                { label: 'Writer Studio', icon: PenLine, href: user?.role === 'writer' ? '/writer' : undefined },
+                { label: 'Writer Studio', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined },
               ].map(({ label, icon: Icon, href }) => href ? (
                 <Link
                   key={label}

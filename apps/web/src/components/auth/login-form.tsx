@@ -11,6 +11,7 @@ import { useAuth } from './auth-provider'
 import { CloudflarePlaceholder } from './cloudflare-placeholder'
 import { IconInput, PasswordInput } from './form-inputs'
 import { ApiError } from '@/lib/api'
+import { userRole } from '@/interface/user.interface'
 
 const loginSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
@@ -32,7 +33,7 @@ export function LoginForm() {
 
   useEffect(() => {
     if (status === 'authenticated' && user) {
-      router.replace(user.role === 'writer' ? '/writer' : '/')
+      router.replace(user.role === userRole.WRITER ? '/writer' : '/')
     }
   }, [router, status, user])
 
@@ -41,7 +42,7 @@ export function LoginForm() {
 
     try {
       const session = await login(values.email, values.password)
-      router.replace(session.user.role === 'writer' ? '/writer' : '/')
+      router.replace(session.user.role === userRole.WRITER ? '/writer' : '/')
     } catch (error) {
       setError('root', {
         message: error instanceof ApiError

@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/components/auth/auth-provider'
 import { getWriterStats } from '@/lib/api'
 import type { WriterStats } from '@/interface/writer-stats.interface'
+import { userRole } from '@/interface/user.interface'
 
 const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
@@ -76,13 +77,13 @@ export default function WriterPage() {
       return
     }
 
-    if (status === 'authenticated' && user?.role !== 'writer') {
+    if (status === 'authenticated' && user?.role !== userRole.WRITER) {
       router.replace('/')
     }
   }, [router, status, user])
 
   useEffect(() => {
-    if (!accessToken || user?.role !== 'writer') return
+    if (!accessToken || user?.role !== userRole.WRITER) return
 
     let cancelled = false
     setStatsError(false)
@@ -100,7 +101,7 @@ export default function WriterPage() {
     }
   }, [accessToken, user])
 
-  if (status === 'loading' || status === 'unauthenticated' || user?.role !== 'writer') {
+  if (status === 'loading' || status === 'unauthenticated' || user?.role !== userRole.WRITER) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <p className="text-sm text-muted-foreground">กำลังตรวจสอบสิทธิ์...</p>
