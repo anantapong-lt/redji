@@ -11,7 +11,6 @@ CREATE TYPE story_status AS ENUM (
   'hiatus',
   'cancelled'
 );
-CREATE TYPE creator_role AS ENUM ('author', 'artist', 'translator');
 CREATE TYPE chapter_status AS ENUM ('draft', 'scheduled', 'published', 'hidden');
 
 CREATE TABLE users (
@@ -67,6 +66,7 @@ CREATE INDEX user_oauth_accounts_user_id_idx ON user_oauth_accounts (user_id);
 
 CREATE TABLE stories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   type story_type NOT NULL,
   title VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
@@ -90,18 +90,7 @@ CREATE INDEX stories_type_status_published_at_idx
   ON stories (type, status, published_at DESC);
 CREATE INDEX stories_status_updated_at_idx
   ON stories (status, updated_at DESC);
-
-CREATE TABLE story_creators (
-  story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  role creator_role NOT NULL,
-  display_order SMALLINT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (story_id, user_id, role),
-  CONSTRAINT story_creators_display_order_check CHECK (display_order >= 0)
-);
-
-CREATE INDEX story_creators_user_id_idx ON story_creators (user_id);
+CREATE INDEX stories_creator_user_id_idx ON stories (creator_user_id);
 
 CREATE TABLE genres (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
