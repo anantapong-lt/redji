@@ -4,10 +4,11 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Image as ImageIcon, UploadCloud, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  STORY_COVER_ACCEPTED_TYPES,
+  STORY_COVER_MAX_FILE_SIZE,
+} from '@/constants/story.constant'
 import { useCreateStoryForm } from './create-story-form'
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 export function CoverImageUpload() {
   const { clearFieldError, errors } = useCreateStoryForm()
@@ -38,13 +39,15 @@ export function CoverImageUpload() {
     setError(null)
     clearFieldError('cover')
 
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+    if (!STORY_COVER_ACCEPTED_TYPES.includes(
+      file.type as (typeof STORY_COVER_ACCEPTED_TYPES)[number],
+    )) {
       clearSelection()
       setError('รองรับเฉพาะไฟล์ JPG, PNG และ WebP')
       return
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > STORY_COVER_MAX_FILE_SIZE) {
       clearSelection()
       setError('ขนาดไฟล์ต้องไม่เกิน 5 MB')
       return

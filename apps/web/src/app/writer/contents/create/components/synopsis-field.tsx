@@ -3,9 +3,8 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { STORY_SYNOPSIS_MAX_LENGTH } from '@/constants/story.constant'
 import { useCreateStoryForm } from './create-story-form'
-
-const MAX_SYNOPSIS_LENGTH = 140
 
 interface SynopsisFieldProps {
   contentLabel: string
@@ -20,7 +19,7 @@ export function SynopsisField({ contentLabel }: SynopsisFieldProps) {
       <div className="flex items-center justify-between gap-4">
         <Label htmlFor="synopsis" className="text-sm font-semibold">เรื่องย่อ</Label>
         <span className="text-xs tabular-nums text-muted-foreground">
-          {synopsis.length}/{MAX_SYNOPSIS_LENGTH}
+          {synopsis.length}/{STORY_SYNOPSIS_MAX_LENGTH}
         </span>
       </div>
       <Textarea
@@ -31,7 +30,7 @@ export function SynopsisField({ contentLabel }: SynopsisFieldProps) {
           setSynopsis(event.target.value)
           clearFieldError('synopsis')
         }}
-        maxLength={MAX_SYNOPSIS_LENGTH}
+        maxLength={STORY_SYNOPSIS_MAX_LENGTH}
         rows={6}
         aria-invalid={Boolean(errors.synopsis)}
         aria-describedby={errors.synopsis ? 'synopsis-error' : undefined}

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { STORY_SLUG_MAX_LENGTH } from '@/constants/story.constant'
 import { SITE_CONFIG } from '@/site.config'
 import { useCreateStoryForm } from './create-story-form'
 
@@ -26,7 +27,7 @@ export function SlugField() {
           setSlug(event.target.value)
           clearFieldError('slug')
         }}
-        maxLength={255}
+        maxLength={STORY_SLUG_MAX_LENGTH}
         aria-invalid={Boolean(errors.slug)}
         aria-describedby={errors.slug ? 'slug-error' : undefined}
         placeholder="ตัวอย่าง: my-story-title"

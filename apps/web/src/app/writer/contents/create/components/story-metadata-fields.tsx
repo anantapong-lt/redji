@@ -10,7 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { STORY_STATUS_OPTIONS, StoryStatus } from '@/constants/story.constant'
+import {
+  STORY_AGE_RATING_MAX,
+  STORY_STATUS_OPTIONS,
+  STORY_TITLE_MAX_LENGTH,
+  StoryStatus,
+} from '@/constants/story.constant'
 import { useCreateStoryForm } from './create-story-form'
 
 interface StoryMetadataFieldsProps {
@@ -44,7 +49,7 @@ export function StoryMetadataFields({
             setTitle(event.target.value)
             clearFieldError('title')
           }}
-          maxLength={255}
+          maxLength={STORY_TITLE_MAX_LENGTH}
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? 'title-error' : undefined}
           placeholder={`กรอกชื่อ${contentLabel}`}
@@ -100,7 +105,7 @@ export function StoryMetadataFields({
             clearFieldError('age_rating')
           }}
           min={0}
-          max={32767}
+          max={STORY_AGE_RATING_MAX}
           step={1}
           aria-invalid={Boolean(errors.age_rating)}
           aria-describedby={errors.age_rating ? 'age-rating-error' : undefined}
