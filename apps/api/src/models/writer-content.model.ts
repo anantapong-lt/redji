@@ -58,7 +58,8 @@ export interface MyContentsResult {
 export interface CreateWriterContentInput {
   type: StoryType
   title: string
-  slug: string
+  slug?: string
+  auto_generate_slug?: 'true'
   synopsis?: string
   status: StoryStatus
   age_rating: string
@@ -67,7 +68,8 @@ export interface CreateWriterContentInput {
   cover?: File
 }
 
-export interface UpdateWriterContentInput extends CreateWriterContentInput {
+export interface UpdateWriterContentInput extends Omit<CreateWriterContentInput, 'slug' | 'auto_generate_slug'> {
+  slug: string
   remove_cover?: 'true'
 }
 

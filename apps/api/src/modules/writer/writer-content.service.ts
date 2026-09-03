@@ -84,6 +84,17 @@ function isUniqueViolation(error: unknown): boolean {
   return postgresError.code === '23505' || postgresError.errno === '23505'
 }
 
+const RANDOM_SLUG_CHARACTERS = 'abcdefghijklmnopqrstuvwxyz0123456789'
+const RANDOM_SLUG_LENGTH = 15
+
+function createRandomSlug(): string {
+  const randomValues = crypto.getRandomValues(new Uint8Array(RANDOM_SLUG_LENGTH))
+  return Array.from(
+    randomValues,
+    (value) => RANDOM_SLUG_CHARACTERS[value % RANDOM_SLUG_CHARACTERS.length],
+  ).join('')
+}
+
 export async function getMyContents(
   creatorUserId: string,
   input: GetMyContentsInput,
@@ -170,13 +181,17 @@ export async function createWriterContent(
   input: CreateWriterContentInput,
 ): Promise<CreatedStory> {
   const title = input.title.trim()
-  const slug = input.slug.trim()
+  const shouldGenerateSlug = input.auto_generate_slug === 'true'
+  const submittedSlug = input.slug?.trim() ?? ''
+  const slug = shouldGenerateSlug ? createRandomSlug() : submittedSlug
   const synopsis = optionalText(input.synopsis)
   const secondaryGenreId = optionalText(input.secondary_genre_id)
   const ageRating = parseAgeRating(input.age_rating)
 
   if (!title) throw new CreateWriterContentError('กรุณากรอกชื่อเรื่อง', 400, 'title')
-  if (!slug) throw new CreateWriterContentError('กรุณากรอกลิงก์ URL', 400, 'slug')
+  if (!shouldGenerateSlug && !slug) {
+    throw new CreateWriterContentError('กรุณากรอกลิงก์ URL', 400, 'slug')
+  }
 
   if (secondaryGenreId === input.primary_genre_id) {
     throw new CreateWriterContentError(

@@ -14,8 +14,12 @@ export const createStorySchema = z.object({
   type: z.enum(StoryType),
   title: z.string().trim().min(1, 'กรุณากรอกชื่อเรื่อง')
     .max(STORY_TITLE_MAX_LENGTH, `ชื่อเรื่องต้องไม่เกิน ${STORY_TITLE_MAX_LENGTH} ตัวอักษร`),
-  slug: z.string().trim().min(1, 'กรุณากรอกลิงก์ URL')
-    .max(STORY_SLUG_MAX_LENGTH, `ลิงก์ URL ต้องไม่เกิน ${STORY_SLUG_MAX_LENGTH} ตัวอักษร`),
+  slug: z.preprocess(
+    (value) => value ?? '',
+    z.string().trim()
+      .max(STORY_SLUG_MAX_LENGTH, `ลิงก์ URL ต้องไม่เกิน ${STORY_SLUG_MAX_LENGTH} ตัวอักษร`),
+  ),
+  auto_generate_slug: z.literal('true').optional(),
   synopsis: z.string().max(
     STORY_SYNOPSIS_MAX_LENGTH,
     `เรื่องย่อต้องไม่เกิน ${STORY_SYNOPSIS_MAX_LENGTH} ตัวอักษร`,
@@ -46,6 +50,14 @@ export const createStorySchema = z.object({
       .optional(),
   ),
 }).superRefine((data, context) => {
+  if (!data.auto_generate_slug && !data.slug) {
+    context.addIssue({
+      code: 'custom',
+      path: ['slug'],
+      message: 'กรุณากรอกลิงก์ URL',
+    })
+  }
+
   if (data.secondary_genre_id && data.secondary_genre_id === data.primary_genre_id) {
     context.addIssue({
       code: 'custom',

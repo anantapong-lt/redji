@@ -227,7 +227,10 @@ export function ContentEditor({
               initialStatus={story?.status}
               initialAgeRating={story?.age_rating?.toString() ?? ''}
             >
-              <SlugField initialSlug={story?.slug} />
+              <SlugField
+                initialSlug={story?.slug}
+                allowAutoGenerate={!contentId}
+              />
               <SynopsisField
                 contentLabel={contentLabel}
                 initialSynopsis={story?.synopsis ?? ''}
