@@ -7,7 +7,7 @@ const LATEST_UPDATES = [
     episode: 'ตอนที่ 12',
     author: 'ปลายปากกาสีคราม',
     updatedAt: '4 นาที',
-    image: '/covers/612230205_853260300955627_3408929932829384039_n.jpg',
+    image: '/covers/cartoon-cover-01.png',
   },
   {
     id: 2,
