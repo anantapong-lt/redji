@@ -41,13 +41,15 @@ export function StoryCard({
         aria-label={`อ่าน ${title}`}
       >
         <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-          <div
-            aria-hidden="true"
-            className={`absolute inset-0 scale-110 bg-cover bg-center transition-opacity duration-300 ${
-              imageLoaded ? 'opacity-0' : 'opacity-100'
-            }`}
-            style={blurDataUrl ? { backgroundImage: `url(${blurDataUrl})` } : undefined}
-          />
+          {!eager && blurDataUrl && (
+            <div
+              aria-hidden="true"
+              className={`absolute inset-0 scale-110 bg-cover bg-center transition-opacity duration-300 ${
+                imageLoaded ? 'opacity-0' : 'opacity-100'
+              }`}
+              style={{ backgroundImage: `url(${blurDataUrl})` }}
+            />
+          )}
           <Image
             src={image}
             alt={`ปกเรื่อง ${title}`}
@@ -58,8 +60,8 @@ export function StoryCard({
             loading={eager ? undefined : 'lazy'}
             fetchPriority={eager ? 'high' : undefined}
             onLoad={() => setImageLoaded(true)}
-            className={`object-cover transition-[opacity,transform] duration-300 ease-out group-hover:scale-105 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
+            className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${
+              eager ? 'opacity-100' : imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
           />
           <span className="absolute bottom-1 left-1 rounded-xs bg-primary px-1 py-0.5 text-[8px] font-semibold text-primary-foreground shadow-sm lg:px-1.5 lg:text-[10px]">
