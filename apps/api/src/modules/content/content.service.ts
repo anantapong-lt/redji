@@ -12,6 +12,15 @@ export interface PublicContent {
   status: StoryStatus
   age_rating: number | null
   total_views: string
+  published_at: Date | null
+  updated_at: Date
+  chapter_count: string
+  latest_chapter: {
+    id: string
+    chapter_number: string
+    title: string
+    published_at: Date
+  } | null
   author: {
     id: string
     username: string
@@ -44,6 +53,29 @@ export async function findPublicContentBySlug(
       stories.status,
       stories.age_rating,
       stories.total_views::TEXT,
+      stories.published_at,
+      stories.updated_at,
+      (
+        SELECT COUNT(*)::TEXT
+        FROM chapters
+        WHERE chapters.story_id = stories.id
+          AND chapters.status = 'published'
+          AND chapters.published_at <= NOW()
+      ) AS chapter_count,
+      (
+        SELECT json_build_object(
+          'id', chapters.id,
+          'chapter_number', chapters.chapter_number::TEXT,
+          'title', chapters.title,
+          'published_at', chapters.published_at
+        )
+        FROM chapters
+        WHERE chapters.story_id = stories.id
+          AND chapters.status = 'published'
+          AND chapters.published_at <= NOW()
+        ORDER BY chapters.chapter_number DESC, chapters.id DESC
+        LIMIT 1
+      ) AS latest_chapter,
       json_build_object(
         'id', users.id,
         'username', users.username,
@@ -75,4 +107,97 @@ export async function findPublicContentBySlug(
   `
 
   return story
+}
+
+export interface PublicChapter {
+  id: string
+  chapter_number: string
+  title: string
+  is_free: boolean
+  price: string
+  published_at: Date
+}
+
+export interface PublicChaptersResult {
+  chapters: PublicChapter[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasPreviousPage: boolean
+    hasNextPage: boolean
+  }
+}
+
+export async function findPublicChaptersBySlug(
+  slug: string,
+  page: number,
+  limit: number,
+): Promise<PublicChaptersResult | undefined> {
+  const [story] = await db<{ id: string }[]>`
+    SELECT stories.id
+    FROM stories
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE LOWER(stories.slug) = LOWER(${slug})
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!story) return undefined
+
+  const offset = (page - 1) * limit
+  const [chapters, [count]] = await Promise.all([
+    db<PublicChapter[]>`
+      SELECT id, chapter_number::TEXT, title, is_free, price::TEXT, published_at
+      FROM chapters
+      WHERE story_id = ${story.id}
+        AND status = 'published'
+        AND published_at <= NOW()
+      ORDER BY chapter_number DESC, id DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db<Array<{ total: string }>>`
+      SELECT COUNT(*)::TEXT AS total
+      FROM chapters
+      WHERE story_id = ${story.id}
+        AND status = 'published'
+        AND published_at <= NOW()
+    `,
+  ])
+  const total = Number(count.total)
+  const totalPages = Math.ceil(total / limit)
+
+  return {
+    chapters,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasPreviousPage: page > 1,
+      hasNextPage: page < totalPages,
+    },
+  }
+}
+
+export interface PublicContentSitemapEntry {
+  slug: string
+  cover_url: string | null
+  updated_at: Date
+}
+
+export async function listPublicContentForSitemap(): Promise<PublicContentSitemapEntry[]> {
+  return db<PublicContentSitemapEntry[]>`
+    SELECT stories.slug, stories.cover_url, stories.updated_at
+    FROM stories
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    ORDER BY stories.updated_at DESC, stories.id DESC
+  `
 }

@@ -17,6 +17,15 @@ export interface PublicContent {
   status: StoryStatus
   age_rating: number | null
   total_views: string
+  published_at: string | null
+  updated_at: string
+  chapter_count: string
+  latest_chapter: {
+    id: string
+    chapter_number: string
+    title: string
+    published_at: string
+  } | null
   author: {
     id: string
     username: string
@@ -28,4 +37,33 @@ export interface PublicContent {
 
 export interface PublicContentResponse {
   story: PublicContent
+}
+
+export interface PublicChapter {
+  id: string
+  chapter_number: string
+  title: string
+  is_free: boolean
+  price: string
+  published_at: string
+}
+
+export interface PublicChaptersResponse {
+  chapters: PublicChapter[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasPreviousPage: boolean
+    hasNextPage: boolean
+  }
+}
+
+export interface PublicContentSitemapResponse {
+  contents: Array<{
+    slug: string
+    cover_url: string | null
+    updated_at: string
+  }>
 }
