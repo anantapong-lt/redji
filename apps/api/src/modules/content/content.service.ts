@@ -337,7 +337,6 @@ export async function findPublicChaptersBySlug(
         COALESCE(stories.creator_user_id = ${currentUserId}::UUID, FALSE) AS is_owner,
         (
           chapters.is_free
-          OR COALESCE(stories.creator_user_id = ${currentUserId}::UUID, FALSE)
           OR EXISTS (
             SELECT 1
             FROM chapter_purchases

@@ -8,7 +8,7 @@ import type {
 
 const WRITER_REVENUE_RATE = '0.85'
 
-type PurchaseErrorStatus = 400 | 402 | 403 | 404 | 409
+type PurchaseErrorStatus = 400 | 402 | 404 | 409
 
 export class ChapterPurchaseError extends Error {
   constructor(
@@ -52,10 +52,6 @@ export async function purchaseChapter(
 
       if (!chapter) {
         throw new ChapterPurchaseError('ไม่พบตอนที่พร้อมจำหน่าย', 404)
-      }
-
-      if (chapter.writer_user_id === buyerUserId) {
-        throw new ChapterPurchaseError('ไม่สามารถซื้อผลงานของตนเองได้', 403)
       }
 
       if (chapter.is_free || Number(chapter.price) <= 0) {
