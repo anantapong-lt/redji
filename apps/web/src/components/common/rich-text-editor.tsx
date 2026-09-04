@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Extension } from '@tiptap/core'
+import { Extension, mergeAttributes, Node } from '@tiptap/core'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import Underline from '@tiptap/extension-underline'
@@ -546,6 +546,39 @@ const BlockFormatting = Extension.create({
   },
 })
 
+const SpanParagraph = Node.create({
+  name: 'paragraph',
+  priority: 1000,
+  group: 'block',
+  content: 'inline*',
+  parseHTML() {
+    return [
+      { tag: 'p' },
+      { tag: 'span[data-type="paragraph"]' },
+    ]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        'data-type': 'paragraph',
+        style: 'display: block',
+      }),
+      0,
+    ]
+  },
+  addCommands() {
+    return {
+      setParagraph: () => ({ commands }) => commands.setNode(this.name),
+    }
+  },
+  addKeyboardShortcuts() {
+    return {
+      'Mod-Alt-0': () => this.editor.commands.setParagraph(),
+    }
+  },
+})
+
 export interface RichTextEditorProps {
   id?: string
   initialContent?: string
@@ -594,7 +627,8 @@ export function RichTextEditor({
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ underline: false }),
+      StarterKit.configure({ paragraph: false, underline: false }),
+      SpanParagraph,
       TextStyleKit,
       LetterSpacing,
       BlockFormatting,
@@ -769,4 +803,3 @@ export function RichTextEditor({
     </div>
   )
 }
-
