@@ -26,8 +26,21 @@ export function PopularRankingSection({
   const [stories, setStories] = useState<LandingStory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    const updateViewport = () => setIsDesktop(mediaQuery.matches)
+
+    updateViewport()
+    mediaQuery.addEventListener('change', updateViewport)
+
+    return () => mediaQuery.removeEventListener('change', updateViewport)
+  }, [])
+
+  useEffect(() => {
+    if (!isDesktop) return
+
     const abortController = new AbortController()
 
     async function loadRanking() {
@@ -46,7 +59,7 @@ export function PopularRankingSection({
 
     void loadRanking()
     return () => abortController.abort()
-  }, [section])
+  }, [isDesktop, section])
 
   return (
     <aside aria-labelledby={headingId} className="w-full">
