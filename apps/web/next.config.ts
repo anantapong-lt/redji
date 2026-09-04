@@ -28,6 +28,9 @@ function trustedPublicMediaUrl(value: string | undefined): URL | null {
 const isProduction = process.env.NODE_ENV === 'production'
 const apiOrigin = trustedHttpOrigin(process.env.NEXT_PUBLIC_API_URL)
   ?? (isProduction ? null : 'http://localhost:4000')
+const apiWebSocketOrigin = apiOrigin
+  ? apiOrigin.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')
+  : null
 const publicMediaUrl = trustedPublicMediaUrl(process.env.NEXT_PUBLIC_R2_PUBLIC_URL)
 const publicMediaOrigin = publicMediaUrl?.origin
 const publicMediaRemotePattern = publicMediaUrl
@@ -49,7 +52,7 @@ const contentSecurityPolicy = [
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
   `script-src 'self' 'unsafe-inline'${isProduction ? '' : " 'unsafe-eval'"}`,
-  `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''}`,
+  `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''}${apiWebSocketOrigin ? ` ${apiWebSocketOrigin}` : ''}`,
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   ...(isProduction ? ['upgrade-insecure-requests'] : []),
