@@ -315,10 +315,6 @@ export function TopupForm() {
           </button>
         )}
 
-        <div className="mt-2 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground sm:text-xs">
-          <ShieldCheck className="size-3.5 text-primary" />
-          ระบบจะไม่เพิ่มยอดจนกว่าจะตรวจสอบการชำระเงินสำเร็จ
-        </div>
       </section>
 
       <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
