@@ -1,0 +1,269 @@
+import { db } from '../../../db'
+import type {
+  CreatedWriterChapter,
+  GetWriterChaptersInput,
+  WriterChapter,
+  WriterChapterCount,
+  WriterChapterDetail,
+  WriterChaptersResult,
+} from '../../../models/writer-chapter.model'
+import {
+  CHAPTER_STATUS,
+  STORY_TYPE,
+  type ChapterStatus,
+  type StoryType,
+} from '../../../models/story.model'
+import type { UploadedChapterPage } from './writer-chapter-page.service'
+
+export interface ChapterWriteInput {
+  title: string
+  chapterNumber: number
+  price: number
+  status: ChapterStatus
+  publishedAt: Date | null
+  content: string
+  wordCount: number
+}
+
+export async function findOwnedStoryType(
+  creatorUserId: string,
+  storyId: string,
+): Promise<StoryType | undefined> {
+  const [story] = await db<{ type: StoryType }[]>`
+    SELECT type FROM stories
+    WHERE id = ${storyId} AND creator_user_id = ${creatorUserId} AND deleted_at IS NULL
+    LIMIT 1
+  `
+  return story?.type
+}
+
+export async function findWriterChapter(
+  storyId: string,
+  chapterId: string,
+  storyType: StoryType,
+): Promise<WriterChapterDetail | undefined> {
+  const [chapter] = await db<Omit<WriterChapterDetail, 'story_type' | 'content' | 'pages'>[]>`
+    SELECT id, story_id, chapter_number::TEXT, title, price::TEXT, is_free,
+      status, published_at
+    FROM chapters
+    WHERE id = ${chapterId} AND story_id = ${storyId}
+    LIMIT 1
+  `
+  if (!chapter) return undefined
+
+  if (storyType === STORY_TYPE.NOVEL) {
+    const [novelContent] = await db<{ content: string }[]>`
+      SELECT content FROM novel_chapter_contents WHERE chapter_id = ${chapterId}
+    `
+    return { ...chapter, story_type: storyType, content: novelContent?.content ?? '', pages: [] }
+  }
+
+  const pages = await db<WriterChapterDetail['pages']>`
+    SELECT id, image_url, page_number, width, height
+    FROM manga_chapter_pages
+    WHERE chapter_id = ${chapterId}
+    ORDER BY page_number
+  `
+  return { ...chapter, story_type: storyType, content: null, pages }
+}
+
+export async function queryWriterChapters(
+  storyId: string,
+  input: GetWriterChaptersInput,
+): Promise<WriterChaptersResult> {
+  const search = input.search?.trim() ?? ''
+  const searchPattern = `%${search}%`
+  const offset = (input.page - 1) * input.limit
+  const [chapters, [count]] = await Promise.all([
+    db<WriterChapter[]>`
+      SELECT chapters.id, chapters.chapter_number::TEXT, chapters.title,
+        chapters.price::TEXT, chapters.is_free,
+        COUNT(chapter_purchases.id)::TEXT AS sales_count, chapters.status,
+        chapters.published_at, chapters.created_at
+      FROM chapters
+      LEFT JOIN chapter_purchases ON chapter_purchases.chapter_id = chapters.id
+      WHERE chapters.story_id = ${storyId}
+        AND (
+          ${search} = '' OR chapters.chapter_number::TEXT ILIKE ${searchPattern}
+          OR chapters.title ILIKE ${searchPattern}
+        )
+      GROUP BY chapters.id
+      ORDER BY chapters.chapter_number DESC, chapters.id DESC
+      LIMIT ${input.limit} OFFSET ${offset}
+    `,
+    db<WriterChapterCount[]>`
+      SELECT COUNT(*)::TEXT AS total
+      FROM chapters
+      WHERE story_id = ${storyId}
+        AND (
+          ${search} = '' OR chapter_number::TEXT ILIKE ${searchPattern}
+          OR title ILIKE ${searchPattern}
+        )
+    `,
+  ])
+  const total = Number(count.total)
+  return {
+    chapters,
+    pagination: {
+      page: input.page,
+      limit: input.limit,
+      total,
+      totalPages: Math.ceil(total / input.limit),
+    },
+  }
+}
+
+export async function insertWriterChapter(
+  storyId: string,
+  storyType: StoryType,
+  input: ChapterWriteInput,
+  pages: UploadedChapterPage[],
+): Promise<CreatedWriterChapter> {
+  return db.begin(async (transaction) => {
+    const [chapter] = await transaction<Omit<CreatedWriterChapter, 'story_type'>[]>`
+      INSERT INTO chapters (
+        story_id, chapter_number, title, price, is_free, status, published_at
+      ) VALUES (
+        ${storyId}, ${input.chapterNumber}, ${input.title}, ${input.price},
+        ${input.price === 0}, ${input.status}, ${input.publishedAt}
+      )
+      RETURNING id, story_id, chapter_number::TEXT, title, price::TEXT,
+        is_free, status, published_at, created_at
+    `
+
+    if (storyType === STORY_TYPE.NOVEL) {
+      await transaction`
+        INSERT INTO novel_chapter_contents (chapter_id, content, word_count)
+        VALUES (${chapter.id}, ${input.content}, ${input.wordCount})
+      `
+    } else {
+      for (const [index, page] of pages.entries()) {
+        await transaction`
+          INSERT INTO manga_chapter_pages (
+            chapter_id, page_number, image_url, width, height, alt_text
+          ) VALUES (
+            ${chapter.id}, ${index + 1}, ${page.image_url}, ${page.width}, ${page.height},
+            ${`หน้า ${index + 1}: ${input.title}`}
+          )
+        `
+      }
+    }
+    await transaction`UPDATE stories SET updated_at = NOW() WHERE id = ${storyId}`
+    return { ...chapter, story_type: storyType }
+  })
+}
+
+export async function updateWriterChapterRecord(
+  storyId: string,
+  chapterId: string,
+  storyType: StoryType,
+  input: ChapterWriteInput,
+  retainedPageIds: string[],
+  removedPageIds: string[],
+  uploadedPages: UploadedChapterPage[],
+): Promise<CreatedWriterChapter> {
+  return db.begin(async (transaction) => {
+    const [chapter] = await transaction<Omit<CreatedWriterChapter, 'story_type'>[]>`
+      UPDATE chapters
+      SET chapter_number = ${input.chapterNumber}, title = ${input.title},
+        price = ${input.price}, is_free = ${input.price === 0}, status = ${input.status},
+        published_at = ${input.publishedAt}, updated_at = NOW()
+      WHERE id = ${chapterId} AND story_id = ${storyId}
+      RETURNING id, story_id, chapter_number::TEXT, title, price::TEXT,
+        is_free, status, published_at, created_at
+    `
+
+    if (storyType === STORY_TYPE.NOVEL) {
+      await transaction`
+        UPDATE novel_chapter_contents
+        SET content = ${input.content}, word_count = ${input.wordCount}, updated_at = NOW()
+        WHERE chapter_id = ${chapterId}
+      `
+    } else {
+      if (removedPageIds.length > 0) {
+        const removedIds = db.array(removedPageIds, 'UUID')
+        await transaction`
+          DELETE FROM manga_chapter_pages
+          WHERE chapter_id = ${chapterId} AND id = ANY(${removedIds})
+        `
+      }
+      if (retainedPageIds.length > 0) {
+        const retainedIds = db.array(retainedPageIds, 'UUID')
+        await transaction`
+          UPDATE manga_chapter_pages SET page_number = page_number + 1000, updated_at = NOW()
+          WHERE chapter_id = ${chapterId} AND id = ANY(${retainedIds})
+        `
+      }
+      for (const [index, pageId] of retainedPageIds.entries()) {
+        await transaction`
+          UPDATE manga_chapter_pages SET page_number = ${index + 1}, updated_at = NOW()
+          WHERE chapter_id = ${chapterId} AND id = ${pageId}
+        `
+      }
+      for (const [index, page] of uploadedPages.entries()) {
+        const pageNumber = retainedPageIds.length + index + 1
+        await transaction`
+          INSERT INTO manga_chapter_pages (
+            chapter_id, page_number, image_url, width, height, alt_text
+          ) VALUES (
+            ${chapterId}, ${pageNumber}, ${page.image_url}, ${page.width}, ${page.height},
+            ${`หน้า ${pageNumber}: ${input.title}`}
+          )
+        `
+      }
+    }
+    await transaction`UPDATE stories SET updated_at = NOW() WHERE id = ${storyId}`
+    return { ...chapter, story_type: storyType }
+  })
+}
+
+export async function countOwnedChapters(
+  creatorUserId: string,
+  storyId: string,
+  chapterIds: string[],
+): Promise<number> {
+  const ids = db.array([...new Set(chapterIds)], 'UUID')
+  const [result] = await db<{ total: string }[]>`
+    SELECT COUNT(*)::TEXT AS total
+    FROM chapters
+    INNER JOIN stories ON stories.id = chapters.story_id
+    WHERE chapters.story_id = ${storyId} AND chapters.id = ANY(${ids})
+      AND stories.creator_user_id = ${creatorUserId} AND stories.deleted_at IS NULL
+  `
+  return Number(result.total)
+}
+
+export async function updateChapterPrices(
+  storyId: string,
+  chapterIds: string[],
+  price: number,
+): Promise<number> {
+  const ids = db.array([...new Set(chapterIds)], 'UUID')
+  const rows = await db<{ id: string }[]>`
+    UPDATE chapters SET price = ${price}, is_free = ${price === 0}, updated_at = NOW()
+    WHERE story_id = ${storyId} AND id = ANY(${ids}) RETURNING id
+  `
+  return rows.length
+}
+
+export async function updateChapterStatuses(
+  storyId: string,
+  chapterIds: string[],
+  status: ChapterStatus,
+  publishedAt: Date | null,
+): Promise<number> {
+  const ids = db.array([...new Set(chapterIds)], 'UUID')
+  const rows = await db<{ id: string }[]>`
+    UPDATE chapters
+    SET
+      status = ${status},
+      published_at = CASE
+        WHEN ${status} = ${CHAPTER_STATUS.SCHEDULED} THEN ${publishedAt}
+        WHEN ${status} = ${CHAPTER_STATUS.PUBLISHED} THEN COALESCE(published_at, NOW())
+        ELSE published_at
+      END,
+      updated_at = NOW()
+    WHERE story_id = ${storyId} AND id = ANY(${ids}) RETURNING id
+  `
+  return rows.length
+}

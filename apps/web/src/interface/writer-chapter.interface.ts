@@ -13,6 +13,19 @@ export interface CreatedWriterChapter {
   created_at: string
 }
 
+export interface WriterChapterPage {
+  id: string
+  image_url: string
+  page_number: number
+  width: number | null
+  height: number | null
+}
+
+export interface WriterChapterDetail extends Omit<CreatedWriterChapter, 'created_at'> {
+  content: string | null
+  pages: WriterChapterPage[]
+}
+
 export interface WriterChapter {
   id: string
   chapter_number: string

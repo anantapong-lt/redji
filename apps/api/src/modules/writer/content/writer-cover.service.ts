@@ -1,7 +1,7 @@
 import { S3Client } from 'bun'
 import { Buffer } from 'node:buffer'
 import sharp from 'sharp'
-import { env } from '../../config/env'
+import { env } from '../../../config/env'
 
 const SUPPORTED_WRITER_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const OPTIMIZED_WRITER_COVER_TYPE = 'image/webp'

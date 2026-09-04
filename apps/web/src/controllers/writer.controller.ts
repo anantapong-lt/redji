@@ -9,6 +9,7 @@ import type { WriterStats } from '@/interface/writer-stats.interface'
 import type {
   ChapterStatus,
   CreatedWriterChapter,
+  WriterChapterDetail,
   WriterChaptersResponse,
 } from '@/interface/writer-chapter.interface'
 
@@ -106,6 +107,29 @@ export function createWriterChapter(
 ): Promise<{ chapter: CreatedWriterChapter }> {
   return apiRequest(`/writer/contents/${contentId}/chapters`, {
     method: 'POST',
+    accessToken,
+    body,
+  })
+}
+
+export function getWriterChapter(
+  contentId: string,
+  chapterId: string,
+  accessToken: string,
+): Promise<{ chapter: WriterChapterDetail }> {
+  return apiRequest(`/writer/contents/${contentId}/chapters/${chapterId}`, {
+    accessToken,
+  })
+}
+
+export function updateWriterChapter(
+  contentId: string,
+  chapterId: string,
+  body: FormData,
+  accessToken: string,
+): Promise<{ chapter: CreatedWriterChapter }> {
+  return apiRequest(`/writer/contents/${contentId}/chapters/${chapterId}`, {
+    method: 'PATCH',
     accessToken,
     body,
   })

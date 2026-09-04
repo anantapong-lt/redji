@@ -1,7 +1,7 @@
 import { S3Client } from 'bun'
 import { Buffer } from 'node:buffer'
 import sharp from 'sharp'
-import { env } from '../../config/env'
+import { env } from '../../../config/env'
 
 const PAGE_WIDTH = 2400
 const PAGE_QUALITY = 85
@@ -59,4 +59,12 @@ export async function uploadWriterChapterPage(
 
 export async function deleteWriterChapterPage(key: string): Promise<void> {
   await createR2Client().delete(key)
+}
+
+export async function deleteWriterChapterPageByUrl(imageUrl: string): Promise<void> {
+  const publicUrl = env.R2_PUBLIC_URL.replace(/\/$/, '')
+  const prefix = `${publicUrl}/`
+  if (!publicUrl || !imageUrl.startsWith(prefix)) return
+
+  await deleteWriterChapterPage(imageUrl.slice(prefix.length))
 }

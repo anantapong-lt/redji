@@ -5,26 +5,33 @@ import {
   bulkUpdateChapterPrice,
   bulkUpdateChapterStatus,
   createWriterChapter,
+  getWriterChapter,
   getWriterChapters,
+  updateWriterChapter,
   WriterChapterError,
-} from './writer-chapter.service'
+} from './chapter/writer-chapter.controller'
 import {
   createWriterContent,
   CreateWriterContentError,
   getMyContents,
   getWriterContent,
   updateWriterContent,
-} from './writer-content.service'
+} from './content/writer-content.controller'
+import {
+  createWriterContentBodySchema,
+  updateWriterContentBodySchema,
+  writerContentParamsSchema,
+  writerContentsQuerySchema,
+} from './content/writer-content.schema'
 import {
   bulkUpdateChapterPriceBodySchema,
   bulkUpdateChapterStatusBodySchema,
   createWriterChapterBodySchema,
-  createWriterContentBodySchema,
-  updateWriterContentBodySchema,
+  updateWriterChapterBodySchema,
   writerChaptersQuerySchema,
-  writerContentParamsSchema,
-  writerContentsQuerySchema,
-} from './writer.schema'
+  writerChapterParamsSchema,
+  writerChaptersParamsSchema,
+} from './chapter/writer-chapter.schema'
 import { getWriterStats } from './writer.service'
 
 export const writerRoutes = new Elysia({ prefix: '/writer' })
@@ -108,8 +115,55 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: writerContentParamsSchema,
+      params: writerChaptersParamsSchema,
       body: createWriterChapterBodySchema,
+    },
+  )
+  .get(
+    '/contents/:id/chapters/:chapterId',
+    async ({ currentUser, params, status }) => {
+      try {
+        return {
+          chapter: await getWriterChapter(currentUser.id, params.id, params.chapterId),
+        }
+      } catch (error) {
+        if (error instanceof WriterChapterError) {
+          return status(error.statusCode, { message: error.message, field: error.field })
+        }
+
+        console.error('Unable to load writer chapter', error)
+        return status(500, { message: 'ไม่สามารถโหลดข้อมูลตอนได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: writerChapterParamsSchema,
+    },
+  )
+  .patch(
+    '/contents/:id/chapters/:chapterId',
+    async ({ body, currentUser, params, status }) => {
+      try {
+        const chapter = await updateWriterChapter(
+          currentUser.id,
+          params.id,
+          params.chapterId,
+          body,
+        )
+        return { chapter }
+      } catch (error) {
+        if (error instanceof WriterChapterError) {
+          return status(error.statusCode, { message: error.message, field: error.field })
+        }
+
+        console.error('Unable to update writer chapter', error)
+        return status(500, { message: 'ไม่สามารถแก้ไขตอนได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: writerChapterParamsSchema,
+      body: updateWriterChapterBodySchema,
     },
   )
   .patch(
@@ -156,7 +210,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: writerContentParamsSchema,
+      params: writerChaptersParamsSchema,
       query: writerChaptersQuerySchema,
     },
   )
@@ -177,7 +231,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: writerContentParamsSchema,
+      params: writerChaptersParamsSchema,
       body: bulkUpdateChapterPriceBodySchema,
     },
   )
@@ -198,7 +252,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: writerContentParamsSchema,
+      params: writerChaptersParamsSchema,
       body: bulkUpdateChapterStatusBodySchema,
     },
   )

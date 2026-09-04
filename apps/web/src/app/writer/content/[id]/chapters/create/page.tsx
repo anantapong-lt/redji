@@ -33,8 +33,16 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StoryType } from '@/constants/story.constant'
-import { createWriterChapter, getWriterContent } from '@/controllers/writer.controller'
-import type { ChapterStatus } from '@/interface/writer-chapter.interface'
+import {
+  createWriterChapter,
+  getWriterChapter,
+  getWriterContent,
+  updateWriterChapter,
+} from '@/controllers/writer.controller'
+import type {
+  ChapterStatus,
+  WriterChapterDetail,
+} from '@/interface/writer-chapter.interface'
 
 const chapterStatusOptions: { value: ChapterStatus; label: string }[] = [
   { value: 'draft', label: 'ฉบับร่าง' },
@@ -45,21 +53,30 @@ const chapterStatusOptions: { value: ChapterStatus; label: string }[] = [
 
 interface ChapterImage {
   id: string
-  file: File
+  file?: File
+  pageId?: string
   previewUrl: string
 }
 
 interface CreateChapterPageProps {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string; chapterId?: string }>
+}
+
+function toLocalDateTime(value: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return localDate.toISOString().slice(0, 16)
 }
 
 export default function CreateChapterPage({ params }: CreateChapterPageProps) {
-  const { id } = use(params)
+  const { id, chapterId } = use(params)
   const router = useRouter()
   const { accessToken, status: authStatus } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imagesRef = useRef<ChapterImage[]>([])
   const [storyType, setStoryType] = useState<StoryType | null>(null)
+  const [chapter, setChapter] = useState<WriterChapterDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [chapterStatus, setChapterStatus] = useState<ChapterStatus>('draft')
   const [images, setImages] = useState<ChapterImage[]>([])
@@ -79,9 +96,23 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     let cancelled = false
     setLoadError(null)
 
-    void getWriterContent(id, accessToken)
-      .then(({ story }) => {
-        if (!cancelled) setStoryType(story.type)
+    void Promise.all([
+      getWriterContent(id, accessToken),
+      chapterId ? getWriterChapter(id, chapterId, accessToken) : Promise.resolve(null),
+    ])
+      .then(([{ story }, chapterResponse]) => {
+        if (!cancelled) {
+          setStoryType(story.type)
+          if (chapterResponse) {
+            setChapter(chapterResponse.chapter)
+            setChapterStatus(chapterResponse.chapter.status)
+            setImages(chapterResponse.chapter.pages.map((page) => ({
+              id: page.id,
+              pageId: page.id,
+              previewUrl: page.image_url,
+            })))
+          }
+        }
       })
       .catch((error) => {
         if (!cancelled) {
@@ -92,14 +123,16 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     return () => {
       cancelled = true
     }
-  }, [accessToken, authStatus, id])
+  }, [accessToken, authStatus, chapterId, id])
 
   useEffect(() => {
     imagesRef.current = images
   }, [images])
 
   useEffect(() => () => {
-    for (const image of imagesRef.current) URL.revokeObjectURL(image.previewUrl)
+    for (const image of imagesRef.current) {
+      if (image.file) URL.revokeObjectURL(image.previewUrl)
+    }
   }, [])
 
   const addImages = (files: File[]) => {
@@ -130,13 +163,15 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const removeImage = (imageId: string) => {
     setImages((current) => {
       const removedImage = current.find((image) => image.id === imageId)
-      if (removedImage) URL.revokeObjectURL(removedImage.previewUrl)
+      if (removedImage?.file) URL.revokeObjectURL(removedImage.previewUrl)
       return current.filter((image) => image.id !== imageId)
     })
   }
 
   const clearImages = () => {
-    for (const image of images) URL.revokeObjectURL(image.previewUrl)
+    for (const image of images) {
+      if (image.file) URL.revokeObjectURL(image.previewUrl)
+    }
     setImages([])
   }
 
@@ -152,7 +187,15 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     const body = new FormData(event.currentTarget)
     body.delete('images')
     if (isCartoon) {
-      for (const image of images) body.append('images', image.file)
+      for (const image of images) {
+        if (image.file) body.append('images', image.file)
+      }
+      if (chapterId) {
+        body.set(
+          'retained_page_ids',
+          JSON.stringify(images.flatMap((image) => image.pageId ? [image.pageId] : [])),
+        )
+      }
     }
 
     if (chapterStatus === 'scheduled') {
@@ -169,11 +212,17 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      await createWriterChapter(id, body, accessToken)
-      toast.success('สร้างตอนเรียบร้อยแล้ว')
+      if (chapterId) {
+        await updateWriterChapter(id, chapterId, body, accessToken)
+      } else {
+        await createWriterChapter(id, body, accessToken)
+      }
+      toast.success(chapterId ? 'แก้ไขตอนเรียบร้อยแล้ว' : 'สร้างตอนเรียบร้อยแล้ว')
       router.push(chaptersHref)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'ไม่สามารถสร้างตอนได้'
+      const message = error instanceof Error
+        ? error.message
+        : chapterId ? 'ไม่สามารถแก้ไขตอนได้' : 'ไม่สามารถสร้างตอนได้'
       setSubmitError(message)
       toast.error(message)
     } finally {
@@ -181,7 +230,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     }
   }
 
-  if (!storyType && !loadError) {
+  if ((!storyType || (chapterId && !chapter)) && !loadError) {
     return (
       <section className="mt-6 space-y-5">
         <Skeleton className="h-11 w-28 rounded-xl" />
@@ -242,6 +291,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
             <Input
               id="chapter-title"
               name="title"
+              defaultValue={chapter?.title ?? ''}
               placeholder="กรอกชื่อตอน"
               maxLength={255}
               required
@@ -256,6 +306,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
             <Input
               id="chapter-number"
               name="chapter_number"
+              defaultValue={chapter?.chapter_number ?? ''}
               type="number"
               min={0}
               step="0.01"
@@ -275,7 +326,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               type="number"
               min={0}
               step="0.01"
-              defaultValue="0"
+              defaultValue={chapter?.price ?? '0'}
               placeholder="0 = ฟรี"
               className="h-11 rounded-xl px-3"
             />
@@ -313,6 +364,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
                 id="chapter-published-at"
                 name="published_at"
                 type="datetime-local"
+                defaultValue={toLocalDateTime(chapter?.published_at ?? null)}
                 required
                 className="h-11 rounded-xl px-3"
               />
@@ -381,7 +433,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
                       <div className="aspect-[3/4] overflow-hidden rounded-lg bg-muted">
                         <img
                           src={image.previewUrl}
-                          alt={`ตัวอย่างรูปที่ ${index + 1}: ${image.file.name}`}
+                          alt={`ตัวอย่างรูปที่ ${index + 1}: ${image.file?.name ?? 'รูปเดิม'}`}
                           className="size-full object-cover"
                         />
                       </div>
@@ -397,7 +449,10 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               <Label htmlFor="chapter-content" className="text-sm font-semibold">
                 เนื้อหา <span className="text-destructive">*</span>
               </Label>
-              <RichTextEditor id="chapter-content" />
+              <RichTextEditor
+                id="chapter-content"
+                initialContent={chapter?.content ?? ''}
+              />
             </div>
           </section>
         )}
@@ -417,7 +472,9 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
             className="h-11 rounded-xl px-5 font-bold"
           >
             {isSubmitting && <LoaderCircleIcon className="animate-spin" />}
-            {isSubmitting ? 'กำลังสร้าง...' : 'สร้าง'}
+            {isSubmitting
+              ? chapterId ? 'กำลังบันทึก...' : 'กำลังสร้าง...'
+              : chapterId ? 'บันทึก' : 'สร้าง'}
           </Button>
         </div>
       </form>

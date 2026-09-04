@@ -397,9 +397,21 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
                   />
                 </TableCell>
                 <TableCell className="px-4 font-semibold tabular-nums">
-                  {formatChapterNumber(chapter.chapter_number)}
+                  <Link
+                    href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {formatChapterNumber(chapter.chapter_number)}
+                  </Link>
                 </TableCell>
-                <TableCell className="max-w-72 px-4 whitespace-normal">{chapter.title}</TableCell>
+                <TableCell className="max-w-72 px-4 whitespace-normal">
+                  <Link
+                    href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {chapter.title}
+                  </Link>
+                </TableCell>
                 <TableCell className="px-4 text-right tabular-nums">
                   {chapter.is_free ? (
                     <span className="font-semibold text-primary">ฟรี</span>
@@ -421,7 +433,11 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
                 <TableCell className="px-4">{formatDate(chapter.published_at)}</TableCell>
                 <TableCell className="px-4">{formatDate(chapter.created_at)}</TableCell>
                 <TableCell className="px-4 text-right">
-                  <Button type="button" variant="outline" size="sm">จัดการ</Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}>
+                      จัดการ
+                    </Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

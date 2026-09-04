@@ -10,6 +10,10 @@ export interface CreateWriterChapterInput {
   images?: File[]
 }
 
+export interface UpdateWriterChapterInput extends CreateWriterChapterInput {
+  retained_page_ids?: string
+}
+
 export interface CreatedWriterChapter {
   id: string
   story_id: string
@@ -21,6 +25,19 @@ export interface CreatedWriterChapter {
   status: ChapterStatus
   published_at: Date | null
   created_at: Date
+}
+
+export interface WriterChapterPage {
+  id: string
+  image_url: string
+  page_number: number
+  width: number | null
+  height: number | null
+}
+
+export interface WriterChapterDetail extends Omit<CreatedWriterChapter, 'created_at'> {
+  content: string | null
+  pages: WriterChapterPage[]
 }
 
 export interface GetWriterChaptersInput {
