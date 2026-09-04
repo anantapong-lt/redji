@@ -32,14 +32,18 @@ function createR2Client() {
   })
 }
 
-export async function uploadWriterChapterPage(file: File): Promise<UploadedChapterPage> {
+export async function uploadWriterChapterPage(
+  file: File,
+  storyId: string,
+  chapterNumber: number,
+): Promise<UploadedChapterPage> {
   const input = Buffer.from(await file.arrayBuffer())
   const { data, info } = await sharp(input)
     .rotate()
     .resize({ width: PAGE_WIDTH, fit: 'inside', withoutEnlargement: true })
     .webp({ quality: PAGE_QUALITY })
     .toBuffer({ resolveWithObject: true })
-  const key = `stories/chapters/pages/${crypto.randomUUID()}.webp`
+  const key = `stories/chapters/${storyId}/${chapterNumber}/${crypto.randomUUID()}.webp`
 
   await createR2Client().write(key, new Blob([data], { type: 'image/webp' }), {
     type: 'image/webp',

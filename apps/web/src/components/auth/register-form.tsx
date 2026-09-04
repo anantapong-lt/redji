@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Lock, X } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { CloudflarePlaceholder } from './cloudflare-placeholder'
 import { IconInput, PasswordInput } from './form-inputs'
 
@@ -28,6 +29,7 @@ export function RegisterForm() {
   const [termsOpen, setTermsOpen] = useState(false)
   const [previewMessage, setPreviewMessage] = useState('')
   const {
+    control,
     register,
     handleSubmit,
     formState: { errors },
@@ -68,7 +70,21 @@ export function RegisterForm() {
         </div>
 
         <div className="flex items-center justify-center gap-1.5 text-sm text-foreground">
-          <input type="checkbox" className="size-4 rounded border-input accent-primary" {...register('terms')} />
+          <Controller
+            name="terms"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                id="accept-terms"
+                checked={field.value}
+                onCheckedChange={(checked) => field.onChange(checked === true)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                aria-invalid={Boolean(errors.terms)}
+                aria-label="ยอมรับข้อตกลงและเงื่อนไขการใช้และบริการ"
+              />
+            )}
+          />
           <span className="select-none">ยอมรับ</span>
           <button type="button" onClick={() => setTermsOpen(true)} className="cursor-pointer text-blue-600 underline underline-offset-2 hover:text-blue-700">
             ข้อตกลงและเงื่อนไขการใช้และบริการ

@@ -105,7 +105,7 @@ export async function createWriterChapter(
   try {
     if (storyType === STORY_TYPE.MANGA) {
       for (const image of images) {
-        uploadedPages.push(await uploadWriterChapterPage(image))
+        uploadedPages.push(await uploadWriterChapterPage(image, storyId, chapterNumber))
       }
     }
 

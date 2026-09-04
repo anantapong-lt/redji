@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -349,12 +350,11 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
           <TableHeader className="bg-muted/40">
             <TableRow>
               <TableHead className="w-12 px-4 text-center">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={allVisibleSelected}
-                  onChange={toggleAllVisible}
+                  onCheckedChange={toggleAllVisible}
                   aria-label="เลือกตอนทั้งหมดในหน้านี้"
-                  className="size-4 accent-primary"
+                  className="mx-auto"
                 />
               </TableHead>
               <TableHead className="px-4">ตอนที่</TableHead>
@@ -389,12 +389,11 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
             {!isLoading && !loadError && chapters.map((chapter) => (
               <TableRow key={chapter.id} data-state={selectedIds.has(chapter.id) ? 'selected' : undefined}>
                 <TableCell className="px-4 text-center">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedIds.has(chapter.id)}
-                    onChange={() => toggleChapter(chapter.id)}
+                    onCheckedChange={() => toggleChapter(chapter.id)}
                     aria-label={`เลือกตอนที่ ${chapter.chapter_number}`}
-                    className="size-4 accent-primary"
+                    className="mx-auto"
                   />
                 </TableCell>
                 <TableCell className="px-4 font-semibold tabular-nums">
