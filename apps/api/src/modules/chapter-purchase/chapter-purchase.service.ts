@@ -33,9 +33,24 @@ export async function purchaseChapter(
   buyerUserId: string,
   chapterId: string,
 ): Promise<ChapterPurchase> {
+  const [purchase] = await purchaseChapters(buyerUserId, [chapterId])
+  if (!purchase) throw new Error('Unable to create chapter purchase')
+  return purchase
+}
+
+export async function purchaseChapters(
+  buyerUserId: string,
+  chapterIds: string[],
+): Promise<ChapterPurchase[]> {
   try {
     return await db.begin(async (transaction) => {
-      const [chapter] = await transaction<PurchasableChapter[]>`
+      const uniqueChapterIds = [...new Set(chapterIds)]
+      if (uniqueChapterIds.length === 0 || uniqueChapterIds.length > 25) {
+        throw new ChapterPurchaseError('เลือกซื้อตอนได้ครั้งละ 1 ถึง 25 ตอน', 400)
+      }
+
+      const chapterIdArray = db.array(uniqueChapterIds, 'UUID')
+      const chapters = await transaction<PurchasableChapter[]>`
         SELECT
           chapters.id,
           chapters.is_free,
@@ -43,25 +58,29 @@ export async function purchaseChapter(
           stories.creator_user_id AS writer_user_id
         FROM chapters
         INNER JOIN stories ON stories.id = chapters.story_id
-        WHERE chapters.id = ${chapterId}
+        WHERE chapters.id = ANY(${chapterIdArray})
           AND chapters.status = 'published'
           AND stories.status IN ('ongoing', 'completed')
           AND stories.deleted_at IS NULL
+        ORDER BY chapters.id
         FOR UPDATE OF chapters
       `
 
-      if (!chapter) {
-        throw new ChapterPurchaseError('ไม่พบตอนที่พร้อมจำหน่าย', 404)
+      if (chapters.length !== uniqueChapterIds.length) {
+        throw new ChapterPurchaseError('มีบางตอนที่ไม่พร้อมจำหน่าย', 404)
       }
 
-      if (chapter.is_free || Number(chapter.price) <= 0) {
-        throw new ChapterPurchaseError('ตอนนี้เปิดให้อ่านฟรีหรือยังไม่ได้กำหนดราคา', 400)
+      if (chapters.some((chapter) => chapter.is_free || Number(chapter.price) <= 0)) {
+        throw new ChapterPurchaseError('รายการที่เลือกมีตอนฟรีหรือตอนที่ยังไม่ได้กำหนดราคา', 400)
       }
 
+      const writerUserIds = [...new Set(chapters.map((chapter) => chapter.writer_user_id))]
+      const accountIds = [...new Set([buyerUserId, ...writerUserIds])]
+      const accountIdArray = db.array(accountIds, 'UUID')
       const accounts = await transaction<PurchaseAccount[]>`
         SELECT id, balance::TEXT, status, deleted_at
         FROM users
-        WHERE id IN (${buyerUserId}, ${chapter.writer_user_id})
+        WHERE id = ANY(${accountIdArray})
         ORDER BY id
         FOR UPDATE
       `
@@ -72,63 +91,83 @@ export async function purchaseChapter(
         throw new ChapterPurchaseError('ไม่พบบัญชีผู้ซื้อที่พร้อมใช้งาน', 404)
       }
 
-      const [existingPurchase] = await transaction<ExistingChapterPurchase[]>`
+      const existingPurchases = await transaction<ExistingChapterPurchase[]>`
         SELECT id
         FROM chapter_purchases
         WHERE buyer_user_id = ${buyerUserId}
-          AND chapter_id = ${chapterId}
-        LIMIT 1
+          AND chapter_id = ANY(${chapterIdArray})
       `
 
-      if (existingPurchase) {
-        throw new ChapterPurchaseError('คุณซื้อตอนนี้แล้ว', 409)
+      if (existingPurchases.length > 0) {
+        throw new ChapterPurchaseError('มีบางตอนในรายการที่ซื้อแล้ว', 409)
       }
 
-      if (Number(buyer.balance) < Number(chapter.price)) {
+      const totalPrice = chapters.reduce(
+        (total, chapter) => total + Math.round(Number(chapter.price) * 100),
+        0,
+      ) / 100
+      if (Number(buyer.balance) < totalPrice) {
         throw new ChapterPurchaseError('ยอดเงินคงเหลือไม่เพียงพอ', 402)
       }
 
-      const [purchase] = await transaction<ChapterPurchase[]>`
-        INSERT INTO chapter_purchases (
-          buyer_user_id,
-          writer_user_id,
-          chapter_id,
-          price,
-          writer_revenue,
-          platform_revenue
-        ) VALUES (
-          ${buyerUserId},
-          ${chapter.writer_user_id},
-          ${chapter.id},
-          ${chapter.price}::NUMERIC,
-          ROUND(${chapter.price}::NUMERIC * ${WRITER_REVENUE_RATE}::NUMERIC, 2),
-          ${chapter.price}::NUMERIC
-            - ROUND(${chapter.price}::NUMERIC * ${WRITER_REVENUE_RATE}::NUMERIC, 2)
-        )
-        RETURNING
-          id,
-          chapter_id,
-          price::TEXT,
-          writer_revenue::TEXT,
-          platform_revenue::TEXT,
-          purchased_at
-      `
+      const purchases: ChapterPurchase[] = []
+      const writerRevenues = new Map<string, number>()
 
-      if (!purchase) throw new Error('Unable to create chapter purchase')
+      for (const chapter of chapters) {
+        const writerRevenueRate = chapter.writer_user_id === buyerUserId
+          ? '0'
+          : WRITER_REVENUE_RATE
+        const [purchase] = await transaction<ChapterPurchase[]>`
+          INSERT INTO chapter_purchases (
+            buyer_user_id,
+            writer_user_id,
+            chapter_id,
+            price,
+            writer_revenue,
+            platform_revenue
+          ) VALUES (
+            ${buyerUserId},
+            ${chapter.writer_user_id},
+            ${chapter.id},
+            ${chapter.price}::NUMERIC,
+            ROUND(${chapter.price}::NUMERIC * ${writerRevenueRate}::NUMERIC, 2),
+            ${chapter.price}::NUMERIC
+              - ROUND(${chapter.price}::NUMERIC * ${writerRevenueRate}::NUMERIC, 2)
+          )
+          RETURNING
+            id,
+            chapter_id,
+            price::TEXT,
+            writer_revenue::TEXT,
+            platform_revenue::TEXT,
+            purchased_at
+        `
+        if (!purchase) throw new Error('Unable to create chapter purchase')
+
+        purchases.push(purchase)
+        const currentRevenue = writerRevenues.get(chapter.writer_user_id) ?? 0
+        writerRevenues.set(
+          chapter.writer_user_id,
+          Math.round((currentRevenue + Number(purchase.writer_revenue)) * 100) / 100,
+        )
+      }
 
       await transaction`
         UPDATE users
-        SET balance = balance - ${purchase.price}::NUMERIC, updated_at = NOW()
+        SET balance = balance - ${totalPrice}::NUMERIC, updated_at = NOW()
         WHERE id = ${buyerUserId}
       `
 
-      await transaction`
-        UPDATE users
-        SET balance = balance + ${purchase.writer_revenue}::NUMERIC, updated_at = NOW()
-        WHERE id = ${chapter.writer_user_id}
-      `
+      for (const [writerUserId, revenue] of writerRevenues) {
+        if (revenue <= 0) continue
+        await transaction`
+          UPDATE users
+          SET balance = balance + ${revenue}::NUMERIC, updated_at = NOW()
+          WHERE id = ${writerUserId}
+        `
+      }
 
-      return purchase
+      return purchases
     })
   } catch (error) {
     if (error instanceof ChapterPurchaseError) throw error

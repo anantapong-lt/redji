@@ -197,6 +197,8 @@ export default async function ContentPage({ params }: ContentPageProps) {
         </article>
         <PublicChapterList
           slug={story.slug}
+          storyTitle={story.title}
+          coverUrl={story.cover_url}
           initialData={initialChapters}
           renderedAt={Date.now()}
         />

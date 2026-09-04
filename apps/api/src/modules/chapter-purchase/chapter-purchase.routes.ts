@@ -1,31 +1,23 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import {
-  ChapterPurchaseError,
-  purchaseChapter,
-} from './chapter-purchase.service'
+  purchasePublicChapter,
+  purchasePublicChapters,
+} from './chapter-purchase.controller'
+import {
+  bulkChapterPurchaseBodySchema,
+  chapterPurchaseParamsSchema,
+} from './chapter-purchase.schema'
 
 export const chapterPurchaseRoutes = new Elysia({ prefix: '/chapters' })
   .use(authMiddleware)
   .post(
+    '/purchase',
+    ({ body, currentUser }) => purchasePublicChapters(currentUser.id, body.chapter_ids),
+    { auth: true, body: bulkChapterPurchaseBodySchema },
+  )
+  .post(
     '/:chapterId/purchase',
-    async ({ currentUser, params, status }) => {
-      try {
-        const purchase = await purchaseChapter(currentUser.id, params.chapterId)
-        return status(201, { purchase })
-      } catch (error) {
-        if (error instanceof ChapterPurchaseError) {
-          return status(error.statusCode, { message: error.message })
-        }
-
-        console.error('Unable to purchase chapter', error)
-        return status(500, { message: 'ไม่สามารถซื้อตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
-    {
-      auth: true,
-      params: t.Object({
-        chapterId: t.String({ format: 'uuid' }),
-      }),
-    },
+    ({ currentUser, params }) => purchasePublicChapter(currentUser.id, params.chapterId),
+    { auth: true, params: chapterPurchaseParamsSchema },
   )
