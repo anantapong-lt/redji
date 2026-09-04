@@ -298,11 +298,15 @@ export function TopupForm() {
           <button
             type="button"
             onClick={() => void handleCreateTopup()}
-            disabled={!amountIsValid || isCreating || status === 'loading'}
+            disabled={!amountIsValid || isCreating || status !== 'authenticated'}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground sm:mt-4 sm:text-sm"
           >
             {isCreating && <LoaderCircle className="size-4 animate-spin" />}
-            {isCreating ? 'กำลังสร้างคิวอาร์โค้ด...' : 'สร้างคิวอาร์โค้ดชำระเงิน'}
+            {isCreating
+              ? 'กำลังสร้างคิวอาร์โค้ด...'
+              : status !== 'authenticated'
+                ? 'กรุณาเข้าสู่ระบบ'
+                : 'สร้างคิวอาร์โค้ดชำระเงิน'}
           </button>
         ) : (
           <button
