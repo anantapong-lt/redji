@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -22,7 +22,7 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
   const router = useRouter()
-  const { login, status, user } = useAuth()
+  const { login } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
   const {
     register,
@@ -30,12 +30,6 @@ export function LoginForm() {
     setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
-
-  useEffect(() => {
-    if (status === 'authenticated' && user) {
-      router.replace(user.role === userRole.WRITER ? '/writer' : '/')
-    }
-  }, [router, status, user])
 
   async function onSubmit(values: LoginValues) {
     setPreviewMessage('')

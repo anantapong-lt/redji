@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { AuthCard } from '@/components/auth/auth-card'
 import { LoginForm } from '@/components/auth/login-form'
+import { userRole } from '@/interface/user.interface'
+import { getServerAuthUser } from '@/lib/server-auth'
 import { SITE_CONFIG } from '@/site.config'
 
 export const metadata: Metadata = {
@@ -10,6 +13,10 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const user = await getServerAuthUser()
+
+  if (user) redirect(user.role === userRole.WRITER ? '/writer' : '/')
+
   return <AuthCard heading={`เข้าสู่ระบบของ ${SITE_CONFIG.name}`}><LoginForm /></AuthCard>
 }
