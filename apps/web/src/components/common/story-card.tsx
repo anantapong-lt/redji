@@ -54,7 +54,7 @@ export function StoryCard({
             fill
             sizes="(min-width: 1536px) 147px, (min-width: 1024px) 180px, calc((100vw - 56px) / 4)"
             quality={60}
-            preload={eager}
+            priority={eager}
             loading={eager ? undefined : 'lazy'}
             fetchPriority={eager ? 'high' : undefined}
             onLoad={() => setImageLoaded(true)}
