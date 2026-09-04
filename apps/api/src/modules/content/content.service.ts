@@ -138,11 +138,24 @@ export async function findMangaChapterPages(
 }
 
 export async function incrementPublicContentView(storyId: string): Promise<void> {
-  await db`
-    UPDATE stories
-    SET total_views = total_views + 1
-    WHERE id = ${storyId}
-  `
+  await db.begin(async (transaction) => {
+    await transaction`
+      UPDATE stories
+      SET total_views = total_views + 1
+      WHERE id = ${storyId}
+    `
+
+    await transaction`
+      INSERT INTO story_daily_views (story_id, view_date, view_count)
+      VALUES (
+        ${storyId},
+        (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::DATE,
+        1
+      )
+      ON CONFLICT (story_id, view_date) DO UPDATE SET
+        view_count = story_daily_views.view_count + 1
+    `
+  })
 }
 
 export interface PublicContent {

@@ -1,6 +1,6 @@
 import { t } from 'elysia'
 
-export const LANDING_SECTIONS = ['latest', 'popular'] as const
+export const LANDING_SECTIONS = ['latest', 'popular', 'weekly', 'all-time'] as const
 
 export type LandingSection = (typeof LANDING_SECTIONS)[number]
 

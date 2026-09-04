@@ -1,6 +1,6 @@
 import type { StoryType } from '@/constants/story.constant'
 
-export type LandingSection = 'latest' | 'popular'
+export type LandingSection = 'latest' | 'popular' | 'weekly' | 'all-time'
 
 export interface LandingStory {
   id: string
@@ -10,6 +10,7 @@ export interface LandingStory {
   cover_blur_data_url: string | null
   type: StoryType
   total_views: string
+  ranking_views: string
   rating_average: string
   rating_count: string
   author: {

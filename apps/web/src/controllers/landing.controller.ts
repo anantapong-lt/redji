@@ -5,6 +5,7 @@ export function getLandingStories(
   section: LandingSection,
   page: number,
   limit: number,
+  signal?: AbortSignal,
 ): Promise<LandingResponse> {
   const searchParams = new URLSearchParams({
     section,
@@ -14,5 +15,6 @@ export function getLandingStories(
 
   return apiRequest<LandingResponse>(`/landing?${searchParams.toString()}`, {
     cache: 'no-store',
+    signal,
   })
 }

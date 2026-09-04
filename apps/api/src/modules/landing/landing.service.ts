@@ -10,6 +10,7 @@ interface LandingStory {
   cover_blur_data_url: string | null
   type: StoryType
   total_views: string
+  ranking_views: string
   rating_average: string
   rating_count: string
   author: {
@@ -58,6 +59,11 @@ export async function getLandingStories(
         stories.cover_blur_data_url,
         stories.type,
         stories.total_views::TEXT,
+        CASE
+          WHEN ${section} = 'weekly'
+            THEN COALESCE(weekly_stats.weekly_views, 0)::TEXT
+          ELSE stories.total_views::TEXT
+        END AS ranking_views,
         COALESCE(rating_stats.rating_average, '0.0') AS rating_average,
         COALESCE(rating_stats.rating_count, '0') AS rating_count,
         json_build_object(
@@ -90,13 +96,26 @@ export async function getLandingStories(
         FROM story_ratings
         WHERE story_ratings.story_id = stories.id
       ) AS rating_stats ON TRUE
+      LEFT JOIN (
+        SELECT story_id, SUM(view_count)::BIGINT AS weekly_views
+        FROM story_daily_views
+        WHERE view_date >= (
+          (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::DATE - 6
+        )
+        GROUP BY story_id
+      ) AS weekly_stats ON weekly_stats.story_id = stories.id
       WHERE stories.status IN ('ongoing', 'completed')
         AND stories.deleted_at IS NULL
         AND users.status = 'active'
         AND users.deleted_at IS NULL
+        AND (
+          ${section} <> 'weekly'
+          OR COALESCE(weekly_stats.weekly_views, 0) > 0
+        )
       ORDER BY
         CASE WHEN ${section} = 'latest' THEN latest_chapter.published_at END DESC,
-        CASE WHEN ${section} = 'popular' THEN stories.total_views END DESC,
+        CASE WHEN ${section} = 'weekly' THEN COALESCE(weekly_stats.weekly_views, 0) END DESC,
+        CASE WHEN ${section} IN ('popular', 'all-time') THEN stories.total_views END DESC,
         stories.id DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -109,6 +128,18 @@ export async function getLandingStories(
         AND stories.deleted_at IS NULL
         AND users.status = 'active'
         AND users.deleted_at IS NULL
+        AND (
+          ${section} <> 'weekly'
+          OR EXISTS (
+            SELECT 1
+            FROM story_daily_views
+            WHERE story_daily_views.story_id = stories.id
+              AND story_daily_views.view_date >= (
+                (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::DATE - 6
+              )
+              AND story_daily_views.view_count > 0
+          )
+        )
         AND EXISTS (
           SELECT 1
           FROM chapters
