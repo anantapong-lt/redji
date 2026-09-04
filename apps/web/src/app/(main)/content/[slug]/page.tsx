@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { BookOpenText, Clock3, Eye, ListOrdered, ShieldCheck, UserRound } from 'lucide-react'
 import { ShareButtons } from '@/components/common/share-buttons'
 import { PublicChapterList } from '@/components/content/public-chapter-list'
-import { getPublicContent, getPublicContentChapters } from '@/controllers/content.controller'
+import { FavoriteButton } from '@/components/content/favorite-button'
+import { getPublicContent } from '@/controllers/content.controller'
 import { ApiError } from '@/lib/api-client'
 import {
   CONTENT_TYPE_LABELS,
@@ -50,10 +52,8 @@ export default async function ContentPage({ params }: ContentPageProps) {
   const { slug } = await params
 
   try {
-    const [{ story }, initialChapters] = await Promise.all([
-      getPublicContent(slug),
-      getPublicContentChapters(slug, 1, 25),
-    ])
+    const cookieHeader = (await cookies()).toString()
+    const { story, chapters: initialChapters } = await getPublicContent(slug, cookieHeader)
     const structuredData = createContentStructuredData(story, initialChapters.chapters)
     const ageRatingLabel = story.age_rating === null || story.age_rating === 0
       ? 'ทั่วไป'
@@ -85,9 +85,10 @@ export default async function ContentPage({ params }: ContentPageProps) {
                     src={story.cover_url}
                     alt={`ปกเรื่อง ${story.title}`}
                     fill
-                    sizes="(min-width: 1024px) 304px, (min-width: 640px) 50vw, calc(100vw - 72px)"
-                    quality={75}
-                    priority
+                    sizes="(max-width: 367px) calc(100vw - 64px), 304px"
+                    quality={60}
+                    preload
+                    fetchPriority="high"
                     placeholder={story.cover_blur_data_url ? 'blur' : 'empty'}
                     blurDataURL={story.cover_blur_data_url ?? undefined}
                     className="object-cover"
@@ -170,7 +171,14 @@ export default async function ContentPage({ params }: ContentPageProps) {
                 </p>
               ) : null}
 
-              <ShareButtons title={story.title} className="mt-4" />
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <FavoriteButton
+                  slug={story.slug}
+                  initialCount={Number(story.favorite_count)}
+                  initialIsFavorited={story.is_favorited}
+                />
+                <ShareButtons title={story.title} />
+              </div>
 
               <section className="mt-6 rounded-2xl border  p-4 sm:p-5">
                 <div className="flex items-center gap-3">

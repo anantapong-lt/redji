@@ -17,6 +17,8 @@ export interface PublicContent {
   status: StoryStatus
   age_rating: number | null
   total_views: string
+  favorite_count: string
+  is_favorited: boolean
   published_at: string | null
   updated_at: string
   chapter_count: string
@@ -37,6 +39,12 @@ export interface PublicContent {
 
 export interface PublicContentResponse {
   story: PublicContent
+  chapters: PublicChaptersResponse
+}
+
+export interface PublicContentFavoriteResponse {
+  is_favorited: boolean
+  favorite_count: number
 }
 
 export interface PublicChapter {

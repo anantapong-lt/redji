@@ -1,8 +1,36 @@
 import {
+  addPublicContentFavorite,
   findPublicChaptersBySlug,
   findPublicContentBySlug,
   listPublicContentForSitemap,
+  removePublicContentFavorite,
 } from './content.service'
+
+export async function favoritePublicContent(slug: string, currentUserId: string) {
+  try {
+    const favorite = await addPublicContentFavorite(slug, currentUserId)
+    if (!favorite) {
+      return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
+    }
+    return favorite
+  } catch (error) {
+    console.error('Unable to favorite public content', error)
+    return Response.json({ message: 'ไม่สามารถเพิ่มรายการโปรดได้' }, { status: 500 })
+  }
+}
+
+export async function unfavoritePublicContent(slug: string, currentUserId: string) {
+  try {
+    const favorite = await removePublicContentFavorite(slug, currentUserId)
+    if (!favorite) {
+      return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
+    }
+    return favorite
+  } catch (error) {
+    console.error('Unable to unfavorite public content', error)
+    return Response.json({ message: 'ไม่สามารถยกเลิกรายการโปรดได้' }, { status: 500 })
+  }
+}
 
 export async function getPublicContentChapters(
   slug: string,
@@ -39,15 +67,20 @@ export async function getPublicContentSitemap() {
   }
 }
 
-export async function getPublicContent(slug: string) {
+export async function getPublicContent(slug: string, currentUserId: string | null = null) {
   try {
-    const story = await findPublicContentBySlug(slug)
+    const story = await findPublicContentBySlug(slug, currentUserId)
 
     if (!story) {
       return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
     }
 
-    return { story }
+    const chapters = await findPublicChaptersBySlug(slug, 1, 25, currentUserId)
+    if (!chapters) {
+      return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
+    }
+
+    return { story, chapters }
   } catch (error) {
     console.error('Unable to load public content', error)
     return Response.json(

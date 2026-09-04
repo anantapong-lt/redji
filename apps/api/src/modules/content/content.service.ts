@@ -12,6 +12,8 @@ export interface PublicContent {
   status: StoryStatus
   age_rating: number | null
   total_views: string
+  favorite_count: string
+  is_favorited: boolean
   published_at: Date | null
   updated_at: Date
   chapter_count: string
@@ -40,6 +42,7 @@ export interface PublicContent {
 
 export async function findPublicContentBySlug(
   slug: string,
+  currentUserId: string | null = null,
 ): Promise<PublicContent | undefined> {
   const [story] = await db<PublicContent[]>`
     SELECT
@@ -53,6 +56,17 @@ export async function findPublicContentBySlug(
       stories.status,
       stories.age_rating,
       stories.total_views::TEXT,
+      (
+        SELECT COUNT(*)::TEXT
+        FROM story_favorites
+        WHERE story_favorites.story_id = stories.id
+      ) AS favorite_count,
+      EXISTS (
+        SELECT 1
+        FROM story_favorites
+        WHERE story_favorites.story_id = stories.id
+          AND story_favorites.user_id = ${currentUserId}::UUID
+      ) AS is_favorited,
       stories.published_at,
       stories.updated_at,
       (
@@ -107,6 +121,92 @@ export async function findPublicContentBySlug(
   `
 
   return story
+}
+
+export interface PublicContentFavorite {
+  is_favorited: boolean
+  favorite_count: number
+}
+
+export async function getPublicContentFavoriteBySlug(
+  slug: string,
+  currentUserId: string | null,
+): Promise<PublicContentFavorite | undefined> {
+  const [favorite] = await db<PublicContentFavorite[]>`
+    SELECT
+      EXISTS (
+        SELECT 1
+        FROM story_favorites
+        WHERE story_favorites.story_id = stories.id
+          AND story_favorites.user_id = ${currentUserId}::UUID
+      ) AS is_favorited,
+      (
+        SELECT COUNT(*)::INTEGER
+        FROM story_favorites
+        WHERE story_favorites.story_id = stories.id
+      ) AS favorite_count
+    FROM stories
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE LOWER(stories.slug) = LOWER(${slug})
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    LIMIT 1
+  `
+
+  return favorite
+}
+
+export async function addPublicContentFavorite(
+  slug: string,
+  currentUserId: string,
+): Promise<PublicContentFavorite | undefined> {
+  const [story] = await db<{ id: string }[]>`
+    SELECT stories.id
+    FROM stories
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE LOWER(stories.slug) = LOWER(${slug})
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!story) return undefined
+
+  await db`
+    INSERT INTO story_favorites (user_id, story_id)
+    VALUES (${currentUserId}, ${story.id})
+    ON CONFLICT (user_id, story_id) DO NOTHING
+  `
+
+  return getPublicContentFavoriteBySlug(slug, currentUserId)
+}
+
+export async function removePublicContentFavorite(
+  slug: string,
+  currentUserId: string,
+): Promise<PublicContentFavorite | undefined> {
+  const [story] = await db<{ id: string }[]>`
+    SELECT stories.id
+    FROM stories
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE LOWER(stories.slug) = LOWER(${slug})
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!story) return undefined
+
+  await db`
+    DELETE FROM story_favorites
+    WHERE user_id = ${currentUserId} AND story_id = ${story.id}
+  `
+
+  return getPublicContentFavoriteBySlug(slug, currentUserId)
 }
 
 export interface PublicChapter {

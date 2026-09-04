@@ -40,6 +40,23 @@ function sortByChapterNumber<T extends { chapter_number: string }>(chapters: T[]
   )
 }
 
+function getPaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1)
+  }
+
+  const items: Array<number | 'ellipsis-start' | 'ellipsis-end'> = [1]
+  const start = Math.max(2, currentPage - 1)
+  const end = Math.min(totalPages - 1, currentPage + 1)
+
+  if (start > 2) items.push('ellipsis-start')
+  for (let page = start; page <= end; page += 1) items.push(page)
+  if (end < totalPages - 1) items.push('ellipsis-end')
+  items.push(totalPages)
+
+  return items
+}
+
 export function PublicChapterList({
   slug,
   initialData,
@@ -63,32 +80,16 @@ export function PublicChapterList({
         is_owner: false,
         can_read: chapter.is_free,
       })))
-      return
     }
+  }, [status])
 
-    if (status !== 'authenticated' || !accessToken) return
-
-    let cancelled = false
-    void getPublicContentChapters(slug, 1, initialData.pagination.limit, accessToken)
-      .then((authorizedData) => {
-        if (cancelled) return
-
-        const authorizedById = new Map(
-          authorizedData.chapters.map((chapter) => [chapter.id, chapter]),
-        )
-        setChapters((current) => current.map(
-          (chapter) => authorizedById.get(chapter.id) ?? chapter,
-        ))
-      })
-      .catch(() => undefined)
-
-    return () => {
-      cancelled = true
-    }
-  }, [accessToken, initialData.pagination.limit, slug, status])
-
-  async function loadMore() {
-    if (isLoading || !pagination.hasNextPage) return
+  async function loadPage(page: number) {
+    if (
+      isLoading
+      || page === pagination.page
+      || page < 1
+      || page > pagination.totalPages
+    ) return
 
     setIsLoading(true)
     setLoadError(false)
@@ -96,17 +97,11 @@ export function PublicChapterList({
     try {
       const nextData = await getPublicContentChapters(
         slug,
-        pagination.page + 1,
+        page,
         pagination.limit,
         accessToken,
       )
-      setChapters((current) => {
-        const existingIds = new Set(current.map((chapter) => chapter.id))
-        return sortByChapterNumber([
-          ...current,
-          ...nextData.chapters.filter((chapter) => !existingIds.has(chapter.id)),
-        ])
-      })
+      setChapters(sortByChapterNumber(nextData.chapters))
       setPagination(nextData.pagination)
     } catch {
       setLoadError(true)
@@ -171,22 +166,55 @@ export function PublicChapterList({
         </p>
       )}
 
-      {pagination.hasNextPage || loadError ? (
+      {pagination.totalPages > 1 || loadError ? (
         <div className="border-t border-border/70 px-4 py-4 text-center sm:px-6">
           {loadError ? (
             <p className="mb-3 text-sm text-destructive">
               โหลดรายการตอนเพิ่มเติมไม่สำเร็จ กรุณาลองใหม่
             </p>
           ) : null}
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => void loadMore()}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary/25 bg-card px-5 py-2 text-sm font-bold text-primary transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-sm disabled:cursor-wait disabled:opacity-60"
-          >
-            {isLoading ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : null}
-            {isLoading ? 'กำลังโหลด...' : 'แสดงเพิ่มเติม'}
-          </button>
+          <nav aria-label="หน้ารายการตอน" className="flex flex-wrap items-center justify-center gap-1.5">
+            <button
+              type="button"
+              disabled={isLoading || !pagination.hasPreviousPage}
+              onClick={() => void loadPage(pagination.page - 1)}
+              className="h-9 cursor-pointer rounded-lg border border-border bg-card px-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ก่อนหน้า
+            </button>
+
+            {getPaginationItems(pagination.page, pagination.totalPages).map((item) => (
+              typeof item === 'number' ? (
+                <button
+                  key={item}
+                  type="button"
+                  disabled={isLoading || item === pagination.page}
+                  onClick={() => void loadPage(item)}
+                  aria-current={item === pagination.page ? 'page' : undefined}
+                  className="size-9 cursor-pointer rounded-lg border border-border bg-card text-sm font-bold text-muted-foreground transition-colors hover:border-primary/45 hover:text-primary disabled:cursor-default aria-[current=page]:border-primary aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground"
+                >
+                  {item.toLocaleString('th-TH')}
+                </button>
+              ) : (
+                <span key={item} className="flex size-9 items-center justify-center text-muted-foreground">
+                  …
+                </span>
+              )
+            ))}
+
+            <button
+              type="button"
+              disabled={isLoading || !pagination.hasNextPage}
+              onClick={() => void loadPage(pagination.page + 1)}
+              className="h-9 cursor-pointer rounded-lg border border-border bg-card px-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ถัดไป
+            </button>
+
+            {isLoading ? (
+              <LoaderCircle className="ml-1 size-4 animate-spin text-primary" aria-label="กำลังโหลด" />
+            ) : null}
+          </nav>
         </div>
       ) : null}
     </section>
