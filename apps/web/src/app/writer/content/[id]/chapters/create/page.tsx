@@ -340,9 +340,6 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
                 เนื้อหา <span className="text-destructive">*</span>
               </Label>
               <RichTextEditor id="chapter-content" />
-              <p className="text-xs text-muted-foreground">
-                การวางข้อความจะคงย่อหน้า บรรทัดว่าง และระยะห่าง แต่ใช้รูปแบบเดียวกับตัวแก้ไข
-              </p>
             </div>
           </section>
         )}
