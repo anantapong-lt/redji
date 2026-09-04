@@ -68,6 +68,8 @@ export function TopupForm() {
   const [createdTopup, setCreatedTopup] = useState<CreateTopupResponse | null>(null)
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [closeCountdown, setCloseCountdown] = useState(5)
+  const [closeProgress, setCloseProgress] = useState(100)
   const [isCreating, setIsCreating] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const amountIsValid = Number.isInteger(amount) && amount >= 1 && amount <= 3000
@@ -93,8 +95,21 @@ export function TopupForm() {
   useEffect(() => {
     if (!isPaid || !topupId) return
 
+    const closeAfterMs = 5_000
+    const startedAt = Date.now()
+    setCloseCountdown(5)
+    setCloseProgress(100)
+
+    const progressTimer = window.setInterval(() => {
+      const remainingMs = Math.max(closeAfterMs - (Date.now() - startedAt), 0)
+      setCloseCountdown(Math.ceil(remainingMs / 1_000))
+      setCloseProgress((remainingMs / closeAfterMs) * 100)
+    }, 100)
     const closeTimer = window.setTimeout(() => setIsQrDialogOpen(false), 5_000)
-    return () => window.clearTimeout(closeTimer)
+    return () => {
+      window.clearInterval(progressTimer)
+      window.clearTimeout(closeTimer)
+    }
   }, [isPaid, topupId])
 
   useEffect(() => {
@@ -343,6 +358,28 @@ export function TopupForm() {
                   />
                 )}
               </div>
+
+              {isPaid && (
+                <div className="space-y-1.5" aria-live="polite">
+                  <div className="flex items-center justify-between text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    <span>ชำระเงินสำเร็จ</span>
+                    <span className="tabular-nums">ปิดใน {closeCountdown} วินาที</span>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="เวลาที่เหลือก่อนปิดหน้าต่าง"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(closeProgress)}
+                    className="h-1.5 overflow-hidden rounded-full bg-emerald-500/15"
+                  >
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-[width] duration-100 ease-linear"
+                      style={{ width: `${closeProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {!isPaid && (
                 <button
