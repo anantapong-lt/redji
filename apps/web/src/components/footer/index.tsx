@@ -6,7 +6,7 @@ const EXPLORE_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
   { label: 'ฟีด', icon: Rss },
   { label: 'ค้นหา', icon: Search },
-  { label: `เติม${SITE_CONFIG.coinName}`, icon: Coins },
+  { label: `เติม${SITE_CONFIG.coinName}`, icon: Coins, href: '/topup' },
   { label: 'เป็นนักเขียน', icon: PenLine },
 ]
 
