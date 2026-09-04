@@ -7,3 +7,4 @@
 # Web UI conventions
 
 - Use `GiTwoCoins` from `react-icons/gi` whenever displaying a coin icon.
+- Use `SITE_CONFIG.coinName` instead of hardcoding the coin name in user-facing text.
