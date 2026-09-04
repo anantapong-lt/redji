@@ -85,10 +85,11 @@ const nextConfig: NextConfig = {
   // origin เดียวกับตัวเว็บเสมอ แล้ว Next.js proxy ต่อให้ backend เอง (server-to-server ไม่มี
   // CORS/cross-site cookie ให้ต้องแก้) — ไม่กระทบ dev ปกติเพราะไม่มีใครเรียก /api/* ถ้าไม่ตั้ง env ตัวนี้
   async rewrites() {
+    const apiHost = process.env.API_INTERNAL_URL || 'http://localhost:4000'
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:4000/:path*',
+        destination: `${apiHost}/:path*`,
       },
     ]
   },
