@@ -1,0 +1,58 @@
+import { S3Client } from 'bun'
+import { Buffer } from 'node:buffer'
+import sharp from 'sharp'
+import { env } from '../../config/env'
+
+const PAGE_WIDTH = 2400
+const PAGE_QUALITY = 85
+
+export interface UploadedChapterPage {
+  key: string
+  image_url: string
+  width: number
+  height: number
+}
+
+function createR2Client() {
+  if (
+    !env.R2_ACCOUNT_ID
+    || !env.R2_ACCESS_KEY_ID
+    || !env.R2_SECRET_ACCESS_KEY
+    || !env.R2_BUCKET_NAME
+    || !env.R2_PUBLIC_URL
+  ) {
+    throw new Error('R2 configuration is incomplete')
+  }
+
+  return new S3Client({
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    bucket: env.R2_BUCKET_NAME,
+    endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  })
+}
+
+export async function uploadWriterChapterPage(file: File): Promise<UploadedChapterPage> {
+  const input = Buffer.from(await file.arrayBuffer())
+  const { data, info } = await sharp(input)
+    .rotate()
+    .resize({ width: PAGE_WIDTH, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: PAGE_QUALITY })
+    .toBuffer({ resolveWithObject: true })
+  const key = `stories/chapters/pages/${crypto.randomUUID()}.webp`
+
+  await createR2Client().write(key, new Blob([data], { type: 'image/webp' }), {
+    type: 'image/webp',
+  })
+
+  return {
+    key,
+    image_url: `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`,
+    width: info.width,
+    height: info.height,
+  }
+}
+
+export async function deleteWriterChapterPage(key: string): Promise<void> {
+  await createR2Client().delete(key)
+}

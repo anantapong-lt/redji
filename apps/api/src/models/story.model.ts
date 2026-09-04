@@ -11,6 +11,13 @@ export const STORY_STATUS = {
   CANCELLED: 'cancelled',
 } as const
 
+export const CHAPTER_STATUS = {
+  DRAFT: 'draft',
+  SCHEDULED: 'scheduled',
+  PUBLISHED: 'published',
+  HIDDEN: 'hidden',
+} as const
+
 export const STORY_TYPES = [
   STORY_TYPE.NOVEL,
   STORY_TYPE.MANGA,
@@ -25,10 +32,10 @@ export const STORY_STATUSES = [
 ] as const
 
 export const CHAPTER_STATUSES = [
-  'draft',
-  'scheduled',
-  'published',
-  'hidden',
+  CHAPTER_STATUS.DRAFT,
+  CHAPTER_STATUS.SCHEDULED,
+  CHAPTER_STATUS.PUBLISHED,
+  CHAPTER_STATUS.HIDDEN,
 ] as const
 
 export type StoryType = (typeof STORY_TYPES)[number]

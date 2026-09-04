@@ -1,10 +1,10 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
-import { CHAPTER_STATUSES, STORY_STATUSES, STORY_TYPES } from '../../models/story.model'
 import {
   bulkUpdateChapterPrice,
   bulkUpdateChapterStatus,
+  createWriterChapter,
   getWriterChapters,
   WriterChapterError,
 } from './writer-chapter.service'
@@ -15,6 +15,16 @@ import {
   getWriterContent,
   updateWriterContent,
 } from './writer-content.service'
+import {
+  bulkUpdateChapterPriceBodySchema,
+  bulkUpdateChapterStatusBodySchema,
+  createWriterChapterBodySchema,
+  createWriterContentBodySchema,
+  updateWriterContentBodySchema,
+  writerChaptersQuerySchema,
+  writerContentParamsSchema,
+  writerContentsQuerySchema,
+} from './writer.schema'
 import { getWriterStats } from './writer.service'
 
 export const writerRoutes = new Elysia({ prefix: '/writer' })
@@ -33,11 +43,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     }),
     {
       auth: USER_ROLE.WRITER,
-      query: t.Object({
-        tab: t.UnionEnum(['novel', 'cartoon']),
-        page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
-        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
-      }),
+      query: writerContentsQuerySchema,
     },
   )
   .post(
@@ -60,21 +66,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      body: t.Object({
-        type: t.UnionEnum(STORY_TYPES),
-        title: t.String({ minLength: 1, maxLength: 120 }),
-        slug: t.Optional(t.String({ maxLength: 255 })),
-        auto_generate_slug: t.Optional(t.Literal('true')),
-        synopsis: t.Optional(t.String({ maxLength: 140 })),
-        status: t.UnionEnum(STORY_STATUSES),
-        age_rating: t.UnionEnum(['0', '18']),
-        primary_genre_id: t.String({ format: 'uuid' }),
-        secondary_genre_id: t.Optional(t.String()),
-        cover: t.Optional(t.File({
-          type: ['image/jpeg', 'image/png', 'image/webp'],
-          maxSize: '5m',
-        })),
-      }),
+      body: createWriterContentBodySchema,
     },
   )
   .get(
@@ -96,9 +88,28 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: t.Object({
-        id: t.String({ format: 'uuid' }),
-      }),
+      params: writerContentParamsSchema,
+    },
+  )
+  .post(
+    '/contents/:id/chapters',
+    async ({ body, currentUser, params, status }) => {
+      try {
+        const chapter = await createWriterChapter(currentUser.id, params.id, body)
+        return status(201, { chapter })
+      } catch (error) {
+        if (error instanceof WriterChapterError) {
+          return status(error.statusCode, { message: error.message, field: error.field })
+        }
+
+        console.error('Unable to create writer chapter', error)
+        return status(500, { message: 'ไม่สามารถสร้างตอนได้ กรุณาลองใหม่อีกครั้ง' })
+      }
+    },
+    {
+      auth: USER_ROLE.WRITER,
+      params: writerContentParamsSchema,
+      body: createWriterChapterBodySchema,
     },
   )
   .patch(
@@ -121,24 +132,8 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: t.Object({
-        id: t.String({ format: 'uuid' }),
-      }),
-      body: t.Object({
-        type: t.UnionEnum(STORY_TYPES),
-        title: t.String({ minLength: 1, maxLength: 120 }),
-        slug: t.String({ minLength: 1, maxLength: 255 }),
-        synopsis: t.Optional(t.String({ maxLength: 140 })),
-        status: t.UnionEnum(STORY_STATUSES),
-        age_rating: t.UnionEnum(['0', '18']),
-        primary_genre_id: t.String({ format: 'uuid' }),
-        secondary_genre_id: t.Optional(t.String()),
-        cover: t.Optional(t.File({
-          type: ['image/jpeg', 'image/png', 'image/webp'],
-          maxSize: '5m',
-        })),
-        remove_cover: t.Optional(t.Literal('true')),
-      }),
+      params: writerContentParamsSchema,
+      body: updateWriterContentBodySchema,
     },
   )
   .get(
@@ -161,14 +156,8 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: t.Object({
-        id: t.String({ format: 'uuid' }),
-      }),
-      query: t.Object({
-        search: t.Optional(t.String({ maxLength: 255 })),
-        page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
-        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
-      }),
+      params: writerContentParamsSchema,
+      query: writerChaptersQuerySchema,
     },
   )
   .patch(
@@ -188,13 +177,8 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: t.Object({
-        id: t.String({ format: 'uuid' }),
-      }),
-      body: t.Object({
-        chapter_ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 }),
-        price: t.Number({ minimum: 0, maximum: 9_999_999_999.99 }),
-      }),
+      params: writerContentParamsSchema,
+      body: bulkUpdateChapterPriceBodySchema,
     },
   )
   .patch(
@@ -214,13 +198,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     },
     {
       auth: USER_ROLE.WRITER,
-      params: t.Object({
-        id: t.String({ format: 'uuid' }),
-      }),
-      body: t.Object({
-        chapter_ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 }),
-        status: t.UnionEnum(CHAPTER_STATUSES),
-        published_at: t.Optional(t.String({ format: 'date-time' })),
-      }),
+      params: writerContentParamsSchema,
+      body: bulkUpdateChapterStatusBodySchema,
     },
   )

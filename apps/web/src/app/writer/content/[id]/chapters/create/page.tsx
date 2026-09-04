@@ -10,12 +10,15 @@ import {
   type FormEvent,
 } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeftIcon,
   ImagePlusIcon,
+  LoaderCircleIcon,
   Trash2Icon,
   XIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { RichTextEditor } from '@/components/common/rich-text-editor'
 import { Button } from '@/components/ui/button'
@@ -30,7 +33,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StoryType } from '@/constants/story.constant'
-import { getWriterContent } from '@/controllers/writer.controller'
+import { createWriterChapter, getWriterContent } from '@/controllers/writer.controller'
 import type { ChapterStatus } from '@/interface/writer-chapter.interface'
 
 const chapterStatusOptions: { value: ChapterStatus; label: string }[] = [
@@ -52,6 +55,7 @@ interface CreateChapterPageProps {
 
 export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const { id } = use(params)
+  const router = useRouter()
   const { accessToken, status: authStatus } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imagesRef = useRef<ChapterImage[]>([])
@@ -60,6 +64,8 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [chapterStatus, setChapterStatus] = useState<ChapterStatus>('draft')
   const [images, setImages] = useState<ChapterImage[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const chaptersHref = `/writer/content/${id}/chapters`
 
   useEffect(() => {
@@ -134,8 +140,45 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     setImages([])
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (isSubmitting || !accessToken || !storyType) return
+
+    if (isCartoon && images.length === 0) {
+      setSubmitError('กรุณาเพิ่มรูปภาพอย่างน้อย 1 รูป')
+      return
+    }
+
+    const body = new FormData(event.currentTarget)
+    body.delete('images')
+    if (isCartoon) {
+      for (const image of images) body.append('images', image.file)
+    }
+
+    if (chapterStatus === 'scheduled') {
+      const scheduledAt = body.get('published_at')
+      if (typeof scheduledAt !== 'string' || !scheduledAt) {
+        setSubmitError('กรุณาระบุวันและเวลาเผยแพร่')
+        return
+      }
+      body.set('published_at', new Date(scheduledAt).toISOString())
+    } else {
+      body.delete('published_at')
+    }
+
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      await createWriterChapter(id, body, accessToken)
+      toast.success('สร้างตอนเรียบร้อยแล้ว')
+      router.push(chaptersHref)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'ไม่สามารถสร้างตอนได้'
+      setSubmitError(message)
+      toast.error(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (!storyType && !loadError) {
@@ -260,6 +303,21 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               </SelectContent>
             </Select>
           </div>
+
+          {chapterStatus === 'scheduled' && (
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="chapter-published-at" className="text-sm font-semibold">
+                วันและเวลาเผยแพร่ <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="chapter-published-at"
+                name="published_at"
+                type="datetime-local"
+                required
+                className="h-11 rounded-xl px-3"
+              />
+            </div>
+          )}
         </section>
 
         {isCartoon ? (
@@ -345,11 +403,21 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
         )}
 
         <div className="flex justify-end gap-3 border-t border-border pt-5">
+          {submitError && (
+            <p role="alert" className="mr-auto self-center text-sm text-destructive">
+              {submitError}
+            </p>
+          )}
           <Button asChild type="button" variant="outline" className="h-11 rounded-xl px-5">
             <Link href={chaptersHref}>ยกเลิก</Link>
           </Button>
-          <Button type="submit" className="h-11 rounded-xl px-5 font-bold">
-            สร้าง
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="h-11 rounded-xl px-5 font-bold"
+          >
+            {isSubmitting && <LoaderCircleIcon className="animate-spin" />}
+            {isSubmitting ? 'กำลังสร้าง...' : 'สร้าง'}
           </Button>
         </div>
       </form>

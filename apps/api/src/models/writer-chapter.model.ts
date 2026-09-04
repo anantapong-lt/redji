@@ -1,4 +1,27 @@
-import type { ChapterStatus } from './story.model'
+import type { ChapterStatus, StoryType } from './story.model'
+
+export interface CreateWriterChapterInput {
+  title: string
+  chapter_number: number
+  price: number
+  status: ChapterStatus
+  published_at?: string
+  content?: string
+  images?: File[]
+}
+
+export interface CreatedWriterChapter {
+  id: string
+  story_id: string
+  story_type: StoryType
+  chapter_number: string
+  title: string
+  price: string
+  is_free: boolean
+  status: ChapterStatus
+  published_at: Date | null
+  created_at: Date
+}
 
 export interface GetWriterChaptersInput {
   search?: string
