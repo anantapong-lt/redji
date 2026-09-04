@@ -27,11 +27,19 @@ export function verifyRegistrationEmail(token: string): Promise<{ message: strin
   })
 }
 
-export function loginWithPassword(email: string, password: string): Promise<AuthSession> {
+export function loginWithPassword(
+  email: string,
+  password: string,
+  turnstileToken?: string,
+): Promise<AuthSession> {
   return apiRequest<AuthSession>('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    }),
   })
 }
 

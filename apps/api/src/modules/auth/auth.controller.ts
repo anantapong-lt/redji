@@ -5,6 +5,7 @@ import {
 } from './auth.service'
 import {
   sendVerificationEmail,
+  verifyLoginTurnstile,
   verifyRegistrationTurnstile,
 } from './auth.integrations'
 
@@ -60,6 +61,15 @@ export async function registerWithEmail(body: {
   } catch (error) {
     return registrationErrorResponse(error)
   }
+}
+
+export async function requireLoginTurnstile(token: string | undefined) {
+  if (await verifyLoginTurnstile(token)) return
+
+  return Response.json(
+    { message: 'ไม่สามารถยืนยัน Cloudflare Turnstile ได้ กรุณาลองใหม่อีกครั้ง', field: 'turnstile_token' },
+    { status: 400 },
+  )
 }
 
 export async function confirmRegistrationEmail(token: string) {

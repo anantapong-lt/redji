@@ -23,7 +23,7 @@ interface AuthContextValue {
   accessToken: string | null
   user: AuthUser | null
   status: AuthStatus
-  login: (email: string, password: string) => Promise<AuthSession>
+  login: (email: string, password: string, turnstileToken?: string) => Promise<AuthSession>
   logout: () => Promise<void>
   refresh: () => Promise<boolean>
 }
@@ -68,8 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer)
   }, [refresh, session])
 
-  const login = useCallback(async (email: string, password: string) => {
-    const nextSession = await loginWithPassword(email, password)
+  const login = useCallback(async (email: string, password: string, turnstileToken?: string) => {
+    const nextSession = await loginWithPassword(email, password, turnstileToken)
     setSession(nextSession)
     setStatus('authenticated')
     return nextSession

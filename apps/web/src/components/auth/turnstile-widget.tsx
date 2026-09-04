@@ -27,8 +27,10 @@ declare global {
 }
 
 export function TurnstileWidget({
+  action,
   onTokenChange,
 }: {
+  action: 'register' | 'login'
   onTokenChange: (token: string | null) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -41,7 +43,7 @@ export function TurnstileWidget({
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
-      action: 'register',
+      action,
       theme: 'auto',
       language: 'th',
       callback: (token) => onTokenChange(token),
@@ -56,7 +58,7 @@ export function TurnstileWidget({
       }
       widgetIdRef.current = null
     }
-  }, [onTokenChange, scriptReady, siteKey])
+  }, [action, onTokenChange, scriptReady, siteKey])
 
   if (process.env.NODE_ENV === 'development') return null
 

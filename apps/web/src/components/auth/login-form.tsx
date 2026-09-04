@@ -8,8 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Lock, Mail } from 'lucide-react'
 import { useAuth } from './auth-provider'
-import { CloudflarePlaceholder } from './cloudflare-placeholder'
 import { IconInput, PasswordInput } from './form-inputs'
+import { TurnstileWidget } from './turnstile-widget'
 import { ApiError } from '@/lib/api-client'
 import { userRole } from '@/interface/user.interface'
 
@@ -22,8 +22,11 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, status } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileKey, setTurnstileKey] = useState(0)
+  const turnstileRequired = process.env.NODE_ENV !== 'development'
   const {
     register,
     handleSubmit,
@@ -34,8 +37,13 @@ export function LoginForm() {
   async function onSubmit(values: LoginValues) {
     setPreviewMessage('')
 
+    if (turnstileRequired && !turnstileToken) {
+      setError('root', { message: 'กรุณายืนยัน Cloudflare Turnstile' })
+      return
+    }
+
     try {
-      const session = await login(values.email, values.password)
+      const session = await login(values.email, values.password, turnstileToken ?? undefined)
       router.replace(session.user.role === userRole.WRITER ? '/writer' : '/')
     } catch (error) {
       setError('root', {
@@ -43,6 +51,9 @@ export function LoginForm() {
           ? error.message
           : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
       })
+    } finally {
+      setTurnstileToken(null)
+      setTurnstileKey((current) => current + 1)
     }
   }
 
@@ -69,11 +80,15 @@ export function LoginForm() {
         {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
       </div>
 
-      <CloudflarePlaceholder />
+      <TurnstileWidget
+        key={turnstileKey}
+        action="login"
+        onTokenChange={setTurnstileToken}
+      />
 
       <button
         type="submit"
-        disabled={isSubmitting || status === 'loading'}
+        disabled={isSubmitting || status === 'loading' || (turnstileRequired && !turnstileToken)}
         className="h-11 w-full cursor-pointer rounded-lg bg-primary px-4 text-base font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}

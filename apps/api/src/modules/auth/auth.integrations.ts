@@ -10,7 +10,10 @@ interface ResendResponse {
   message?: string
 }
 
-export async function verifyRegistrationTurnstile(token: string | undefined): Promise<boolean> {
+async function verifyTurnstile(
+  token: string | undefined,
+  expectedAction: 'register' | 'login',
+): Promise<boolean> {
   if (isDev) return true
   if (!env.TURNSTILE_SECRET_KEY || !token) return false
 
@@ -27,10 +30,18 @@ export async function verifyRegistrationTurnstile(token: string | undefined): Pr
     if (!response.ok) return false
 
     const result = await response.json() as TurnstileResponse
-    return result.success && result.action === 'register'
+    return result.success && result.action === expectedAction
   } catch {
     return false
   }
+}
+
+export function verifyRegistrationTurnstile(token: string | undefined): Promise<boolean> {
+  return verifyTurnstile(token, 'register')
+}
+
+export function verifyLoginTurnstile(token: string | undefined): Promise<boolean> {
+  return verifyTurnstile(token, 'login')
 }
 
 export async function sendVerificationEmail(

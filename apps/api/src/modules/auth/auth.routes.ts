@@ -2,7 +2,11 @@ import { jwt } from '@elysiajs/jwt'
 import { Elysia } from 'elysia'
 import { env } from '../../config/env'
 import { authMiddleware } from '../../middleware/auth.middleware'
-import { confirmRegistrationEmail, registerWithEmail } from './auth.controller'
+import {
+  confirmRegistrationEmail,
+  registerWithEmail,
+  requireLoginTurnstile,
+} from './auth.controller'
 import {
   loginBodySchema,
   registerBodySchema,
@@ -96,7 +100,10 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         user: result.user,
       }
     },
-    { body: loginBodySchema },
+    {
+      body: loginBodySchema,
+      beforeHandle: ({ body }) => requireLoginTurnstile(body.turnstile_token),
+    },
   )
   .post('/refresh', async ({ accessJwt, cookie, refreshJwt, set }) => {
     const refreshCookie = cookie[REFRESH_COOKIE_NAME]

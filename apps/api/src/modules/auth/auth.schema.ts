@@ -4,6 +4,7 @@ export const loginBodySchema = t.Object(
   {
     email: t.String({ format: 'email', maxLength: 320 }),
     password: t.String({ minLength: 1, maxLength: 128 }),
+    turnstile_token: t.Optional(t.String({ maxLength: 2048 })),
   },
   { additionalProperties: false },
 )

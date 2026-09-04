@@ -128,7 +128,11 @@ export function RegisterForm() {
         </div>
         {errors.terms && <p className="-mt-2 text-center text-xs text-destructive">{errors.terms.message}</p>}
 
-        <TurnstileWidget key={turnstileKey} onTokenChange={setTurnstileToken} />
+        <TurnstileWidget
+          key={turnstileKey}
+          action="register"
+          onTokenChange={setTurnstileToken}
+        />
 
         <button
           type="submit"
