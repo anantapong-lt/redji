@@ -1,0 +1,109 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import type { ReadingSettings } from '@/lib/reading-settings'
+import { READING_THEMES } from '@/lib/reading-settings'
+import { ReaderContentSkeleton } from './reader-content-skeleton'
+
+const BLOCKED_ELEMENTS = 'script,style,iframe,object,embed,form,input,button,textarea,select,meta,link,base,svg,math,img,audio,video,source,canvas'
+const SAFE_ATTRIBUTES = new Set(['data-type', 'href', 'rel', 'start', 'style', 'target'])
+const SAFE_STYLE_PROPERTIES = new Set([
+  'display',
+  'font-family',
+  'font-style',
+  'font-weight',
+  'letter-spacing',
+  'line-height',
+  'margin-bottom',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'min-height',
+  'text-align',
+  'text-decoration',
+  'text-decoration-line',
+  'text-indent',
+])
+
+function sanitizeChapterHtml(html: string) {
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  document.querySelectorAll(BLOCKED_ELEMENTS).forEach((element) => element.remove())
+
+  document.body.querySelectorAll('*').forEach((element) => {
+    for (const attribute of [...element.attributes]) {
+      const name = attribute.name.toLowerCase()
+      const value = attribute.value.trim().toLowerCase()
+
+      if (!SAFE_ATTRIBUTES.has(name)) {
+        element.removeAttribute(attribute.name)
+        continue
+      }
+
+      if ((name === 'href' || name === 'src') && (
+        value.startsWith('javascript:') || value.startsWith('data:text/html')
+      )) {
+        element.removeAttribute(attribute.name)
+      }
+    }
+
+    if (element instanceof HTMLAnchorElement && element.target === '_blank') {
+      element.rel = 'noopener noreferrer'
+    }
+
+    const style = (element as HTMLElement).style
+    for (const property of [...style]) {
+      if (!SAFE_STYLE_PROPERTIES.has(property)) style.removeProperty(property)
+    }
+
+    if (element.matches('span[data-type="paragraph"]')) {
+      style.display = 'block'
+      if (!style.minHeight) style.minHeight = '1lh'
+    }
+  })
+
+  return document.body.innerHTML
+}
+
+export function NovelChapterContent({
+  content,
+  settings,
+}: {
+  content: string
+  settings: ReadingSettings
+}) {
+  const [sanitizedContent, setSanitizedContent] = useState<{
+    source: string
+    html: string
+  } | null>(null)
+  const theme = READING_THEMES[settings.theme]
+  const safeContent = sanitizedContent?.source === content
+    ? sanitizedContent.html
+    : null
+
+  useEffect(() => {
+    setSanitizedContent({
+      source: content,
+      html: sanitizeChapterHtml(content),
+    })
+  }, [content])
+
+  return (
+    <article
+      className="px-4 py-8 transition-colors sm:px-10 sm:py-12 lg:px-16"
+      style={{ backgroundColor: theme.background, color: theme.text }}
+    >
+      {safeContent === null ? (
+        <ReaderContentSkeleton />
+      ) : (
+        <div
+          className={`mx-auto max-w-3xl select-none break-words [&_a]:text-primary [&_a]:underline [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/35 [&_blockquote]:pl-4 [&_h1]:my-6 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_hr]:my-8 [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:min-h-[1lh] [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7 ${
+            settings.fontFamily === 'serif' ? 'font-serif' : 'font-sans'
+          }`}
+          style={{ fontSize: settings.fontSize, lineHeight: 2 }}
+          onCopy={(event) => event.preventDefault()}
+          dangerouslySetInnerHTML={{ __html: safeContent }}
+        />
+      )}
+    </article>
+  )
+}

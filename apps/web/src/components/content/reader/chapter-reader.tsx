@@ -1,0 +1,116 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { ChapterPurchaseDialog } from '@/components/content/chapter-purchase-dialog'
+import type {
+  PublicChapter,
+  PublicChapterResponse,
+  PublicReaderChapter,
+} from '@/interface/content.interface'
+import {
+  DEFAULT_READING_SETTINGS,
+  loadReadingSettings,
+  saveReadingSettings,
+  type ReadingSettings,
+} from '@/lib/reading-settings'
+import { ChapterNavigation } from './chapter-navigation'
+import { ChapterReaderHeader } from './chapter-reader-header'
+import { MangaChapterContent } from './manga-chapter-content'
+import { NovelChapterContent } from './novel-chapter-content'
+
+function toPurchasableChapter(chapter: PublicReaderChapter): PublicChapter {
+  return {
+    ...chapter,
+    is_owner: false,
+  }
+}
+
+export function ChapterReader({ data }: { data: PublicChapterResponse }) {
+  const router = useRouter()
+  const [settings, setSettings] = useState<ReadingSettings>(DEFAULT_READING_SETTINGS)
+  const [chapters, setChapters] = useState(data.chapters)
+  const [pendingChapter, setPendingChapter] = useState<PublicReaderChapter | null>(null)
+
+  useEffect(() => {
+    setSettings(loadReadingSettings())
+  }, [])
+
+  function updateSettings(nextSettings: ReadingSettings) {
+    setSettings(nextSettings)
+    saveReadingSettings(nextSettings)
+  }
+
+  function navigateToChapter(chapter: PublicReaderChapter) {
+    if (!chapter.can_read) {
+      setPendingChapter(chapter)
+      return
+    }
+
+    router.push(
+      `/content/${encodeURIComponent(data.story.slug)}/${encodeURIComponent(String(Number(chapter.chapter_number)))}`,
+    )
+  }
+
+  function handlePurchased(chapterIds: string[]) {
+    const purchasedIds = new Set(chapterIds)
+    setChapters((current) => current.map((chapter) => (
+      purchasedIds.has(chapter.id)
+        ? { ...chapter, is_purchased: true, can_read: true }
+        : chapter
+    )))
+
+    if (pendingChapter && purchasedIds.has(pendingChapter.id)) {
+      router.push(
+        `/content/${encodeURIComponent(data.story.slug)}/${encodeURIComponent(String(Number(pendingChapter.chapter_number)))}`,
+      )
+    }
+    setPendingChapter(null)
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
+      <section className="readji-surface overflow-visible rounded-2xl sm:rounded-[1.75rem]">
+        <ChapterReaderHeader
+          slug={data.story.slug}
+          chapterNumber={data.chapter.chapter_number}
+          chapterTitle={data.chapter.title}
+          chapters={chapters}
+          showReadingSettings={data.story.type === 'novel'}
+          settings={settings}
+          onSettingsChange={updateSettings}
+          onNavigate={navigateToChapter}
+        />
+
+        <div className="overflow-hidden rounded-b-2xl sm:rounded-b-[1.75rem]">
+          {data.story.type === 'manga' ? (
+            <MangaChapterContent storyTitle={data.story.title} pages={data.pages} />
+          ) : (
+            <NovelChapterContent
+              content={data.content ?? ''}
+              settings={settings}
+            />
+          )}
+          <ChapterNavigation
+            chapters={chapters}
+            currentChapterNumber={data.chapter.chapter_number}
+            onNavigate={navigateToChapter}
+          />
+        </div>
+      </section>
+
+      {pendingChapter ? (
+        <ChapterPurchaseDialog
+          chapters={[toPurchasableChapter(pendingChapter)]}
+          storyTitle={data.story.title}
+          coverUrl={data.story.cover_url}
+          open
+          onOpenChange={(open) => {
+            if (!open) setPendingChapter(null)
+          }}
+          onPurchased={handlePurchased}
+        />
+      ) : null}
+    </div>
+  )
+}

@@ -1,12 +1,71 @@
 import {
   addPublicContentFavorite,
+  findMangaChapterPages,
+  findNovelChapterContent,
+  findPublicChapterForReading,
+  findPublicReaderChapters,
   findPublicChaptersBySlug,
   findPublicContentBySlug,
   listPublicContentForSitemap,
   ratePublicContentBySlug,
   removePublicContentFavorite,
+  incrementPublicContentView,
   type PublicChapterSort,
 } from './content.service'
+
+export async function getPublicChapter(
+  slug: string,
+  chapterNumber: number,
+  currentUserId: string | null,
+) {
+  try {
+    const chapter = await findPublicChapterForReading(slug, chapterNumber, currentUserId)
+    if (!chapter) {
+      return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+    }
+
+    if (!chapter.can_read) {
+      return Response.json(
+        { message: currentUserId ? 'กรุณาซื้อตอนนี้ก่อนอ่าน' : 'กรุณาเข้าสู่ระบบก่อนอ่านตอนนี้' },
+        { status: currentUserId ? 403 : 401 },
+      )
+    }
+
+    const [chapters, content, pages] = await Promise.all([
+      findPublicReaderChapters(chapter.story.id, currentUserId),
+      chapter.story.type === 'novel'
+        ? findNovelChapterContent(chapter.id)
+        : Promise.resolve(null),
+      chapter.story.type === 'manga'
+        ? findMangaChapterPages(chapter.id)
+        : Promise.resolve([]),
+    ])
+
+    await incrementPublicContentView(chapter.story.id)
+
+    return Response.json(
+      {
+        story: chapter.story,
+        chapter: {
+          id: chapter.id,
+          chapter_number: chapter.chapter_number,
+          title: chapter.title,
+          published_at: chapter.published_at,
+        },
+        chapters,
+        content,
+        pages,
+      },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
+  } catch (error) {
+    console.error('Unable to load public chapter', error)
+    return Response.json(
+      { message: 'ไม่สามารถโหลดเนื้อหาตอนได้ กรุณาลองใหม่อีกครั้ง' },
+      { status: 500 },
+    )
+  }
+}
 
 export async function ratePublicContent(
   slug: string,

@@ -207,7 +207,7 @@ export function ChapterPurchaseDialog({
             type="button"
             disabled={isPurchasing || status === 'loading' || (status === 'authenticated' && !hasEnoughBalance)}
             onClick={() => void confirmPurchase()}
-            className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-5 font-extrabold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-10 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-5 font-extrabold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-1"
           >
             {isPurchasing ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

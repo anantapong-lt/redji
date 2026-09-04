@@ -4,6 +4,11 @@ export const contentParamsSchema = t.Object({
   slug: t.String({ minLength: 1, maxLength: 255 }),
 })
 
+export const contentChapterParamsSchema = t.Object({
+  slug: t.String({ minLength: 1, maxLength: 255 }),
+  chapterNumber: t.Numeric({ minimum: 0 }),
+})
+
 export const contentRatingBodySchema = t.Object({
   rating: t.Numeric({ minimum: 1, maximum: 5, multipleOf: 1 }),
 })

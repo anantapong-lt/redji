@@ -1,4 +1,5 @@
 import type {
+  PublicChapterResponse,
   PublicContentResponse,
   PublicContentFavoriteResponse,
   PublicContentRatingResponse,
@@ -16,6 +17,20 @@ export function getPublicContent(
     cache: 'no-store',
     headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
   })
+}
+
+export function getPublicChapter(
+  slug: string,
+  chapterNumber: string,
+  cookieHeader?: string,
+): Promise<PublicChapterResponse> {
+  return apiRequest<PublicChapterResponse>(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/read`,
+    {
+      cache: 'no-store',
+      headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+    },
+  )
 }
 
 export function favoritePublicContent(

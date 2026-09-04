@@ -2,6 +2,7 @@ import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import {
   favoritePublicContent,
+  getPublicChapter,
   getPublicContent,
   getPublicContentChapters,
   getPublicContentSitemap,
@@ -9,6 +10,7 @@ import {
   unfavoritePublicContent,
 } from './content.controller'
 import {
+  contentChapterParamsSchema,
   contentChaptersQuerySchema,
   contentParamsSchema,
   contentRatingBodySchema,
@@ -49,6 +51,18 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
       optionalAuth: true,
       params: contentParamsSchema,
       query: contentChaptersQuerySchema,
+    },
+  )
+  .get(
+    '/:slug/chapters/:chapterNumber/read',
+    ({ currentUser, params }) => getPublicChapter(
+      params.slug,
+      params.chapterNumber,
+      currentUser?.id ?? null,
+    ),
+    {
+      optionalAuth: true,
+      params: contentChapterParamsSchema,
     },
   )
   .get(

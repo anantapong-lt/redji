@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowUpDown } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -79,6 +80,7 @@ export function PublicChapterList({
   initialData: PublicChaptersResponse
   renderedAt: number
 }) {
+  const router = useRouter()
   const { accessToken, status } = useAuth()
   const [chapters, setChapters] = useState(initialData.chapters)
   const [pagination, setPagination] = useState(initialData.pagination)
@@ -138,6 +140,10 @@ export function PublicChapterList({
 
   function markChaptersAsPurchased(chapterIds: string[]) {
     const purchasedIds = new Set(chapterIds)
+    const purchasedChapter = purchaseDialogChapters.length === 1
+      && purchasedIds.has(purchaseDialogChapters[0].id)
+      ? purchaseDialogChapters[0]
+      : null
     setChapters((current) => current.map((chapter) => (
       purchasedIds.has(chapter.id)
         ? { ...chapter, is_purchased: true, can_read: true }
@@ -145,6 +151,12 @@ export function PublicChapterList({
     )))
     setSelectedChapterIds([])
     setPurchaseDialogChapters([])
+
+    if (purchasedChapter) {
+      router.push(
+        `/content/${encodeURIComponent(slug)}/${encodeURIComponent(String(Number(purchasedChapter.chapter_number)))}`,
+      )
+    }
   }
 
   function toggleChapterSelection(chapterId: string) {
@@ -251,7 +263,13 @@ export function PublicChapterList({
               <button
                 type="button"
                 onClick={() => {
-                  if (!chapter.can_read) setPurchaseDialogChapters([chapter])
+                  if (chapter.can_read) {
+                    router.push(
+                      `/content/${encodeURIComponent(slug)}/${encodeURIComponent(String(Number(chapter.chapter_number)))}`,
+                    )
+                  } else {
+                    setPurchaseDialogChapters([chapter])
+                  }
                 }}
                 className={`flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 text-left ${
                   chapter.can_read ? 'px-4 sm:px-6' : 'pr-4 pl-3 sm:pr-6'

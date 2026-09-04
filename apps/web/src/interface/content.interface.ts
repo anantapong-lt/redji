@@ -89,3 +89,42 @@ export interface PublicContentSitemapResponse {
     updated_at: string
   }>
 }
+
+export interface PublicReaderChapter {
+  id: string
+  chapter_number: string
+  title: string
+  is_free: boolean
+  price: string
+  published_at: string
+  is_purchased: boolean
+  can_read: boolean
+}
+
+export interface PublicMangaChapterPage {
+  id: string
+  page_number: number
+  image_url: string
+  width: number | null
+  height: number | null
+  alt_text: string | null
+}
+
+export interface PublicChapterResponse {
+  story: {
+    id: string
+    title: string
+    slug: string
+    type: StoryType
+    cover_url: string | null
+  }
+  chapter: {
+    id: string
+    chapter_number: string
+    title: string
+    published_at: string
+  }
+  chapters: PublicReaderChapter[]
+  content: string | null
+  pages: PublicMangaChapterPage[]
+}

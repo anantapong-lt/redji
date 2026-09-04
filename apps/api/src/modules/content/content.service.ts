@@ -1,6 +1,150 @@
 import { db } from '../../db'
 import type { StoryStatus, StoryType } from '../../models/story.model'
 
+export interface PublicReaderChapter {
+  id: string
+  chapter_number: string
+  title: string
+  is_free: boolean
+  price: string
+  published_at: Date
+  is_purchased: boolean
+  can_read: boolean
+}
+
+export interface PublicChapterForReading {
+  id: string
+  chapter_number: string
+  title: string
+  published_at: Date
+  can_read: boolean
+  story: {
+    id: string
+    title: string
+    slug: string
+    type: StoryType
+    cover_url: string | null
+  }
+}
+
+export interface PublicMangaChapterPage {
+  id: string
+  page_number: number
+  image_url: string
+  width: number | null
+  height: number | null
+  alt_text: string | null
+}
+
+export async function findPublicChapterForReading(
+  slug: string,
+  chapterNumber: number,
+  currentUserId: string | null,
+): Promise<PublicChapterForReading | undefined> {
+  const [chapter] = await db<PublicChapterForReading[]>`
+    SELECT
+      chapters.id,
+      chapters.chapter_number::TEXT,
+      chapters.title,
+      chapters.published_at,
+      (
+        chapters.is_free
+        OR EXISTS (
+          SELECT 1
+          FROM chapter_purchases
+          WHERE chapter_purchases.chapter_id = chapters.id
+            AND chapter_purchases.buyer_user_id = ${currentUserId}::UUID
+        )
+      ) AS can_read,
+      json_build_object(
+        'id', stories.id,
+        'title', stories.title,
+        'slug', stories.slug,
+        'type', stories.type,
+        'cover_url', stories.cover_url
+      ) AS story
+    FROM chapters
+    INNER JOIN stories ON stories.id = chapters.story_id
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE LOWER(stories.slug) = LOWER(${slug})
+      AND chapters.chapter_number = ${chapterNumber}
+      AND chapters.status = 'published'
+      AND chapters.published_at <= NOW()
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    LIMIT 1
+  `
+
+  return chapter
+}
+
+export async function findPublicReaderChapters(
+  storyId: string,
+  currentUserId: string | null,
+): Promise<PublicReaderChapter[]> {
+  return db<PublicReaderChapter[]>`
+    SELECT
+      chapters.id,
+      chapters.chapter_number::TEXT,
+      chapters.title,
+      chapters.is_free,
+      chapters.price::TEXT,
+      chapters.published_at,
+      EXISTS (
+        SELECT 1
+        FROM chapter_purchases
+        WHERE chapter_purchases.chapter_id = chapters.id
+          AND chapter_purchases.buyer_user_id = ${currentUserId}::UUID
+      ) AS is_purchased,
+      (
+        chapters.is_free
+        OR EXISTS (
+          SELECT 1
+          FROM chapter_purchases
+          WHERE chapter_purchases.chapter_id = chapters.id
+            AND chapter_purchases.buyer_user_id = ${currentUserId}::UUID
+        )
+      ) AS can_read
+    FROM chapters
+    WHERE chapters.story_id = ${storyId}
+      AND chapters.status = 'published'
+      AND chapters.published_at <= NOW()
+    ORDER BY chapters.chapter_number ASC, chapters.id ASC
+  `
+}
+
+export async function findNovelChapterContent(chapterId: string): Promise<string> {
+  const [chapter] = await db<Array<{ content: string }>>`
+    SELECT content
+    FROM novel_chapter_contents
+    WHERE chapter_id = ${chapterId}
+    LIMIT 1
+  `
+
+  return chapter?.content ?? ''
+}
+
+export async function findMangaChapterPages(
+  chapterId: string,
+): Promise<PublicMangaChapterPage[]> {
+  return db<PublicMangaChapterPage[]>`
+    SELECT id, page_number, image_url, width, height, alt_text
+    FROM manga_chapter_pages
+    WHERE chapter_id = ${chapterId}
+    ORDER BY page_number ASC, id ASC
+  `
+}
+
+export async function incrementPublicContentView(storyId: string): Promise<void> {
+  await db`
+    UPDATE stories
+    SET total_views = total_views + 1
+    WHERE id = ${storyId}
+  `
+}
+
 export interface PublicContent {
   id: string
   title: string
