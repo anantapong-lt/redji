@@ -46,6 +46,9 @@ export interface PublicChapter {
   is_free: boolean
   price: string
   published_at: string
+  is_purchased: boolean
+  is_owner: boolean
+  can_read: boolean
 }
 
 export interface PublicChaptersResponse {

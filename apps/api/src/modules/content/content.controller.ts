@@ -4,9 +4,14 @@ import {
   listPublicContentForSitemap,
 } from './content.service'
 
-export async function getPublicContentChapters(slug: string, page = 1, limit = 25) {
+export async function getPublicContentChapters(
+  slug: string,
+  page = 1,
+  limit = 25,
+  currentUserId: string | null = null,
+) {
   try {
-    const result = await findPublicChaptersBySlug(slug, page, limit)
+    const result = await findPublicChaptersBySlug(slug, page, limit, currentUserId)
 
     if (!result) {
       return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })

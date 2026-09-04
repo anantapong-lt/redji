@@ -184,7 +184,11 @@ export default async function ContentPage({ params }: ContentPageProps) {
             </div>
           </div>
         </article>
-        <PublicChapterList slug={story.slug} initialData={initialChapters} />
+        <PublicChapterList
+          slug={story.slug}
+          initialData={initialChapters}
+          renderedAt={Date.now()}
+        />
       </div>
     )
   } catch (error) {

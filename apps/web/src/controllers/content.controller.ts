@@ -15,6 +15,7 @@ export function getPublicContentChapters(
   slug: string,
   page = 1,
   limit = 25,
+  accessToken?: string | null,
 ): Promise<PublicChaptersResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -23,7 +24,7 @@ export function getPublicContentChapters(
 
   return apiRequest<PublicChaptersResponse>(
     `/contents/${encodeURIComponent(slug)}/chapters?${searchParams.toString()}`,
-    { cache: 'no-store' },
+    { cache: 'no-store', accessToken },
   )
 }
 

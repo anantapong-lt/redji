@@ -116,6 +116,9 @@ export interface PublicChapter {
   is_free: boolean
   price: string
   published_at: Date
+  is_purchased: boolean
+  is_owner: boolean
+  can_read: boolean
 }
 
 export interface PublicChaptersResult {
@@ -134,6 +137,7 @@ export async function findPublicChaptersBySlug(
   slug: string,
   page: number,
   limit: number,
+  currentUserId: string | null,
 ): Promise<PublicChaptersResult | undefined> {
   const [story] = await db<{ id: string }[]>`
     SELECT stories.id
@@ -151,12 +155,36 @@ export async function findPublicChaptersBySlug(
   const offset = (page - 1) * limit
   const [chapters, [count]] = await Promise.all([
     db<PublicChapter[]>`
-      SELECT id, chapter_number::TEXT, title, is_free, price::TEXT, published_at
+      SELECT
+        chapters.id,
+        chapters.chapter_number::TEXT,
+        chapters.title,
+        chapters.is_free,
+        chapters.price::TEXT,
+        chapters.published_at,
+        EXISTS (
+          SELECT 1
+          FROM chapter_purchases
+          WHERE chapter_purchases.chapter_id = chapters.id
+            AND chapter_purchases.buyer_user_id = ${currentUserId}::UUID
+        ) AS is_purchased,
+        COALESCE(stories.creator_user_id = ${currentUserId}::UUID, FALSE) AS is_owner,
+        (
+          chapters.is_free
+          OR COALESCE(stories.creator_user_id = ${currentUserId}::UUID, FALSE)
+          OR EXISTS (
+            SELECT 1
+            FROM chapter_purchases
+            WHERE chapter_purchases.chapter_id = chapters.id
+              AND chapter_purchases.buyer_user_id = ${currentUserId}::UUID
+          )
+        ) AS can_read
       FROM chapters
-      WHERE story_id = ${story.id}
-        AND status = 'published'
-        AND published_at <= NOW()
-      ORDER BY chapter_number DESC, id DESC
+      INNER JOIN stories ON stories.id = chapters.story_id
+      WHERE chapters.story_id = ${story.id}
+        AND chapters.status = 'published'
+        AND chapters.published_at <= NOW()
+      ORDER BY chapters.chapter_number DESC, chapters.id DESC
       LIMIT ${limit} OFFSET ${offset}
     `,
     db<Array<{ total: string }>>`

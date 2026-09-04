@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
+import { GiTwoCoins } from 'react-icons/gi'
+import { useAuth } from '@/components/auth/auth-provider'
 import { getPublicContentChapters } from '@/controllers/content.controller'
 import type { PublicChaptersResponse } from '@/interface/content.interface'
 
@@ -9,11 +11,27 @@ function formatChapterNumber(value: string) {
   return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('th-TH', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+function formatRelativeDate(value: string, referenceTime: number) {
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((referenceTime - new Date(value).getTime()) / 1000),
+  )
+  if (elapsedSeconds < 60) return 'เมื่อสักครู่'
+
+  const minutes = Math.floor(elapsedSeconds / 60)
+  if (minutes < 60) return `${minutes.toLocaleString('th-TH')} นาทีที่แล้ว`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours.toLocaleString('th-TH')} ชม.ที่แล้ว`
+
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days.toLocaleString('th-TH')} วันที่แล้ว`
+
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months.toLocaleString('th-TH')} เดือนที่แล้ว`
+
+  const years = Math.floor(days / 365)
+  return `${years.toLocaleString('th-TH')} ปีที่แล้ว`
 }
 
 function sortByChapterNumber<T extends { chapter_number: string }>(chapters: T[]) {
@@ -25,14 +43,49 @@ function sortByChapterNumber<T extends { chapter_number: string }>(chapters: T[]
 export function PublicChapterList({
   slug,
   initialData,
+  renderedAt,
 }: {
   slug: string
   initialData: PublicChaptersResponse
+  renderedAt: number
 }) {
+  const { accessToken, status } = useAuth()
   const [chapters, setChapters] = useState(() => sortByChapterNumber(initialData.chapters))
   const [pagination, setPagination] = useState(initialData.pagination)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState(false)
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      setChapters((current) => current.map((chapter) => ({
+        ...chapter,
+        is_purchased: false,
+        is_owner: false,
+        can_read: chapter.is_free,
+      })))
+      return
+    }
+
+    if (status !== 'authenticated' || !accessToken) return
+
+    let cancelled = false
+    void getPublicContentChapters(slug, 1, initialData.pagination.limit, accessToken)
+      .then((authorizedData) => {
+        if (cancelled) return
+
+        const authorizedById = new Map(
+          authorizedData.chapters.map((chapter) => [chapter.id, chapter]),
+        )
+        setChapters((current) => current.map(
+          (chapter) => authorizedById.get(chapter.id) ?? chapter,
+        ))
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, initialData.pagination.limit, slug, status])
 
   async function loadMore() {
     if (isLoading || !pagination.hasNextPage) return
@@ -45,6 +98,7 @@ export function PublicChapterList({
         slug,
         pagination.page + 1,
         pagination.limit,
+        accessToken,
       )
       setChapters((current) => {
         const existingIds = new Set(current.map((chapter) => chapter.id))
@@ -81,21 +135,33 @@ export function PublicChapterList({
       {chapters.length > 0 ? (
         <ol className="divide-y divide-border/70">
           {chapters.map((chapter) => (
-            <li key={chapter.id} className="flex items-center gap-3 px-4 py-3 sm:px-6">
-              <span className="flex min-w-10 shrink-0 items-center justify-center rounded-xl bg-secondary px-2 py-2.5 text-xs font-extrabold tabular-nums text-secondary-foreground">
+            <li
+              key={chapter.id}
+              className="group flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-200 hover:bg-accent/80 sm:px-6"
+            >
+              <span className="flex min-w-10 shrink-0 items-center justify-center rounded-xl bg-secondary px-2 py-2.5 text-xs font-extrabold tabular-nums text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                 {formatChapterNumber(chapter.chapter_number)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-foreground">{chapter.title}</p>
+                <p className="truncate text-sm font-bold text-foreground transition-colors group-hover:text-primary">
+                  {chapter.title}
+                </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {formatDate(chapter.published_at)}
+                  {formatRelativeDate(chapter.published_at, renderedAt)}
                 </p>
               </div>
-              <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
-                {chapter.is_free
-                  ? 'ฟรี'
-                  : `${Number(chapter.price).toLocaleString('th-TH')} เบรี`}
-              </span>
+              {!chapter.can_read ? (
+                <span
+                  aria-label={`${Number(chapter.price).toLocaleString('th-TH')} เบรี`}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary"
+                >
+                  {Number(chapter.price).toLocaleString('th-TH')}
+                  <GiTwoCoins
+                    className="size-4 text-amber-500 drop-shadow-[0_1px_0_rgb(180_83_9_/_0.45)]"
+                    aria-hidden="true"
+                  />
+                </span>
+              ) : null}
             </li>
           ))}
         </ol>

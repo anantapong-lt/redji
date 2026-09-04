@@ -20,6 +20,18 @@ export const authMiddleware = new Elysia({ name: 'auth-middleware' })
     }),
   )
   .macro({
+    optionalAuth: (enabled: boolean) => enabled ? ({
+      async resolve({ accessJwt, request }) {
+        const token = bearerToken(request.headers.get('authorization'))
+        const payload = token ? await accessJwt.verify(token) : false
+
+        if (!payload || payload.token_type !== 'access' || typeof payload.sub !== 'string') {
+          return { currentUser: null }
+        }
+
+        return { currentUser: await findActiveUserById(payload.sub) ?? null }
+      },
+    }) : {},
     auth: (requiredRole: true | UserRole) => ({
       async resolve({ accessJwt, request, status }) {
         const token = bearerToken(request.headers.get('authorization'))
