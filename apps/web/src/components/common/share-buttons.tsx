@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 interface ShareButtonsProps {
   title: string
   className?: string
+  iconOnly?: boolean
 }
 
 const SHARE_PLATFORMS = [
@@ -54,7 +55,7 @@ const SHARE_PLATFORMS = [
   },
 ] as const
 
-export function ShareButtons({ title, className }: ShareButtonsProps) {
+export function ShareButtons({ title, className, iconOnly = false }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false)
 
   function shareTo(getUrl: (url: string, title: string) => string) {
@@ -77,13 +78,16 @@ export function ShareButtons({ title, className }: ShareButtonsProps) {
       <DialogTrigger asChild>
         <button
           type="button"
+          aria-label={iconOnly ? 'แชร์ตอนนี้' : undefined}
           className={cn(
-            'flex h-9 w-fit cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-bold text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-accent hover:text-primary hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/30',
+            iconOnly
+              ? 'readji-icon-button flex size-9 cursor-pointer items-center justify-center'
+              : 'flex h-9 w-fit cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-bold text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-accent hover:text-primary hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/30',
             className,
           )}
         >
-          <Share2 className="size-4" aria-hidden="true" />
-          แชร์เรื่องนี้
+          <Share2 className={iconOnly ? 'size-5' : 'size-4'} aria-hidden="true" />
+          {iconOnly ? null : 'แชร์เรื่องนี้'}
         </button>
       </DialogTrigger>
 

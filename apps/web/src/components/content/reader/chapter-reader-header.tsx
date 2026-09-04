@@ -1,8 +1,8 @@
 'use client'
 
-import { Check, Home, Share2 } from 'lucide-react'
+import { Home } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { ShareButtons } from '@/components/common/share-buttons'
 import type { PublicReaderChapter } from '@/interface/content.interface'
 import type { ReadingSettings } from '@/lib/reading-settings'
 import { ChapterTocDialog } from './chapter-toc-dialog'
@@ -31,22 +31,6 @@ export function ChapterReaderHeader({
   onSettingsChange: (settings: ReadingSettings) => void
   onNavigate: (chapter: PublicReaderChapter) => void
 }) {
-  const [copied, setCopied] = useState(false)
-
-  async function shareChapter() {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: chapterTitle, url: window.location.href })
-        return
-      }
-      await navigator.clipboard.writeText(window.location.href)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   return (
     <header className="sticky top-[4.35rem] z-40 flex items-center justify-between gap-3 border-b border-border/70 bg-card/95 px-3 py-3 shadow-sm backdrop-blur-xl sm:px-6 sm:py-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -76,14 +60,7 @@ export function ChapterReaderHeader({
         {showReadingSettings ? (
           <ReadingSettingsMenu settings={settings} onChange={onSettingsChange} />
         ) : null}
-        <button
-          type="button"
-          onClick={() => void shareChapter()}
-          aria-label={copied ? 'คัดลอกลิงก์แล้ว' : 'แชร์ตอนนี้'}
-          className="readji-icon-button flex size-9 cursor-pointer items-center justify-center"
-        >
-          {copied ? <Check className="size-5 text-primary" /> : <Share2 className="size-5" />}
-        </button>
+        <ShareButtons title={chapterTitle} iconOnly />
       </div>
     </header>
   )
