@@ -10,6 +10,8 @@ interface LandingStory {
   cover_blur_data_url: string | null
   type: StoryType
   total_views: string
+  rating_average: string
+  rating_count: string
   author: {
     id: string
     username: string
@@ -56,6 +58,8 @@ export async function getLandingStories(
         stories.cover_blur_data_url,
         stories.type,
         stories.total_views::TEXT,
+        COALESCE(rating_stats.rating_average, '0.0') AS rating_average,
+        COALESCE(rating_stats.rating_count, '0') AS rating_count,
         json_build_object(
           'id', users.id,
           'username', users.username,
@@ -79,6 +83,13 @@ export async function getLandingStories(
         ORDER BY chapters.published_at DESC, chapters.id DESC
         LIMIT 1
       ) AS latest_chapter ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          ROUND(AVG(story_ratings.rating)::NUMERIC, 1)::TEXT AS rating_average,
+          COUNT(*)::TEXT AS rating_count
+        FROM story_ratings
+        WHERE story_ratings.story_id = stories.id
+      ) AS rating_stats ON TRUE
       WHERE stories.status IN ('ongoing', 'completed')
         AND stories.deleted_at IS NULL
         AND users.status = 'active'

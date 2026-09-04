@@ -1,6 +1,7 @@
 import type {
   PublicContentResponse,
   PublicContentFavoriteResponse,
+  PublicContentRatingResponse,
   PublicContentSitemapResponse,
   PublicChaptersResponse,
   PublicChapterSort,
@@ -34,6 +35,22 @@ export function unfavoritePublicContent(
   return apiRequest<PublicContentFavoriteResponse>(
     `/contents/${encodeURIComponent(slug)}/favorite`,
     { method: 'DELETE', accessToken },
+  )
+}
+
+export function ratePublicContent(
+  slug: string,
+  rating: number,
+  accessToken: string,
+): Promise<PublicContentRatingResponse> {
+  return apiRequest<PublicContentRatingResponse>(
+    `/contents/${encodeURIComponent(slug)}/rating`,
+    {
+      method: 'POST',
+      accessToken,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating }),
+    },
   )
 }
 

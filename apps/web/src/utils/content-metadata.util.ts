@@ -101,6 +101,15 @@ export function createContentStructuredData(
     dateModified: story.updated_at,
     genre: genres.map((genre) => genre.name),
     numberOfItems: Number(story.chapter_count),
+    aggregateRating: Number(story.rating_count) > 0
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: Number(story.rating_average),
+          ratingCount: Number(story.rating_count),
+          bestRating: 5,
+          worstRating: 1,
+        }
+      : undefined,
     hasPart: chapters.map((chapter) => ({
       '@type': story.type === 'novel' ? 'Chapter' : 'ComicStory',
       name: chapter.title,

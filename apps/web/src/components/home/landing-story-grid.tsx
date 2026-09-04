@@ -43,6 +43,7 @@ function toStoryGridItem(
     image: story.cover_url ?? '/placeholder.svg',
     blurDataUrl: story.cover_blur_data_url,
     type: story.type,
+    ratingAverage: Number(story.rating_average),
     meta: section === 'latest'
       ? `อัปเดตเมื่อ ${formatUpdatedAt(story.latest_chapter.published_at, renderedAt)}`
       : `${Number(story.total_views).toLocaleString('th-TH')} อ่าน`,

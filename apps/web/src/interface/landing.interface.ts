@@ -10,6 +10,8 @@ export interface LandingStory {
   cover_blur_data_url: string | null
   type: StoryType
   total_views: string
+  rating_average: string
+  rating_count: string
   author: {
     id: string
     username: string

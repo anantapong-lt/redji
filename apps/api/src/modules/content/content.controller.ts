@@ -3,9 +3,27 @@ import {
   findPublicChaptersBySlug,
   findPublicContentBySlug,
   listPublicContentForSitemap,
+  ratePublicContentBySlug,
   removePublicContentFavorite,
   type PublicChapterSort,
 } from './content.service'
+
+export async function ratePublicContent(
+  slug: string,
+  currentUserId: string,
+  rating: number,
+) {
+  try {
+    const result = await ratePublicContentBySlug(slug, currentUserId, rating)
+    if (!result) {
+      return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
+    }
+    return result
+  } catch (error) {
+    console.error('Unable to rate public content', error)
+    return Response.json({ message: 'ไม่สามารถบันทึกคะแนนได้' }, { status: 500 })
+  }
+}
 
 export async function favoritePublicContent(slug: string, currentUserId: string) {
   try {

@@ -5,9 +5,14 @@ import {
   getPublicContent,
   getPublicContentChapters,
   getPublicContentSitemap,
+  ratePublicContent,
   unfavoritePublicContent,
 } from './content.controller'
-import { contentChaptersQuerySchema, contentParamsSchema } from './content.schema'
+import {
+  contentChaptersQuerySchema,
+  contentParamsSchema,
+  contentRatingBodySchema,
+} from './content.schema'
 
 export const contentRoutes = new Elysia({ prefix: '/contents' })
   .use(authMiddleware)
@@ -21,6 +26,15 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
     '/:slug/favorite',
     ({ currentUser, params }) => unfavoritePublicContent(params.slug, currentUser.id),
     { auth: true, params: contentParamsSchema },
+  )
+  .post(
+    '/:slug/rating',
+    ({ body, currentUser, params }) => ratePublicContent(
+      params.slug,
+      currentUser.id,
+      body.rating,
+    ),
+    { auth: true, params: contentParamsSchema, body: contentRatingBodySchema },
   )
   .get(
     '/:slug/chapters',

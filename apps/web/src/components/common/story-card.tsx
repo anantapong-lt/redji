@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
+import { Star } from 'lucide-react'
 
 export interface StoryCardProps {
   slug: string
@@ -12,6 +13,7 @@ export interface StoryCardProps {
   episode: string
   author: string
   meta: string
+  ratingAverage: number
   type: 'novel' | 'manga'
   eager?: boolean
 }
@@ -24,6 +26,7 @@ export function StoryCard({
   episode,
   author,
   meta,
+  ratingAverage,
   type,
   eager = false,
 }: StoryCardProps) {
@@ -64,7 +67,21 @@ export function StoryCard({
           {title}
         </h3>
         <p className="mt-1 truncate text-xs leading-4 text-zinc-500">{author}</p>
-        <p className="mt-1 truncate text-[11px] leading-[0.875rem] text-zinc-400">{meta}</p>
+        <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-[11px] leading-[0.875rem] text-zinc-400">{meta}</p>
+          <span
+            className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-zinc-500"
+            aria-label={`คะแนน ${ratingAverage.toFixed(1)} ดาว`}
+          >
+            <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+            <span className="tabular-nums">
+              {ratingAverage.toLocaleString('th-TH', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
+            </span>
+          </span>
+        </div>
       </Link>
     </article>
   )

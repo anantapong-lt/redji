@@ -7,6 +7,7 @@ import { BookOpenText, Clock3, Eye, ListOrdered, ShieldCheck, UserRound } from '
 import { ShareButtons } from '@/components/common/share-buttons'
 import { PublicChapterList } from '@/components/content/public-chapter-list'
 import { FavoriteButton } from '@/components/content/favorite-button'
+import { StoryRating } from '@/components/content/story-rating'
 import { getPublicContent } from '@/controllers/content.controller'
 import { ApiError } from '@/lib/api-client'
 import {
@@ -174,6 +175,12 @@ export default async function ContentPage({ params }: ContentPageProps) {
                   initialIsFavorited={story.is_favorited}
                 />
                 <ShareButtons title={story.title} />
+                <StoryRating
+                  slug={story.slug}
+                  initialAverage={Number(story.rating_average)}
+                  initialCount={Number(story.rating_count)}
+                  initialUserRating={story.user_rating}
+                />
               </div>
 
               <section className="mt-6 rounded-2xl border  p-4 sm:p-5">

@@ -14,6 +14,9 @@ export interface PublicContent {
   total_views: string
   favorite_count: string
   is_favorited: boolean
+  rating_average: string
+  rating_count: string
+  user_rating: number | null
   published_at: Date | null
   updated_at: Date
   chapter_count: string
@@ -67,6 +70,22 @@ export async function findPublicContentBySlug(
         WHERE story_favorites.story_id = stories.id
           AND story_favorites.user_id = ${currentUserId}::UUID
       ) AS is_favorited,
+      COALESCE((
+        SELECT ROUND(AVG(story_ratings.rating)::NUMERIC, 1)::TEXT
+        FROM story_ratings
+        WHERE story_ratings.story_id = stories.id
+      ), '0.0') AS rating_average,
+      (
+        SELECT COUNT(*)::TEXT
+        FROM story_ratings
+        WHERE story_ratings.story_id = stories.id
+      ) AS rating_count,
+      (
+        SELECT story_ratings.rating::INTEGER
+        FROM story_ratings
+        WHERE story_ratings.story_id = stories.id
+          AND story_ratings.user_id = ${currentUserId}::UUID
+      ) AS user_rating,
       stories.published_at,
       stories.updated_at,
       (
@@ -207,6 +226,50 @@ export async function removePublicContentFavorite(
   `
 
   return getPublicContentFavoriteBySlug(slug, currentUserId)
+}
+
+export interface PublicContentRating {
+  user_rating: number
+  rating_average: number
+  rating_count: number
+}
+
+export async function ratePublicContentBySlug(
+  slug: string,
+  currentUserId: string,
+  rating: number,
+): Promise<PublicContentRating | undefined> {
+  const [story] = await db<{ id: string }[]>`
+    SELECT stories.id
+    FROM stories
+    INNER JOIN users ON users.id = stories.creator_user_id
+    WHERE LOWER(stories.slug) = LOWER(${slug})
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!story) return undefined
+
+  await db`
+    INSERT INTO story_ratings (user_id, story_id, rating)
+    VALUES (${currentUserId}, ${story.id}, ${rating})
+    ON CONFLICT (user_id, story_id) DO UPDATE SET
+      rating = EXCLUDED.rating,
+      updated_at = NOW()
+  `
+
+  const [result] = await db<PublicContentRating[]>`
+    SELECT
+      ${rating}::INTEGER AS user_rating,
+      ROUND(AVG(story_ratings.rating)::NUMERIC, 1)::REAL AS rating_average,
+      COUNT(*)::INTEGER AS rating_count
+    FROM story_ratings
+    WHERE story_ratings.story_id = ${story.id}
+  `
+
+  return result
 }
 
 export interface PublicChapter {

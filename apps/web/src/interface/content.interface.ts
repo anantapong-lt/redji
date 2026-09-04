@@ -19,6 +19,9 @@ export interface PublicContent {
   total_views: string
   favorite_count: string
   is_favorited: boolean
+  rating_average: string
+  rating_count: string
+  user_rating: number | null
   published_at: string | null
   updated_at: string
   chapter_count: string
@@ -45,6 +48,12 @@ export interface PublicContentResponse {
 export interface PublicContentFavoriteResponse {
   is_favorited: boolean
   favorite_count: number
+}
+
+export interface PublicContentRatingResponse {
+  user_rating: number
+  rating_average: number
+  rating_count: number
 }
 
 export type PublicChapterSort = 'latest' | 'oldest' | 'chapter_asc' | 'chapter_desc'
