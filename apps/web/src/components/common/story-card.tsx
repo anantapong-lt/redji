@@ -37,10 +37,10 @@ export function StoryCard({
     <article className="h-full min-w-0">
       <Link
         href={href}
-        className="group block h-full min-w-0 cursor-pointer overflow-hidden rounded-md bg-card"
+        className="group block h-full min-w-0 cursor-pointer overflow-hidden rounded-md border border-border/80 bg-card text-card-foreground shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-primary/40 hover:shadow-md"
         aria-label={`อ่าน ${title}`}
       >
-        <div className="relative aspect-[3/4] overflow-hidden bg-muted-foreground/25">
+        <div className="relative aspect-[3/4] overflow-hidden bg-muted">
           <div
             aria-hidden="true"
             className={`absolute inset-0 scale-110 bg-cover bg-center transition-opacity duration-300 ${
@@ -62,23 +62,23 @@ export function StoryCard({
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
           />
-          <span className="absolute bottom-1 left-1 rounded-xs bg-zinc-950/75 px-1 py-0.5 text-[8px] font-semibold text-white lg:px-1.5 lg:text-[10px]">
+          <span className="absolute bottom-1 left-1 rounded-xs bg-primary px-1 py-0.5 text-[8px] font-semibold text-primary-foreground shadow-sm lg:px-1.5 lg:text-[10px]">
             {episode}
           </span>
         </div>
 
         <div className="p-3">
-          <h3 className="truncate text-sm font-bold leading-5 text-zinc-950 transition-colors duration-300 group-hover:text-primary">
+          <h3 className="truncate text-sm font-bold leading-5 text-card-foreground transition-colors duration-300 group-hover:text-primary">
             {title}
           </h3>
-          <p className="mt-1 flex min-w-0 items-center gap-1 text-xs leading-4 text-zinc-500">
+          <p className="mt-1 flex min-w-0 items-center gap-1 text-xs leading-4 text-muted-foreground">
             <UserRound className="size-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate">{author}</span>
           </p>
           <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-[11px] leading-[0.875rem] text-zinc-400">{meta}</p>
+            <p className="min-w-0 truncate text-[11px] leading-[0.875rem] text-muted-foreground/75">{meta}</p>
             <span
-              className="flex shrink-0 items-center gap-1 text-[11px] font-semibold leading-none text-zinc-500"
+              className="flex shrink-0 items-center gap-1 text-[11px] font-semibold leading-none text-muted-foreground"
               aria-label={`คะแนน ${ratingAverage.toFixed(1)} ดาว`}
             >
               <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
