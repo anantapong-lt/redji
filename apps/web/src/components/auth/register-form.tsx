@@ -7,8 +7,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Lock, X } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CloudflarePlaceholder } from './cloudflare-placeholder'
 import { IconInput, PasswordInput } from './form-inputs'
+import { TurnstileWidget } from './turnstile-widget'
+import { registerWithPassword } from '@/controllers/auth.controller'
+import { ApiError } from '@/lib/api-client'
 
 const registerSchema = z
   .object({
@@ -27,24 +29,58 @@ type RegisterValues = z.infer<typeof registerSchema>
 
 export function RegisterForm() {
   const [termsOpen, setTermsOpen] = useState(false)
-  const [previewMessage, setPreviewMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileKey, setTurnstileKey] = useState(0)
+  const turnstileRequired = process.env.NODE_ENV !== 'development'
   const {
     control,
     register,
     handleSubmit,
-    formState: { errors },
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: { terms: false },
   })
 
-  function onSubmit() {
-    setPreviewMessage('โหมดตัวอย่าง UI — ระบบสมัครสมาชิกยังไม่เปิดใช้งาน')
+  async function onSubmit(values: RegisterValues) {
+    setSuccessMessage('')
+
+    if (turnstileRequired && !turnstileToken) {
+      setError('root', { message: 'กรุณายืนยัน Cloudflare Turnstile' })
+      return
+    }
+
+    try {
+      const result = await registerWithPassword({
+        username: values.u_name,
+        email: values.email,
+        password: values.password,
+        ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+      })
+      setSuccessMessage(result.message)
+    } catch (error) {
+      if (error instanceof ApiError && error.field === 'email') {
+        setError('email', { message: error.message })
+      } else if (error instanceof ApiError && error.field === 'username') {
+        setError('u_name', { message: error.message })
+      } else {
+        setError('root', {
+          message: error instanceof ApiError
+            ? error.message
+            : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
+        })
+      }
+    } finally {
+      setTurnstileToken(null)
+      setTurnstileKey((current) => current + 1)
+    }
   }
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" aria-busy={isSubmitting}>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">ชื่อผู้ใช้งาน</label>
           <IconInput placeholder="กรอกชื่อบัญชีผู้ใช้งาน" autoComplete="username" {...register('u_name')} />
@@ -92,15 +128,25 @@ export function RegisterForm() {
         </div>
         {errors.terms && <p className="-mt-2 text-center text-xs text-destructive">{errors.terms.message}</p>}
 
-        <CloudflarePlaceholder />
+        <TurnstileWidget key={turnstileKey} onTokenChange={setTurnstileToken} />
 
-        <button type="submit" className="h-11 w-full rounded-lg bg-primary px-4 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-          สมัครสมาชิก
+        <button
+          type="submit"
+          disabled={isSubmitting || (turnstileRequired && !turnstileToken)}
+          className="h-11 w-full cursor-pointer rounded-lg bg-primary px-4 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? 'กำลังสมัครสมาชิก...' : 'สมัครสมาชิก'}
         </button>
 
-        {previewMessage && (
-          <p role="status" className="rounded-lg bg-muted px-3 py-2 text-center text-sm text-muted-foreground">
-            {previewMessage}
+        {errors.root?.message && (
+          <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+            {errors.root.message}
+          </p>
+        )}
+
+        {successMessage && (
+          <p role="status" className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm text-primary">
+            {successMessage}
           </p>
         )}
 

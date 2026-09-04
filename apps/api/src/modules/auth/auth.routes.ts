@@ -2,7 +2,12 @@ import { jwt } from '@elysiajs/jwt'
 import { Elysia } from 'elysia'
 import { env } from '../../config/env'
 import { authMiddleware } from '../../middleware/auth.middleware'
-import { loginBodySchema } from './auth.schema'
+import { confirmRegistrationEmail, registerWithEmail } from './auth.controller'
+import {
+  loginBodySchema,
+  registerBodySchema,
+  verifyEmailBodySchema,
+} from './auth.schema'
 import {
   authenticateWithPassword,
   createAuthSession,
@@ -32,6 +37,16 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }),
   )
   .post(
+    '/register',
+    ({ body }) => registerWithEmail(body),
+    { body: registerBodySchema },
+  )
+  .post(
+    '/verify-email',
+    ({ body }) => confirmRegistrationEmail(body.token),
+    { body: verifyEmailBodySchema },
+  )
+  .post(
     '/login',
     async ({ accessJwt, body, cookie, refreshJwt, set }) => {
       const result = await authenticateWithPassword(body.email, body.password)
@@ -44,6 +59,11 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       if (result.status === 'inactive') {
         set.status = 403
         return { message: 'บัญชีนี้ไม่สามารถเข้าใช้งานได้' }
+      }
+
+      if (result.status === 'unverified') {
+        set.status = 403
+        return { message: 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ' }
       }
 
       const claims = {

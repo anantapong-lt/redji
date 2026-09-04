@@ -1,4 +1,5 @@
 import { db } from '../../db'
+import { env } from '../../config/env'
 import type { UserModel } from '../../models/user.model'
 
 interface UserWithPassword extends UserModel {
@@ -14,11 +15,169 @@ export type AuthenticationResult =
   | { status: 'authenticated'; user: AuthenticatedUser }
   | { status: 'invalid_credentials' }
   | { status: 'inactive' }
+  | { status: 'unverified' }
+
+type RegistrationErrorStatus = 400 | 409 | 410
+
+export class RegistrationError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: RegistrationErrorStatus,
+    readonly field?: 'email' | 'username',
+  ) {
+    super(message)
+    this.name = 'RegistrationError'
+  }
+}
 
 const REFRESH_SESSION_TTL_DAYS = 7
 
 function hashTokenId(tokenId: string): string {
   return new Bun.CryptoHasher('sha256').update(tokenId).digest('hex')
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return Boolean(
+    error
+    && typeof error === 'object'
+    && 'code' in error
+    && error.code === '23505',
+  )
+}
+
+function createVerificationToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function createEmailRegistration(
+  email: string,
+  username: string,
+  password: string,
+): Promise<{ email: string; verificationToken: string }> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedUsername = username.trim()
+
+  if (normalizedUsername.length < 3 || normalizedUsername.length > 30) {
+    throw new RegistrationError('ชื่อผู้ใช้งานต้องมี 3 ถึง 30 ตัวอักษร', 400, 'username')
+  }
+
+  const verificationToken = createVerificationToken()
+  const passwordHash = await Bun.password.hash(password)
+
+  try {
+    await db.begin(async (transaction) => {
+      const [existingUser] = await transaction<{ email_exists: boolean; username_exists: boolean }[]>`
+        SELECT
+          EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER(${normalizedEmail})) AS email_exists,
+          EXISTS(SELECT 1 FROM users WHERE LOWER(username) = LOWER(${normalizedUsername})) AS username_exists
+      `
+
+      if (existingUser?.email_exists) {
+        throw new RegistrationError('อีเมลนี้ถูกใช้งานแล้ว', 409, 'email')
+      }
+      if (existingUser?.username_exists) {
+        throw new RegistrationError('ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว', 409, 'username')
+      }
+
+      await transaction`
+        DELETE FROM email_registration_requests
+        WHERE expires_at <= NOW()
+      `
+
+      await transaction`
+        INSERT INTO email_registration_requests (
+          email,
+          username,
+          display_name,
+          password_hash,
+          verification_token_hash,
+          expires_at
+        ) VALUES (
+          ${normalizedEmail},
+          ${normalizedUsername},
+          ${normalizedUsername},
+          ${passwordHash},
+          ${hashTokenId(verificationToken)},
+          NOW() + (${env.EMAIL_VERIFICATION_TTL_HOURS} * INTERVAL '1 hour')
+        )
+        ON CONFLICT (LOWER(email)) DO UPDATE SET
+          username = EXCLUDED.username,
+          display_name = EXCLUDED.display_name,
+          password_hash = EXCLUDED.password_hash,
+          verification_token_hash = EXCLUDED.verification_token_hash,
+          expires_at = EXCLUDED.expires_at,
+          updated_at = NOW()
+      `
+    })
+  } catch (error) {
+    if (error instanceof RegistrationError) throw error
+    if (isUniqueViolation(error)) {
+      throw new RegistrationError('ชื่อผู้ใช้งานนี้กำลังรอการยืนยันจากอีเมลอื่น', 409, 'username')
+    }
+    throw error
+  }
+
+  return { email: normalizedEmail, verificationToken }
+}
+
+export async function verifyEmailRegistration(token: string): Promise<void> {
+  const tokenHash = hashTokenId(token)
+
+  try {
+    await db.begin(async (transaction) => {
+      const [registration] = await transaction<{
+        id: string
+        email: string
+        username: string
+        display_name: string
+        password_hash: string
+        expires_at: Date
+      }[]>`
+        SELECT id, email, username, display_name, password_hash, expires_at
+        FROM email_registration_requests
+        WHERE verification_token_hash = ${tokenHash}
+        LIMIT 1
+        FOR UPDATE
+      `
+
+      if (!registration) {
+        throw new RegistrationError('ลิงก์ยืนยันอีเมลไม่ถูกต้องหรือถูกใช้งานแล้ว', 410)
+      }
+      if (new Date(registration.expires_at).getTime() <= Date.now()) {
+        await transaction`
+          DELETE FROM email_registration_requests WHERE id = ${registration.id}
+        `
+        throw new RegistrationError('ลิงก์ยืนยันอีเมลหมดอายุแล้ว กรุณาสมัครใหม่อีกครั้ง', 410)
+      }
+
+      const [user] = await transaction<{ id: string }[]>`
+        INSERT INTO users (email, username, display_name, email_verified_at)
+        VALUES (
+          ${registration.email},
+          ${registration.username},
+          ${registration.display_name},
+          NOW()
+        )
+        RETURNING id
+      `
+      if (!user) throw new Error('Unable to create verified user')
+
+      await transaction`
+        INSERT INTO user_password_credentials (user_id, password_hash)
+        VALUES (${user.id}, ${registration.password_hash})
+      `
+      await transaction`
+        DELETE FROM email_registration_requests WHERE id = ${registration.id}
+      `
+    })
+  } catch (error) {
+    if (error instanceof RegistrationError) throw error
+    if (isUniqueViolation(error)) {
+      throw new RegistrationError('อีเมลหรือชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว', 409)
+    }
+    throw error
+  }
 }
 
 export async function findActiveUserById(id: string): Promise<AuthenticatedUser | null> {
@@ -35,6 +194,7 @@ export async function findActiveUserById(id: string): Promise<AuthenticatedUser 
     FROM users
     WHERE id = ${id}
       AND status = 'active'
+      AND email_verified_at IS NOT NULL
       AND deleted_at IS NULL
     LIMIT 1
   `
@@ -134,6 +294,7 @@ export async function authenticateWithPassword(
   }
 
   if (user.status !== 'active') return { status: 'inactive' }
+  if (!user.email_verified_at) return { status: 'unverified' }
 
 
   await db`

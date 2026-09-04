@@ -2,6 +2,31 @@ import { apiRequest } from '@/lib/api-client'
 import type { AuthSession } from '@/interface/auth-session.interface'
 import type { AuthUser } from '@/interface/user.interface'
 
+export interface RegisterWithPasswordInput {
+  username: string
+  email: string
+  password: string
+  turnstile_token?: string
+}
+
+export function registerWithPassword(
+  input: RegisterWithPasswordInput,
+): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export function verifyRegistrationEmail(token: string): Promise<{ message: string }> {
+  return apiRequest<{ message: string }>('/auth/verify-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+}
+
 export function loginWithPassword(email: string, password: string): Promise<AuthSession> {
   return apiRequest<AuthSession>('/auth/login', {
     method: 'POST',
