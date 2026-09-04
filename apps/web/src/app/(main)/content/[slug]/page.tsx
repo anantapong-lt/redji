@@ -10,7 +10,6 @@ import { FavoriteButton } from '@/components/content/favorite-button'
 import { getPublicContent } from '@/controllers/content.controller'
 import { ApiError } from '@/lib/api-client'
 import {
-  CONTENT_TYPE_LABELS,
   createContentMetadata,
   createContentStructuredData,
 } from '@/utils/content-metadata.util'
@@ -124,20 +123,17 @@ export default async function ContentPage({ params }: ContentPageProps) {
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-sm">
-                  {CONTENT_TYPE_LABELS[story.type]}
-                </span>
                 <span className="rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm">
-                  หมวดหลัก: {story.primary_genre.name}
+                  {story.primary_genre.name}
                 </span>
                 {story.secondary_genre ? (
                   <span
                     className="rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm"
                   >
-                    หมวดรอง: {story.secondary_genre.name}
+                   {story.secondary_genre.name}
                   </span>
                 ) : null}
-                <span className="flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 text-xs font-bold text-primary">
+                <span className="flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm">
                   <ShieldCheck className="size-3.5" aria-hidden="true" />
                   เรต {ageRatingLabel}
                 </span>

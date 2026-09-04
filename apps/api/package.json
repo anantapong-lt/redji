@@ -6,7 +6,8 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "backfill:cover-blur": "bun run scripts/backfill-story-cover-blur.ts",
-    "create:test-user": "bun run scripts/create-test-user.ts"
+    "create:test-user": "bun run scripts/create-test-user.ts",
+    "seed:test-chapters": "bun run scripts/seed-test-novel-chapters.ts"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
