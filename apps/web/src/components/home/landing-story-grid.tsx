@@ -36,6 +36,7 @@ function toStoryGridItem(
 ): StoryGridItem {
   return {
     id: story.id,
+    slug: story.slug,
     title: story.title,
     episode: `ตอนที่ ${formatChapterNumber(story.latest_chapter.chapter_number)}`,
     author: story.author.display_name,

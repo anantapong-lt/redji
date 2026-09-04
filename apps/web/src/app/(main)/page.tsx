@@ -17,7 +17,7 @@ function isMobileRequest(requestHeaders: Pick<Headers, 'get'>) {
 
 export default async function HomePage() {
   const requestHeaders = await headers()
-  const pageSize = isMobileRequest(requestHeaders) ? 16 : 10
+  const pageSize = isMobileRequest(requestHeaders) ? 16 : 12
   const [latest, popular] = await Promise.all([
     getLandingStories('latest', 1, pageSize),
     getLandingStories('popular', 1, pageSize),
@@ -25,12 +25,12 @@ export default async function HomePage() {
   const renderedAt = Date.now()
 
   return (
-    <div className="w-full px-4 md:px-8 lg:grid lg:grid-cols-[minmax(10rem,18rem)_minmax(0,960px)_minmax(12rem,20rem)] lg:justify-center lg:gap-4">
+    <div className="w-full px-4 md:px-8 lg:grid lg:grid-cols-[minmax(10rem,18rem)_minmax(0,80rem)_minmax(12rem,20rem)] lg:justify-center lg:gap-4">
       <div className="hidden w-full self-start flex-col gap-4 px-3 pt-16 lg:flex">
         <PopularTagsSection />
         <RisingAuthorsSection />
       </div>
-      <div className="min-w-0 w-full">
+      <div className="mx-auto min-w-0 w-full max-w-7xl">
         <LatestUpdatesSection data={latest} renderedAt={renderedAt} />
         <PopularSection data={popular} renderedAt={renderedAt} />
       </div>

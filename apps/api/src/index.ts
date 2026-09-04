@@ -3,6 +3,7 @@ import { Elysia } from 'elysia'
 import { env } from './config/env'
 import { authRoutes } from './modules/auth/auth.routes'
 import { chapterPurchaseRoutes } from './modules/chapter-purchase/chapter-purchase.routes'
+import { contentRoutes } from './modules/content/content.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { landingRoutes } from './modules/landing/landing.routes'
 import { writerRoutes } from './modules/writer/writer.routes'
@@ -16,6 +17,7 @@ const app = new Elysia()
   )
   .use(authRoutes)
   .use(chapterPurchaseRoutes)
+  .use(contentRoutes)
   .use(genreOptionsRoutes)
   .use(landingRoutes)
   .use(writerRoutes)

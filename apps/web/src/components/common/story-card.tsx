@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export interface StoryCardProps {
+  slug: string
   title: string
   image: string
   blurDataUrl?: string | null
@@ -16,6 +17,7 @@ export interface StoryCardProps {
 }
 
 export function StoryCard({
+  slug,
   title,
   image,
   blurDataUrl,
@@ -26,7 +28,7 @@ export function StoryCard({
   eager = false,
 }: StoryCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
-  const href = type === 'manga' ? '/manga' : '/novel'
+  const href = `/content/${encodeURIComponent(slug)}`
 
   return (
     <article className="min-w-0">

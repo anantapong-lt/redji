@@ -46,7 +46,7 @@ export function StoryGrid({
     <>
       <div
         onScroll={handleScroll}
-        className="mx-auto flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:max-w-[960px] lg:grid-cols-5 lg:gap-x-4 lg:gap-y-7 lg:overflow-visible lg:pb-0 2xl:grid-cols-6"
+        className="mx-auto flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:max-w-7xl lg:grid-cols-5 lg:gap-x-4 lg:gap-y-7 lg:overflow-visible lg:pb-0 2xl:grid-cols-6"
       >
         {pages.map((page, pageIndex) => (
           <div
