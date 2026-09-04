@@ -35,8 +35,6 @@ export function ContentEditor({
   const { accessToken, status } = useAuth()
   const [story, setStory] = useState<WriterContentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(Boolean(contentId))
-  const [showSkeleton, setShowSkeleton] = useState(Boolean(contentId))
-  const [showContent, setShowContent] = useState(!contentId)
   const [loadError, setLoadError] = useState<string | null>(null)
   const Root = embedded ? 'div' : 'main'
   const rootClassName = embedded
@@ -76,34 +74,7 @@ export function ContentEditor({
     }
   }, [accessToken, contentId, status])
 
-  useEffect(() => {
-    if (!contentId) {
-      setShowSkeleton(false)
-      setShowContent(true)
-      return
-    }
-
-    if (isLoading) {
-      setShowSkeleton(true)
-      setShowContent(false)
-      return
-    }
-
-    let revealTimer: number | undefined
-    const fadeTimer = window.setTimeout(() => {
-      setShowSkeleton(false)
-      revealTimer = window.setTimeout(() => setShowContent(true), 50)
-    }, 300)
-
-    return () => {
-      window.clearTimeout(fadeTimer)
-      if (revealTimer !== undefined) window.clearTimeout(revealTimer)
-    }
-  }, [contentId, isLoading])
-
-  const contentOpacity = showContent ? 'opacity-100' : 'opacity-0'
-
-  if (showSkeleton) {
+  if (isLoading) {
     return (
       <Root className={rootClassName}>
         <div className={containerClassName}>
@@ -114,20 +85,12 @@ export function ContentEditor({
                 ย้อนกลับ
               </Link>
             </Button>
-            <div
-              className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
-                isLoading ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
+            <div>
               <Skeleton className="h-8 w-20 rounded-full" />
             </div>
           </div>
 
-          <div
-            className={`mt-6 grid gap-5 transition-opacity duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start ${
-              isLoading ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
+          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start">
             <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
               <div className="space-y-2 md:col-span-2">
                 <Skeleton className="h-4 w-24" />
@@ -167,9 +130,7 @@ export function ContentEditor({
   if (contentId && (loadError || !story)) {
     return (
       <Root className={rootClassName}>
-        <div
-          className={`readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
-        >
+        <div className="readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center">
           <p className="text-sm text-destructive">
             {loadError ?? 'ไม่พบเนื้อหาที่ต้องการแก้ไข'}
           </p>
@@ -194,9 +155,7 @@ export function ContentEditor({
 
   return (
     <Root className={rootClassName}>
-      <div
-        className={`${containerClassName} transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
-      >
+      <div className={containerClassName}>
         <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
           <div>
             <Button asChild variant="outline" className="h-11 rounded-xl">
