@@ -86,7 +86,7 @@ export async function getLandingStories(
         WHERE chapters.story_id = stories.id
           AND chapters.status = 'published'
           AND chapters.published_at <= NOW()
-        ORDER BY chapters.published_at DESC, chapters.id DESC
+        ORDER BY chapters.chapter_number DESC, chapters.id DESC
         LIMIT 1
       ) AS latest_chapter ON TRUE
       LEFT JOIN LATERAL (
