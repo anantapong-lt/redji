@@ -53,6 +53,16 @@ function requiredPromptpayType(): '01' | '02' {
   return value
 }
 
+function positiveInteger(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback)
+
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`)
+  }
+
+  return value
+}
+
 export const env = {
   NODE_ENV: nodeEnv,
   PORT: Number(process.env.PORT ?? 3001),
@@ -61,6 +71,10 @@ export const env = {
   REDIS_URL: process.env.REDIS_URL?.trim() ?? 'redis://localhost:6379',
   JWT_ACCESS_SECRET: requiredSecret('JWT_ACCESS_SECRET'),
   JWT_REFRESH_SECRET: requiredSecret('JWT_REFRESH_SECRET'),
+  RESEND_API_KEY: process.env.RESEND_API_KEY?.trim() ?? '',
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL?.trim() ?? '',
+  EMAIL_VERIFICATION_TTL_HOURS: positiveInteger('EMAIL_VERIFICATION_TTL_HOURS', 24),
+  TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY?.trim() ?? '',
   R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID?.trim() ?? '',
   R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID?.trim() ?? '',
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY?.trim() ?? '',
