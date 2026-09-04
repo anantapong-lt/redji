@@ -6,6 +6,7 @@ import { chapterPurchaseRoutes } from './modules/chapter-purchase/chapter-purcha
 import { contentRoutes } from './modules/content/content.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { landingRoutes } from './modules/landing/landing.routes'
+import { topupRoutes } from './modules/topup/topup.routes'
 import { writerRoutes } from './modules/writer/writer.routes'
 
 const app = new Elysia()
@@ -20,6 +21,7 @@ const app = new Elysia()
   .use(contentRoutes)
   .use(genreOptionsRoutes)
   .use(landingRoutes)
+  .use(topupRoutes)
   .use(writerRoutes)
 
 app.listen(env.PORT)
