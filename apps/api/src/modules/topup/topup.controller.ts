@@ -1,9 +1,19 @@
+import { env } from '../../config/env'
+import { subscribeToTopupEvents } from './topup.events'
 import {
   createTopup,
   findTopupById,
   processTmweasyWebhook,
   TopupError,
 } from './topup.service'
+
+interface TopupSocket {
+  id: string
+  send(message: string): unknown
+  close(code?: number, reason?: string): unknown
+}
+
+const socketUnsubscribers = new Map<string, () => void>()
 
 function clientIpFromRequest(request: Request): string {
   const cloudflareIp = request.headers.get('cf-connecting-ip')?.trim()
@@ -57,9 +67,13 @@ export async function getUserTopup(currentUserId: string, topupId: string) {
   }
 }
 
-export async function receiveTmweasyWebhook(data: string, signature: string) {
+export async function receiveTmweasyWebhook(
+  data: string | Record<string, unknown>,
+  signature: string,
+) {
   try {
-    await processTmweasyWebhook(data, signature)
+    const serializedData = typeof data === 'string' ? data : JSON.stringify(data)
+    await processTmweasyWebhook(serializedData, signature)
     return Response.json({ status: 1 })
   } catch (error) {
     if (error instanceof TopupError) {
@@ -75,4 +89,58 @@ export async function receiveTmweasyWebhook(data: string, signature: string) {
       { status: 500 },
     )
   }
+}
+
+export async function authorizeTopupSocket(
+  currentUserId: string | null | undefined,
+  topupId: string,
+  origin: string | null,
+) {
+  if (origin !== new URL(env.WEB_ORIGIN).origin) {
+    return Response.json({ message: 'ไม่อนุญาตให้เชื่อมต่อ' }, { status: 403 })
+  }
+
+  if (!currentUserId) {
+    return Response.json({ message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
+  }
+
+  const transaction = await findTopupById(currentUserId, topupId)
+  if (!transaction) {
+    return Response.json({ message: 'ไม่พบรายการเติมเงิน' }, { status: 404 })
+  }
+}
+
+export async function openTopupSocket(
+  socket: TopupSocket,
+  currentUserId: string,
+  topupId: string,
+) {
+  const sendTransaction = (transaction: Awaited<ReturnType<typeof findTopupById>>) => {
+    if (!transaction) return
+    socket.send(JSON.stringify({ type: 'topup.updated', transaction }))
+  }
+  const unsubscribe = subscribeToTopupEvents(topupId, sendTransaction)
+
+  socketUnsubscribers.get(socket.id)?.()
+  socketUnsubscribers.set(socket.id, unsubscribe)
+
+  try {
+    const transaction = await findTopupById(currentUserId, topupId)
+    if (!transaction) {
+      closeTopupSocket(socket.id)
+      socket.close(1008, 'Topup not found')
+      return
+    }
+
+    if (socketUnsubscribers.has(socket.id)) sendTransaction(transaction)
+  } catch (error) {
+    console.error('Unable to open topup WebSocket', error)
+    closeTopupSocket(socket.id)
+    socket.close(1011, 'Unable to load topup')
+  }
+}
+
+export function closeTopupSocket(socketId: string) {
+  socketUnsubscribers.get(socketId)?.()
+  socketUnsubscribers.delete(socketId)
 }

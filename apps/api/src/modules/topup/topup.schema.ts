@@ -8,7 +8,19 @@ export const topupParamsSchema = t.Object({
   id: t.String({ format: 'uuid' }),
 })
 
+const tmweasyWebhookDataObjectSchema = t.Object({
+  id_pay: t.Union([t.String(), t.Number()]),
+  ref1: t.Union([t.String(), t.Number()]),
+  amount_check: t.Union([t.String(), t.Number()]),
+  amount: t.Union([t.String(), t.Number()]),
+  date_pay: t.Optional(t.String()),
+  timestamp: t.Optional(t.Number()),
+})
+
 export const tmweasyWebhookBodySchema = t.Object({
-  data: t.String({ minLength: 2, maxLength: 10_000 }),
+  data: t.Union([
+    t.String({ minLength: 2, maxLength: 10_000 }),
+    tmweasyWebhookDataObjectSchema,
+  ]),
   signature: t.String({ minLength: 32, maxLength: 32 }),
 })

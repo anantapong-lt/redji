@@ -1,8 +1,11 @@
 import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import {
+  authorizeTopupSocket,
+  closeTopupSocket,
   createUserTopup,
   getUserTopup,
+  openTopupSocket,
   receiveTmweasyWebhook,
 } from './topup.controller'
 import {
@@ -27,6 +30,21 @@ export const topupRoutes = new Elysia({ prefix: '/topups' })
     ({ body }) => receiveTmweasyWebhook(body.data, body.signature),
     { body: tmweasyWebhookBodySchema },
   )
+  .ws('/:id/events', {
+    params: topupParamsSchema,
+    optionalAuth: true,
+    beforeHandle: ({ currentUser, params, request }) => authorizeTopupSocket(
+      currentUser?.id,
+      params.id,
+      request.headers.get('origin'),
+    ),
+    open: (socket) => void openTopupSocket(
+      socket,
+      socket.data.currentUser!.id,
+      socket.data.params.id,
+    ),
+    close: (socket) => closeTopupSocket(socket.id),
+  })
   .get(
     '/:id',
     ({ currentUser, params }) => getUserTopup(currentUser.id, params.id),

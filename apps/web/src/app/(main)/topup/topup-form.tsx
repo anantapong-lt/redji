@@ -10,8 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { createTopup, getTopup } from '@/controllers/topup.controller'
-import type { CreateTopupResponse } from '@/interface/topup.interface'
+import { createTopup } from '@/controllers/topup.controller'
+import type { CreateTopupResponse, TopupTransaction } from '@/interface/topup.interface'
 import { ApiError } from '@/lib/api-client'
 import { SITE_CONFIG } from '@/site.config'
 
@@ -47,6 +47,20 @@ function saveQrCode(base64: string, transactionId: string) {
   link.remove()
 }
 
+function topupSocketUrl(topupId: string) {
+  const url = new URL(
+    `/topups/${encodeURIComponent(topupId)}/events`,
+    SITE_CONFIG.apiUrl,
+  )
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  return url.toString()
+}
+
+interface TopupSocketMessage {
+  type: 'topup.updated'
+  transaction: TopupTransaction
+}
+
 export function TopupForm() {
   const { accessToken, refresh, status } = useAuth()
   const [amount, setAmount] = useState(50)
@@ -77,50 +91,59 @@ export function TopupForm() {
   }, [paymentTimeout, topupExpiresAt, topupId])
 
   useEffect(() => {
-    const pollingAccessToken = accessToken
-    const pollingTopupId = topupId
+    if (!isPaid || !topupId) return
 
+    const closeTimer = window.setTimeout(() => setIsQrDialogOpen(false), 5_000)
+    return () => window.clearTimeout(closeTimer)
+  }, [isPaid, topupId])
+
+  useEffect(() => {
     if (
-      !pollingTopupId
+      !topupId
       || topupStatus !== 'pending'
       || status !== 'authenticated'
-      || !pollingAccessToken
     ) return
 
-    const confirmedTopupId: string = pollingTopupId
-    const confirmedAccessToken: string = pollingAccessToken
-
+    const socketTopupId = topupId
     let cancelled = false
-    let timer: number | undefined
+    let reconnectTimer: number | undefined
+    let socket: WebSocket | null = null
 
-    async function pollTopup() {
-      try {
-        const result = await getTopup(confirmedTopupId, confirmedAccessToken)
-        if (cancelled) return
+    function connect() {
+      socket = new WebSocket(topupSocketUrl(socketTopupId))
 
-        setCreatedTopup((current) => current
-          ? { ...current, transaction: result.transaction }
-          : current)
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(String(event.data)) as TopupSocketMessage
+          if (
+            message.type !== 'topup.updated'
+            || message.transaction.id !== socketTopupId
+          ) return
 
-        if (result.transaction.status === 'paid') {
-          await refresh()
-          return
+          setCreatedTopup((current) => current
+            ? { ...current, transaction: message.transaction }
+            : current)
+
+          if (message.transaction.status === 'paid') void refresh()
+        } catch {
+          // Ignore malformed messages and keep the connection open.
         }
-
-        if (result.transaction.status !== 'pending') return
-      } catch {
-        if (cancelled) return
       }
 
-      timer = window.setTimeout(() => void pollTopup(), 3_000)
+      socket.onclose = () => {
+        if (!cancelled) reconnectTimer = window.setTimeout(connect, 1_500)
+      }
+
+      socket.onerror = () => socket?.close()
     }
 
-    timer = window.setTimeout(() => void pollTopup(), 3_000)
+    connect()
     return () => {
       cancelled = true
-      if (timer !== undefined) window.clearTimeout(timer)
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
+      socket?.close()
     }
-  }, [accessToken, refresh, status, topupId, topupStatus])
+  }, [refresh, status, topupId, topupStatus])
 
   function selectAmount(value: number) {
     if (isCreating || createdTopup) return
@@ -293,7 +316,7 @@ export function TopupForm() {
               </DialogHeader>
               <div className={`mr-7 shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${
                 isPaid
-                  ? 'bg-primary/10 text-primary'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                   : countdown > 0 && !isExpired
                     ? 'bg-accent text-primary'
                     : 'bg-muted text-muted-foreground'
@@ -302,33 +325,38 @@ export function TopupForm() {
               </div>
             </div>
 
-            {isPaid && (
-              <div className="mt-4 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2.5 text-xs font-semibold text-primary sm:text-sm">
-                <CircleCheckBig className="size-4 shrink-0" />
-                ชำระเงินสำเร็จและเพิ่ม {SITE_CONFIG.coinName} เข้าบัญชีแล้ว
-              </div>
-            )}
-
             <div className="mt-4 flex flex-col gap-4">
-              <div className="mx-auto rounded-xl border border-border bg-white p-2 shadow-sm">
-                <img
-                  src={qrImageSource(createdTopup.payment.qr_image_base64)}
-                  alt="คิวอาร์โค้ดสำหรับชำระเงิน"
-                  className="size-64 max-h-[52dvh] max-w-full object-contain sm:size-72"
-                />
+              <div className={`mx-auto flex size-64 max-h-[52dvh] max-w-full items-center justify-center rounded-xl border p-2 shadow-sm sm:size-72 ${
+                isPaid
+                  ? 'border-emerald-500/30 bg-emerald-500/10'
+                  : 'border-border bg-white'
+              }`}>
+                {isPaid ? (
+                  <div className="flex size-32 animate-in items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 duration-500 zoom-in-50 fade-in sm:size-36">
+                    <CircleCheckBig className="size-20 animate-in duration-700 zoom-in-50 sm:size-24" strokeWidth={2.25} />
+                  </div>
+                ) : (
+                  <img
+                    src={qrImageSource(createdTopup.payment.qr_image_base64)}
+                    alt="คิวอาร์โค้ดสำหรับชำระเงิน"
+                    className="size-full object-contain"
+                  />
+                )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => saveQrCode(
-                  createdTopup.payment.qr_image_base64,
-                  createdTopup.transaction.id,
-                )}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2.5 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-accent sm:hidden"
-              >
-                <Download className="size-4" />
-                บันทึก QR Code
-              </button>
+              {!isPaid && (
+                <button
+                  type="button"
+                  onClick={() => saveQrCode(
+                    createdTopup.payment.qr_image_base64,
+                    createdTopup.transaction.id,
+                  )}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2.5 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-accent sm:hidden"
+                >
+                  <Download className="size-4" />
+                  บันทึก QR Code
+                </button>
+              )}
 
               <div className="rounded-xl border border-border bg-background/70 p-4 text-center">
                 <p className="text-xs text-muted-foreground">ยอดที่ต้องชำระ</p>
@@ -353,7 +381,13 @@ export function TopupForm() {
                   </div>
                   <div className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">สถานะ</dt>
-                    <dd className={`font-semibold ${isExpired ? 'text-muted-foreground' : 'text-primary'}`}>
+                    <dd className={`font-semibold ${
+                      isPaid
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : isExpired
+                          ? 'text-muted-foreground'
+                          : 'text-primary'
+                    }`}>
                       {isPaid ? 'ชำระเงินสำเร็จ' : isExpired ? 'หมดเวลาชำระเงิน' : 'รอชำระเงิน'}
                     </dd>
                   </div>

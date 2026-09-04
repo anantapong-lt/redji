@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { db } from '../../db'
 import { env, isDev } from '../../config/env'
+import { publishTopupEvent } from './topup.events'
 
 type TopupStatus = 'pending' | 'paid' | 'expired' | 'failed'
 
@@ -105,7 +106,8 @@ function parseTmweasyWebhookPayload(data: string): TmweasyWebhookPayload {
   if (
     !idPay
     || idPay.length > 100
-    || !UUID_PATTERN.test(ref1)
+    || !ref1
+    || ref1.length > 100
     || !SATANG_PATTERN.test(amountCheck)
     || BigInt(amountCheck) <= 0n
     || !MONEY_PATTERN.test(amount)
@@ -409,7 +411,12 @@ export async function processTmweasyWebhook(
   verifyTmweasySignature(data, signature)
   const payload = parseTmweasyWebhookPayload(data)
 
-  await db.begin(async (transaction) => {
+  if (payload.id_pay === '100000' && payload.ref1.startsWith('test-id-')) return
+  if (!UUID_PATTERN.test(payload.ref1)) {
+    throw new TopupError('เลขอ้างอิงรายการเติมเงินไม่ถูกต้อง', 400)
+  }
+
+  const paidTransaction = await db.begin(async (transaction) => {
     const [topup] = await transaction<LockedTopup[]>`
       SELECT
         user_id,
@@ -437,7 +444,7 @@ export async function processTmweasyWebhook(
       throw new TopupError('ข้อมูลการชำระเงินไม่ตรงกับรายการ', 409)
     }
 
-    if (topup.status === 'paid') return
+    if (topup.status === 'paid') return null
     if (topup.status !== 'pending') {
       throw new TopupError('รายการเติมเงินไม่อยู่ในสถานะรอชำระเงิน', 409)
     }
@@ -448,7 +455,7 @@ export async function processTmweasyWebhook(
       WHERE id = ${topup.user_id}::UUID
     `
 
-    const [paidTopup] = await transaction<{ id: string }[]>`
+    const [paidTopup] = await transaction<TopupTransaction[]>`
       UPDATE topup_transactions
       SET
         status = 'paid',
@@ -460,11 +467,24 @@ export async function processTmweasyWebhook(
         updated_at = NOW()
       WHERE id = ${payload.ref1}::UUID
         AND status = 'pending'
-      RETURNING id
+      RETURNING
+        id,
+        requested_amount::TEXT,
+        base_coins::TEXT,
+        bonus_coins::TEXT,
+        credited_coins::TEXT,
+        status,
+        expires_at,
+        paid_at,
+        created_at
     `
 
     if (!paidTopup) {
       throw new TopupError('สถานะรายการเติมเงินมีการเปลี่ยนแปลงแล้ว', 409)
     }
+
+    return paidTopup
   })
+
+  if (paidTransaction) publishTopupEvent(payload.ref1, paidTransaction)
 }
