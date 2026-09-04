@@ -14,7 +14,7 @@ export function getLandingStories(
   })
 
   return apiRequest<LandingResponse>(`/landing?${searchParams.toString()}`, {
-    cache: 'no-store',
+    next: { revalidate: 60 },
     signal,
   })
 }
