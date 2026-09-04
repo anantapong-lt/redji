@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeftIcon, CoinsIcon, PlusIcon, SearchIcon } from 'lucide-react'
@@ -63,6 +63,12 @@ function formatPrice(value: string): string {
   }).format(Number(value))
 }
 
+function formatChapterNumber(value: string): string {
+  const [integerPart, decimalPart] = value.split('.')
+  const significantDecimal = decimalPart?.replace(/0+$/, '')
+  return significantDecimal ? `${integerPart}.${significantDecimal}` : integerPart
+}
+
 function statusVariant(status: ChapterStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
   if (status === 'published') return 'default'
   if (status === 'draft') return 'secondary'
@@ -104,9 +110,35 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
+  const updateUrl = useCallback((
+    nextSearch: string,
+    nextPage: number,
+    replace = false,
+  ) => {
+    const params = new URLSearchParams()
+    if (nextSearch) params.set('search', nextSearch)
+    if (nextPage > 1) params.set('page', String(nextPage))
+    const query = params.toString()
+    const href = `/writer/content/${contentId}/chapters${query ? `?${query}` : ''}`
+
+    if (replace) router.replace(href)
+    else router.push(href)
+  }, [contentId, router])
+
   useEffect(() => {
     setSearchInput(search)
   }, [search])
+
+  useEffect(() => {
+    const nextSearch = searchInput.trim()
+    if (nextSearch === search) return
+
+    const timeoutId = window.setTimeout(() => {
+      updateUrl(nextSearch, 1, true)
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [search, searchInput, updateUrl])
 
   useEffect(() => {
     if (!accessToken) return
@@ -140,14 +172,6 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
   const pagination = result?.pagination
   const allVisibleSelected = chapters.length > 0
     && chapters.every((chapter) => selectedIds.has(chapter.id))
-
-  const updateUrl = (nextSearch: string, nextPage: number) => {
-    const params = new URLSearchParams()
-    if (nextSearch) params.set('search', nextSearch)
-    if (nextPage > 1) params.set('page', String(nextPage))
-    const query = params.toString()
-    router.push(`/writer/content/${contentId}/chapters${query ? `?${query}` : ''}`)
-  }
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -374,7 +398,7 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
                   />
                 </TableCell>
                 <TableCell className="px-4 font-semibold tabular-nums">
-                  {chapter.chapter_number}
+                  {formatChapterNumber(chapter.chapter_number)}
                 </TableCell>
                 <TableCell className="max-w-72 px-4 whitespace-normal">{chapter.title}</TableCell>
                 <TableCell className="px-4 text-right tabular-nums">
