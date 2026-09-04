@@ -1,0 +1,36 @@
+import type { StoryType } from '@/constants/story.constant'
+
+export type LandingSection = 'latest' | 'popular'
+
+export interface LandingStory {
+  id: string
+  title: string
+  slug: string
+  cover_url: string | null
+  type: StoryType
+  total_views: string
+  author: {
+    id: string
+    username: string
+    display_name: string
+  }
+  latest_chapter: {
+    id: string
+    chapter_number: string
+    title: string
+    published_at: string
+  }
+}
+
+export interface LandingResponse {
+  section: LandingSection
+  stories: LandingStory[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasPreviousPage: boolean
+    hasNextPage: boolean
+  }
+}

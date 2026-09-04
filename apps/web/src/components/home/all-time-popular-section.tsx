@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { POPULAR_NOVELS } from '@/components/home/popular-section'
+import { POPULAR_NOVELS } from '@/components/home/home-mock-data'
 
 const ALL_TIME_POPULAR = POPULAR_NOVELS.slice(0, 5)
 

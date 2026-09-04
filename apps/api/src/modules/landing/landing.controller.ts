@@ -1,0 +1,24 @@
+import type { LandingSection } from './landing.schema'
+import { getLandingStories } from './landing.service'
+
+interface GetLandingInput {
+  section: LandingSection
+  page?: number
+  limit?: number
+}
+
+export async function getLanding(input: GetLandingInput) {
+  try {
+    return await getLandingStories(
+      input.section,
+      input.page ?? 1,
+      input.limit ?? 12,
+    )
+  } catch (error) {
+    console.error('Unable to load landing stories', error)
+    return Response.json(
+      { message: 'ไม่สามารถโหลดข้อมูลหน้าหลักได้ กรุณาลองใหม่อีกครั้ง' },
+      { status: 500 },
+    )
+  }
+}

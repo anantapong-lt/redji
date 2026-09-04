@@ -4,6 +4,7 @@ import { env } from './config/env'
 import { authRoutes } from './modules/auth/auth.routes'
 import { chapterPurchaseRoutes } from './modules/chapter-purchase/chapter-purchase.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
+import { landingRoutes } from './modules/landing/landing.routes'
 import { writerRoutes } from './modules/writer/writer.routes'
 
 const app = new Elysia()
@@ -16,6 +17,7 @@ const app = new Elysia()
   .use(authRoutes)
   .use(chapterPurchaseRoutes)
   .use(genreOptionsRoutes)
+  .use(landingRoutes)
   .use(writerRoutes)
 
 app.listen(env.PORT)
