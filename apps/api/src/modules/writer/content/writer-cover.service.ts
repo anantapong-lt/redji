@@ -9,6 +9,8 @@ const OPTIMIZED_WRITER_COVER_EXTENSION = 'webp'
 const DEFAULT_WRITER_COVER_QUALITY = 80
 const DEFAULT_WRITER_COVER_WIDTH = 1200
 const DEFAULT_WRITER_COVER_HEIGHT = 1600
+const WRITER_COVER_BLUR_WIDTH = 24
+const WRITER_COVER_BLUR_QUALITY = 40
 
 export interface WriterCoverOptimizationOptions {
   quality?: number | string
@@ -19,6 +21,16 @@ export interface WriterCoverOptimizationOptions {
 interface OptimizedWriterCover {
   body: Blob
   contentType: typeof OPTIMIZED_WRITER_COVER_TYPE
+  blurDataUrl: string
+}
+
+export async function createWriterCoverBlurDataUrl(input: Buffer): Promise<string> {
+  const blurOutput = await sharp(input)
+    .resize({ width: WRITER_COVER_BLUR_WIDTH })
+    .webp({ quality: WRITER_COVER_BLUR_QUALITY })
+    .toBuffer()
+
+  return `data:${OPTIMIZED_WRITER_COVER_TYPE};base64,${blurOutput.toString('base64')}`
 }
 
 function createR2Client() {
@@ -93,10 +105,12 @@ export async function optimizeWriterCover(
     })
     .webp({ quality })
     .toBuffer()
+  const blurDataUrl = await createWriterCoverBlurDataUrl(output)
 
   return {
     body: new Blob([output], { type: OPTIMIZED_WRITER_COVER_TYPE }),
     contentType: OPTIMIZED_WRITER_COVER_TYPE,
+    blurDataUrl,
   }
 }
 
@@ -114,6 +128,7 @@ export async function uploadWriterCover(
   return {
     key,
     cover_url: `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`,
+    cover_blur_data_url: optimizedCover.blurDataUrl,
   }
 }
 

@@ -126,6 +126,7 @@ export async function createWriterContent(
       slug,
       synopsis,
       coverUrl: uploadedCover?.cover_url ?? null,
+      coverBlurDataUrl: uploadedCover?.cover_blur_data_url ?? null,
       status: input.status,
       ageRating,
       primaryGenreId: input.primary_genre_id,
@@ -174,8 +175,11 @@ export async function updateWriterContent(
     : null
   const shouldRemoveCover = input.remove_cover === 'true'
   const previousCoverUrl = existingStory.cover_url
+  const previousCoverBlurDataUrl = existingStory.cover_blur_data_url
   const hasCoverChanged = Boolean(uploadedCover) || shouldRemoveCover
   const nextCoverUrl = uploadedCover?.cover_url ?? (shouldRemoveCover ? null : previousCoverUrl)
+  const nextCoverBlurDataUrl = uploadedCover?.cover_blur_data_url
+    ?? (shouldRemoveCover ? null : previousCoverBlurDataUrl)
 
   try {
     const story = await updateWriterContentRecord(creatorUserId, contentId, {
@@ -184,6 +188,7 @@ export async function updateWriterContent(
       slug,
       synopsis,
       coverUrl: nextCoverUrl,
+      coverBlurDataUrl: nextCoverBlurDataUrl,
       status: input.status,
       ageRating,
       primaryGenreId: input.primary_genre_id,

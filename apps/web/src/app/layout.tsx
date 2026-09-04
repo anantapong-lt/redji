@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/components/auth/auth-provider'
-import { GenreOptionsInitializer } from '@/components/genre-options-initializer'
-import { Toaster } from '@/components/ui/sonner'
 import { SITE_CONFIG } from '@/site.config'
 import { notoSansThai } from '@/lib/fonts'
 import './globals.css'
@@ -35,9 +33,7 @@ export default function RootLayout({
     <html lang="th" suppressHydrationWarning>
       <body className={`${notoSansThai.variable} font-sans antialiased`}>
         <AuthProvider>
-          <GenreOptionsInitializer />
           {children}
-          <Toaster />
         </AuthProvider>
       </body>
     </html>

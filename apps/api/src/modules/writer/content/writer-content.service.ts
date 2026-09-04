@@ -15,6 +15,7 @@ export interface WriterContentRecordInput {
   slug: string
   synopsis: string | null
   coverUrl: string | null
+  coverBlurDataUrl: string | null
   status: StoryStatus
   ageRating: number
   primaryGenreId: string
@@ -26,7 +27,7 @@ export async function findWriterContent(
   contentId: string,
 ): Promise<WriterContentDetail | undefined> {
   const [story] = await db<WriterContentDetail[]>`
-    SELECT id, title, slug, synopsis, cover_url, type, status, age_rating,
+    SELECT id, title, slug, synopsis, cover_url, cover_blur_data_url, type, status, age_rating,
       primary_genre_id, secondary_genre_id
     FROM stories
     WHERE id = ${contentId}
@@ -61,7 +62,8 @@ export async function getWriterContentsByType(
   const [contents, [count]] = await Promise.all([
     db<WriterContent[]>`
       SELECT
-        stories.id, stories.title, stories.slug, stories.cover_url, stories.type,
+        stories.id, stories.title, stories.slug, stories.cover_url,
+        stories.cover_blur_data_url, stories.type,
         stories.status, stories.total_views::TEXT,
         COUNT(chapters.id)::TEXT AS chapter_count,
         (
@@ -126,14 +128,14 @@ export async function insertWriterContent(
 ): Promise<CreatedStory> {
   const [story] = await db<CreatedStory[]>`
     INSERT INTO stories (
-      creator_user_id, type, title, slug, synopsis, cover_url, status,
+      creator_user_id, type, title, slug, synopsis, cover_url, cover_blur_data_url, status,
       age_rating, primary_genre_id, secondary_genre_id
     ) VALUES (
       ${creatorUserId}, ${input.type}, ${input.title}, ${input.slug}, ${input.synopsis},
-      ${input.coverUrl}, ${input.status}, ${input.ageRating}, ${input.primaryGenreId},
+      ${input.coverUrl}, ${input.coverBlurDataUrl}, ${input.status}, ${input.ageRating}, ${input.primaryGenreId},
       ${input.secondaryGenreId}
     )
-    RETURNING id, type, slug, cover_url
+    RETURNING id, type, slug, cover_url, cover_blur_data_url
   `
   return story
 }
@@ -146,13 +148,14 @@ export async function updateWriterContentRecord(
   const [story] = await db<CreatedStory[]>`
     UPDATE stories
     SET type = ${input.type}, title = ${input.title}, slug = ${input.slug},
-      synopsis = ${input.synopsis}, cover_url = ${input.coverUrl}, status = ${input.status},
+      synopsis = ${input.synopsis}, cover_url = ${input.coverUrl},
+      cover_blur_data_url = ${input.coverBlurDataUrl}, status = ${input.status},
       age_rating = ${input.ageRating}, primary_genre_id = ${input.primaryGenreId},
       secondary_genre_id = ${input.secondaryGenreId}, updated_at = NOW()
     WHERE id = ${contentId}
       AND creator_user_id = ${creatorUserId}
       AND deleted_at IS NULL
-    RETURNING id, type, slug, cover_url
+    RETURNING id, type, slug, cover_url, cover_blur_data_url
   `
   return story
 }

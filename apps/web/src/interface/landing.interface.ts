@@ -7,6 +7,7 @@ export interface LandingStory {
   title: string
   slug: string
   cover_url: string | null
+  cover_blur_data_url: string | null
   type: StoryType
   total_views: string
   author: {

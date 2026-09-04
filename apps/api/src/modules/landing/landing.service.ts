@@ -7,6 +7,7 @@ interface LandingStory {
   title: string
   slug: string
   cover_url: string | null
+  cover_blur_data_url: string | null
   type: StoryType
   total_views: string
   author: {
@@ -52,6 +53,7 @@ export async function getLandingStories(
         stories.title,
         stories.slug,
         stories.cover_url,
+        stories.cover_blur_data_url,
         stories.type,
         stories.total_views::TEXT,
         json_build_object(

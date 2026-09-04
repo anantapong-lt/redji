@@ -13,6 +13,7 @@ export interface WriterContent {
   title: string
   slug: string
   cover_url: string | null
+  cover_blur_data_url: string | null
   type: StoryType
   status: StoryStatus
   total_views: string
@@ -38,6 +39,7 @@ export interface WriterContentDetail {
   slug: string
   synopsis: string | null
   cover_url: string | null
+  cover_blur_data_url: string | null
   type: StoryType
   status: StoryStatus
   age_rating: number | null
@@ -78,4 +80,5 @@ export interface CreatedStory {
   type: StoryType
   slug: string
   cover_url: string | null
+  cover_blur_data_url: string | null
 }

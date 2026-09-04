@@ -45,6 +45,7 @@ export function createWriterContent(
     type: StoryType
     slug: string
     cover_url: string | null
+    cover_blur_data_url: string | null
   }
 }> {
   return apiRequest('/writer/contents', {
@@ -73,6 +74,7 @@ export function updateWriterContent(
     type: StoryType
     slug: string
     cover_url: string | null
+    cover_blur_data_url: string | null
   }
 }> {
   return apiRequest(`/writer/contents/${contentId}`, {
