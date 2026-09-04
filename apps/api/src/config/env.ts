@@ -18,8 +18,43 @@ function requiredSecret(name: string): string {
   return value
 }
 
+const nodeEnv = process.env.NODE_ENV ?? 'development'
+
+export const isDev = nodeEnv === 'development'
+
+function requiredTmweasyApiUrl(): string {
+  const value = required('TMWEASY_API_URL')
+  let url: URL
+
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error('TMWEASY_API_URL must be a valid URL')
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('TMWEASY_API_URL must use HTTP or HTTPS')
+  }
+
+  if (!isDev && url.protocol !== 'https:') {
+    throw new Error('TMWEASY_API_URL must use HTTPS outside development')
+  }
+
+  return url.toString()
+}
+
+function requiredPromptpayType(): '01' | '02' {
+  const value = required('TMWEASY_PROMPTPAY_TYPE')
+
+  if (value !== '01' && value !== '02') {
+    throw new Error('TMWEASY_PROMPTPAY_TYPE must be 01 or 02')
+  }
+
+  return value
+}
+
 export const env = {
-  NODE_ENV: process.env.NODE_ENV ?? 'development',
+  NODE_ENV: nodeEnv,
   PORT: Number(process.env.PORT ?? 3001),
   WEB_ORIGIN: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
   DATABASE_URL: required('DATABASE_URL'),
@@ -31,4 +66,11 @@ export const env = {
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY?.trim() ?? '',
   R2_BUCKET_NAME: process.env.R2_BUCKET_NAME?.trim() ?? '',
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL?.trim() ?? '',
+  TMWEASY_API_URL: requiredTmweasyApiUrl(),
+  TMWEASY_USERNAME: required('TMWEASY_USERNAME'),
+  TMWEASY_PASSWORD: required('TMWEASY_PASSWORD'),
+  TMWEASY_CON_ID: required('TMWEASY_CON_ID'),
+  TMWEASY_API_KEY: required('TMWEASY_API_KEY'),
+  TMWEASY_PROMPTPAY_ID: required('TMWEASY_PROMPTPAY_ID'),
+  TMWEASY_PROMPTPAY_TYPE: requiredPromptpayType(),
 } as const
