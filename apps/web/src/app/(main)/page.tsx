@@ -1,4 +1,3 @@
-import { headers } from 'next/headers'
 import { AllTimePopularSection } from '@/components/home/all-time-popular-section'
 import { LatestUpdatesSection } from '@/components/home/latest-updates-section'
 import { PopularSection } from '@/components/home/popular-section'
@@ -7,17 +6,8 @@ import { RisingAuthorsSection } from '@/components/home/rising-authors-section'
 import { WeeklyPopularSection } from '@/components/home/weekly-popular-section'
 import { getLandingStories } from '@/controllers/landing.controller'
 
-function isMobileRequest(requestHeaders: Pick<Headers, 'get'>) {
-  const mobileClientHint = requestHeaders.get('sec-ch-ua-mobile')
-  if (mobileClientHint) return mobileClientHint === '?1'
-
-  const userAgent = requestHeaders.get('user-agent') ?? ''
-  return /Android|iPhone|iPod|Mobile/i.test(userAgent)
-}
-
 export default async function HomePage() {
-  const requestHeaders = await headers()
-  const pageSize = isMobileRequest(requestHeaders) ? 16 : 12
+  const pageSize = 12
   const [latest, popular] = await Promise.all([
     getLandingStories('latest', 1, pageSize),
     getLandingStories('popular', 1, pageSize),

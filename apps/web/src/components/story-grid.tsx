@@ -28,8 +28,8 @@ export function StoryGrid({
     ...Array.from({ length: skeletonCount }, () => null),
   ]
   const pages = Array.from(
-    { length: Math.ceil(items.length / 8) },
-    (_, index) => items.slice(index * 8, index * 8 + 8),
+    { length: Math.ceil(items.length / 6) },
+    (_, index) => items.slice(index * 6, index * 6 + 6),
   )
   const handleScroll: UIEventHandler<HTMLDivElement> = (event) => {
     if (!hasMore || isLoadingMore || !onLoadMore) return
@@ -51,12 +51,12 @@ export function StoryGrid({
         {pages.map((page, pageIndex) => (
           <div
             key={pageIndex}
-            className={`grid w-full shrink-0 snap-start snap-always grid-cols-4 gap-x-2 gap-y-5 lg:contents ${
-              page.length > 4 ? 'grid-rows-2' : 'grid-rows-1'
+            className={`grid w-full shrink-0 snap-start snap-always grid-cols-3 gap-x-2 gap-y-5 lg:contents ${
+              page.length > 3 ? 'grid-rows-2' : 'grid-rows-1'
             }`}
           >
             {page.map((item, itemIndex) => {
-              const storyIndex = pageIndex * 8 + itemIndex
+              const storyIndex = pageIndex * 6 + itemIndex
 
               if (!item) {
                 return (
