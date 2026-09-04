@@ -47,3 +47,4 @@ Thumbs.db
 # local DB dumps — contain real user emails/password hashes, never commit
 data_dump.sql
 *.dump.sql
+.neon
