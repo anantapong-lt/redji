@@ -11,9 +11,9 @@ export function LatestUpdatesSection({
   return (
     <section
       aria-labelledby="latest-updates-heading"
-      className="mt-8 rounded-3xl pt-8 pb-2 md:pt-10"
+      className="mt-5 rounded-3xl pt-8 pb-2 md:pt-10"
     >
-      <h2 id="latest-updates-heading" className="mb-6 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
+      <h2 id="latest-updates-heading" className="mb-3 text-xl font-bold tracking-tight text-zinc-950 md:text-2xl">
         อัปเดตใหม่
       </h2>
 
