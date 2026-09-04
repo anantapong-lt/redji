@@ -72,6 +72,7 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   experimental: {
     // The generated stylesheet is small enough to keep on the critical path
     // without paying for a separate render-blocking request.
