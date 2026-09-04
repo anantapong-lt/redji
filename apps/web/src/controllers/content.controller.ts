@@ -3,6 +3,7 @@ import type {
   PublicContentFavoriteResponse,
   PublicContentSitemapResponse,
   PublicChaptersResponse,
+  PublicChapterSort,
 } from '@/interface/content.interface'
 import { apiRequest } from '@/lib/api-client'
 
@@ -40,12 +41,14 @@ export function getPublicContentChapters(
   slug: string,
   page = 1,
   limit = 25,
+  sort: PublicChapterSort = 'latest',
   accessToken?: string | null,
   cookieHeader?: string,
 ): Promise<PublicChaptersResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
     limit: String(limit),
+    sort,
   })
 
   return apiRequest<PublicChaptersResponse>(

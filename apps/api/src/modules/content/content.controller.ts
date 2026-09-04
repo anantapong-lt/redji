@@ -4,6 +4,7 @@ import {
   findPublicContentBySlug,
   listPublicContentForSitemap,
   removePublicContentFavorite,
+  type PublicChapterSort,
 } from './content.service'
 
 export async function favoritePublicContent(slug: string, currentUserId: string) {
@@ -34,12 +35,19 @@ export async function unfavoritePublicContent(slug: string, currentUserId: strin
 
 export async function getPublicContentChapters(
   slug: string,
-  page = 1,
-  limit = 25,
+  page?: number,
+  limit?: number,
+  sort?: PublicChapterSort,
   currentUserId: string | null = null,
 ) {
   try {
-    const result = await findPublicChaptersBySlug(slug, page, limit, currentUserId)
+    const result = await findPublicChaptersBySlug(
+      slug,
+      page ?? 1,
+      limit ?? 25,
+      currentUserId,
+      sort ?? 'latest',
+    )
 
     if (!result) {
       return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })

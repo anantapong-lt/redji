@@ -1,11 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { LoaderCircle } from 'lucide-react'
+import { ArrowUpDown } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { getPublicContentChapters } from '@/controllers/content.controller'
-import type { PublicChaptersResponse } from '@/interface/content.interface'
+import type {
+  PublicChapterSort,
+  PublicChaptersResponse,
+} from '@/interface/content.interface'
 
 function formatChapterNumber(value: string) {
   return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
@@ -32,12 +43,6 @@ function formatRelativeDate(value: string, referenceTime: number) {
 
   const years = Math.floor(days / 365)
   return `${years.toLocaleString('th-TH')} ปีที่แล้ว`
-}
-
-function sortByChapterNumber<T extends { chapter_number: string }>(chapters: T[]) {
-  return [...chapters].sort(
-    (first, second) => Number(second.chapter_number) - Number(first.chapter_number),
-  )
 }
 
 function getPaginationItems(currentPage: number, totalPages: number) {
@@ -67,8 +72,9 @@ export function PublicChapterList({
   renderedAt: number
 }) {
   const { accessToken, status } = useAuth()
-  const [chapters, setChapters] = useState(() => sortByChapterNumber(initialData.chapters))
+  const [chapters, setChapters] = useState(initialData.chapters)
   const [pagination, setPagination] = useState(initialData.pagination)
+  const [sort, setSort] = useState<PublicChapterSort>('latest')
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
@@ -83,10 +89,10 @@ export function PublicChapterList({
     }
   }, [status])
 
-  async function loadPage(page: number) {
+  async function loadPage(page: number, nextSort: PublicChapterSort = sort) {
     if (
       isLoading
-      || page === pagination.page
+      || (page === pagination.page && nextSort === sort)
       || page < 1
       || page > pagination.totalPages
     ) return
@@ -99,10 +105,12 @@ export function PublicChapterList({
         slug,
         page,
         pagination.limit,
+        nextSort,
         accessToken,
       )
-      setChapters(sortByChapterNumber(nextData.chapters))
+      setChapters(nextData.chapters)
       setPagination(nextData.pagination)
+      setSort(nextSort)
     } catch {
       setLoadError(true)
     } finally {
@@ -115,16 +123,44 @@ export function PublicChapterList({
       aria-labelledby="chapter-list-heading"
       className="readji-surface mt-5 overflow-hidden rounded-[1.75rem]"
     >
-      <div className="flex items-center justify-between gap-4 border-b border-border/70 px-4 py-4 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
           <span className="h-6 w-1 rounded-full bg-primary" />
           <h2 id="chapter-list-heading" className="text-lg font-extrabold text-foreground">
             รายการตอน
           </h2>
         </div>
-        <span className="text-xs font-semibold text-muted-foreground">
-          {pagination.total.toLocaleString('th-TH')} ตอน
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold text-muted-foreground">
+            {pagination.total.toLocaleString('th-TH')} ตอน
+          </span>
+          <Select
+            value={sort}
+            disabled={isLoading}
+            onValueChange={(value) => void loadPage(1, value as PublicChapterSort)}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label="เรียงรายการตอน"
+              className="w-[11.5rem] bg-card"
+            >
+              <ArrowUpDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectGroup>
+                <SelectItem value="latest">ล่าสุด</SelectItem>
+                <SelectItem value="oldest">เก่าสุด</SelectItem>
+                <SelectItem value="chapter_asc">
+                  เรียงตามตอน น้อยไปมาก
+                </SelectItem>
+                <SelectItem value="chapter_desc">
+                  เรียงตามตอน มากไปน้อย
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {chapters.length > 0 ? (
@@ -211,9 +247,6 @@ export function PublicChapterList({
               ถัดไป
             </button>
 
-            {isLoading ? (
-              <LoaderCircle className="ml-1 size-4 animate-spin text-primary" aria-label="กำลังโหลด" />
-            ) : null}
           </nav>
         </div>
       ) : null}

@@ -7,4 +7,10 @@ export const contentParamsSchema = t.Object({
 export const contentChaptersQuerySchema = t.Object({
   page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
   limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
+  sort: t.Optional(t.Union([
+    t.Literal('latest'),
+    t.Literal('oldest'),
+    t.Literal('chapter_asc'),
+    t.Literal('chapter_desc'),
+  ])),
 })

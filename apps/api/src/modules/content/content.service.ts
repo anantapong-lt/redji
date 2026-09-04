@@ -233,11 +233,14 @@ export interface PublicChaptersResult {
   }
 }
 
+export type PublicChapterSort = 'latest' | 'oldest' | 'chapter_asc' | 'chapter_desc'
+
 export async function findPublicChaptersBySlug(
   slug: string,
   page: number,
   limit: number,
   currentUserId: string | null,
+  sort: PublicChapterSort = 'latest',
 ): Promise<PublicChaptersResult | undefined> {
   const [story] = await db<{ id: string }[]>`
     SELECT stories.id
@@ -284,7 +287,13 @@ export async function findPublicChaptersBySlug(
       WHERE chapters.story_id = ${story.id}
         AND chapters.status = 'published'
         AND chapters.published_at <= NOW()
-      ORDER BY chapters.chapter_number DESC, chapters.id DESC
+      ORDER BY
+        CASE WHEN ${sort} = 'latest' THEN chapters.published_at END DESC,
+        CASE WHEN ${sort} = 'oldest' THEN chapters.published_at END ASC,
+        CASE WHEN ${sort} = 'chapter_asc' THEN chapters.chapter_number END ASC,
+        CASE WHEN ${sort} = 'chapter_desc' THEN chapters.chapter_number END DESC,
+        CASE WHEN ${sort} IN ('latest', 'chapter_desc') THEN chapters.id END DESC,
+        CASE WHEN ${sort} IN ('oldest', 'chapter_asc') THEN chapters.id END ASC
       LIMIT ${limit} OFFSET ${offset}
     `,
     db<Array<{ total: string }>>`

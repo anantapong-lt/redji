@@ -47,6 +47,8 @@ export interface PublicContentFavoriteResponse {
   favorite_count: number
 }
 
+export type PublicChapterSort = 'latest' | 'oldest' | 'chapter_asc' | 'chapter_desc'
+
 export interface PublicChapter {
   id: string
   chapter_number: string

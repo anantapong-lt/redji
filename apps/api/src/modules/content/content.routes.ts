@@ -26,8 +26,9 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
     '/:slug/chapters',
     ({ currentUser, params, query }) => getPublicContentChapters(
       params.slug,
-      query.page ?? 1,
-      query.limit ?? 25,
+      query.page,
+      query.limit,
+      query.sort,
       currentUser?.id ?? null,
     ),
     {
