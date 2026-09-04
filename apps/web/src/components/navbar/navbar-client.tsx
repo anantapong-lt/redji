@@ -3,9 +3,20 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, X } from 'lucide-react'
+import { Bell, ChevronDown, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
+import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { userRole, type AuthUser } from '@/interface/user.interface'
+import { SITE_CONFIG } from '@/site.config'
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
@@ -60,6 +71,10 @@ function DesktopNav() {
   )
 }
 
+function formatBalance(balance: string) {
+  return Number(balance).toLocaleString('th-TH')
+}
+
 export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { logout, status, user: clientUser } = useAuth()
@@ -109,27 +124,73 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
               {status === 'loading' && !user ? (
                 <div className="h-10 w-32 animate-pulse rounded-full bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
               ) : user ? (
-                <>
-                  <div className="flex min-w-0 items-center gap-2 rounded-full border border-border bg-card/70 py-1.5 pr-3 pl-1.5">
-                    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt="" className="size-full object-cover" />
-                      ) : userInitial}
-                    </span>
-                    <span className="max-w-32 truncate text-sm font-semibold text-foreground">
-                      {user.display_name}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleLogout()}
-                    aria-label="ออกจากระบบ"
-                    title="ออกจากระบบ"
-                    className="readji-icon-button cursor-pointer text-muted-foreground hover:text-foreground"
-                  >
-                    <LogOut className="size-5" />
-                  </button>
-                </>
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 min-w-0 gap-2 rounded-full bg-card/70 py-1.5 pr-2.5 pl-1.5 shadow-none"
+                    >
+                      <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                        ) : userInitial}
+                      </span>
+                      <span className="max-w-32 truncate font-semibold text-foreground">
+                        {user.display_name}
+                      </span>
+                      <ChevronDown className="size-4 text-muted-foreground transition-transform group-aria-expanded/button:rotate-180" />
+                    </Button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent align="end" sideOffset={8} className="w-72 p-2">
+                    <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2 font-normal">
+                      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                        ) : userInitial}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-foreground">{user.display_name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+                      </span>
+                    </DropdownMenuLabel>
+
+                    <div className="mx-1 mb-2 flex items-center justify-between gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
+                      <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <GiTwoCoins className="size-4 text-amber-500" />
+                        ยอด{SITE_CONFIG.coinName}คงเหลือ
+                      </span>
+                      <span className="text-sm font-bold tabular-nums text-primary">
+                        {formatBalance(user.balance)} {SITE_CONFIG.coinName}
+                      </span>
+                    </div>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem disabled className="py-2.5">
+                      <UserRound />
+                      โปรไฟล์
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                      <Link href="/topup">
+                        <GiTwoCoins className="size-4 text-amber-500" />
+                        เติม{SITE_CONFIG.coinName}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled className="py-2.5">
+                      <History />
+                      ประวัติการทำรายการ
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => void handleLogout()}
+                      className="cursor-pointer py-2.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <LogOut />
+                      ออกจากระบบ
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Link
                   href="/login"
