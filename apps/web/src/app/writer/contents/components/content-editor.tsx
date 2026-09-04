@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -152,6 +152,43 @@ export function ContentEditor({
   const contentLabel = isCartoon ? 'การ์ตูน' : 'นิยาย'
   const databaseType = isCartoon ? StoryType.MANGA : StoryType.NOVEL
   const cancelHref = `/writer/contents/?tab=${contentType}`
+  const renderFormContent = (actions?: ReactNode) => (
+    <>
+      <input type="hidden" name="type" value={databaseType} />
+
+      <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
+        <StoryMetadataFields
+          contentLabel={contentLabel}
+          initialTitle={story?.title ?? initialTitle}
+          initialStatus={story?.status}
+          initialAgeRating={story?.age_rating?.toString() ?? ''}
+        >
+          <SlugField
+            initialSlug={story?.slug}
+            allowAutoGenerate={!contentId}
+            readOnly={Boolean(contentId)}
+          />
+          <SynopsisField
+            contentLabel={contentLabel}
+            initialSynopsis={story?.synopsis ?? ''}
+          />
+        </StoryMetadataFields>
+
+        <StoryGenreFields
+          initialPrimaryGenreId={story?.primary_genre_id}
+          initialSecondaryGenreId={story?.secondary_genre_id ?? ''}
+        />
+      </section>
+
+      <aside className="readji-surface rounded-2xl p-5 md:p-6">
+        <CoverImageUpload
+          initialCoverUrl={story?.cover_url}
+          showRemoveButton={!contentId}
+        />
+        {actions}
+      </aside>
+    </>
+  )
 
   return (
     <Root className={rootClassName}>
@@ -177,38 +214,7 @@ export function ContentEditor({
         </div>
 
         <CreateStoryForm cancelHref={cancelHref} contentId={contentId}>
-          <input type="hidden" name="type" value={databaseType} />
-
-          <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
-            <StoryMetadataFields
-              contentLabel={contentLabel}
-              initialTitle={story?.title ?? initialTitle}
-              initialStatus={story?.status}
-              initialAgeRating={story?.age_rating?.toString() ?? ''}
-            >
-              <SlugField
-                initialSlug={story?.slug}
-                allowAutoGenerate={!contentId}
-                readOnly={Boolean(contentId)}
-              />
-              <SynopsisField
-                contentLabel={contentLabel}
-                initialSynopsis={story?.synopsis ?? ''}
-              />
-            </StoryMetadataFields>
-
-            <StoryGenreFields
-              initialPrimaryGenreId={story?.primary_genre_id}
-              initialSecondaryGenreId={story?.secondary_genre_id ?? ''}
-            />
-          </section>
-
-          <aside className="readji-surface rounded-2xl p-5 md:p-6">
-            <CoverImageUpload
-              initialCoverUrl={story?.cover_url}
-              showRemoveButton={!contentId}
-            />
-          </aside>
+          {contentId ? ({ actions }) => renderFormContent(actions) : renderFormContent()}
         </CreateStoryForm>
       </div>
     </Root>

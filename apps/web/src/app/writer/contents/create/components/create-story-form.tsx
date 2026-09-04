@@ -45,7 +45,7 @@ function getFormSnapshot(form: HTMLFormElement): string {
 interface CreateStoryFormProps {
   cancelHref: string
   contentId?: string
-  children: ReactNode
+  children: ReactNode | ((slots: { actions: ReactNode }) => ReactNode)
 }
 
 export function CreateStoryForm({ cancelHref, children, contentId }: CreateStoryFormProps) {
@@ -59,6 +59,10 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
   const [isDirty, setIsDirty] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const isSlotChildren = typeof children === 'function'
+  const actionBarClassName = isSlotChildren
+    ? 'mt-5 grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:flex-wrap sm:items-center sm:justify-end'
+    : 'grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:col-span-2'
 
   const updateFormState = useCallback(() => {
     const form = formRef.current
@@ -182,6 +186,37 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
     }
   }
 
+  const actionBar = (
+    <div className={actionBarClassName}>
+      {message && (
+        <p
+          role="status"
+          className={`col-span-2 mr-auto text-sm sm:col-span-1 ${isSaved ? 'text-primary' : 'text-destructive'}`}
+        >
+          {message}
+        </p>
+      )}
+      <Link
+        href={cancelHref}
+        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold transition-colors hover:bg-accent"
+      >
+        ยกเลิก
+      </Link>
+      <button
+        type="submit"
+        disabled={isSubmitting || isSaved || !isFormValid || (Boolean(contentId) && !isDirty)}
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isSubmitting && <LoaderCircle className="size-4 animate-spin" strokeWidth={2} />}
+        {isSubmitting
+          ? 'กำลังบันทึก...'
+          : isSaved
+            ? 'บันทึกแล้ว'
+            : 'บันทึก'}
+      </button>
+    </div>
+  )
+
   return (
     <form
       ref={formRef}
@@ -191,37 +226,10 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
       className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(240px,1fr)] lg:items-start"
     >
       <CreateStoryFormContext.Provider value={contextValue}>
-        {children}
+        {isSlotChildren ? children({ actions: actionBar }) : children}
       </CreateStoryFormContext.Provider>
 
-      <div className="grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:col-span-2">
-        {message && (
-          <p
-            role="status"
-            className={`col-span-2 mr-auto text-sm sm:col-span-1 ${isSaved ? 'text-primary' : 'text-destructive'}`}
-          >
-            {message}
-          </p>
-        )}
-        <Link
-          href={cancelHref}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold transition-colors hover:bg-accent"
-        >
-          ยกเลิก
-        </Link>
-        <button
-          type="submit"
-          disabled={isSubmitting || isSaved || !isFormValid || (Boolean(contentId) && !isDirty)}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting && <LoaderCircle className="size-4 animate-spin" strokeWidth={2} />}
-          {isSubmitting
-            ? 'กำลังบันทึก...'
-            : isSaved
-              ? 'บันทึกแล้ว'
-              : 'บันทึก'}
-        </button>
-      </div>
+      {!isSlotChildren && actionBar}
     </form>
   )
 }
