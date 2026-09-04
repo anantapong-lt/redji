@@ -86,6 +86,15 @@ export function ChapterPurchaseDialog({
     }
   }
 
+  function handlePrimaryAction() {
+    if (status === 'authenticated' && !hasEnoughBalance) {
+      router.push('/topup')
+      return
+    }
+
+    void confirmPurchase()
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -205,16 +214,22 @@ export function ChapterPurchaseDialog({
           </DialogClose>
           <button
             type="button"
-            disabled={isPurchasing || status === 'loading' || (status === 'authenticated' && !hasEnoughBalance)}
-            onClick={() => void confirmPurchase()}
+            disabled={isPurchasing || status === 'loading'}
+            onClick={handlePrimaryAction}
             className="flex h-10 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-5 font-extrabold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-1"
           >
             {isPurchasing ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            ) : status === 'authenticated' && !hasEnoughBalance ? (
+              <GiTwoCoins className="size-4" aria-hidden="true" />
             ) : (
               <ShoppingCart className="size-4" aria-hidden="true" />
             )}
-            {status === 'unauthenticated' ? 'เข้าสู่ระบบเพื่อซื้อ' : 'ยืนยันการซื้อ'}
+            {status === 'unauthenticated'
+              ? 'เข้าสู่ระบบเพื่อซื้อ'
+              : status === 'authenticated' && !hasEnoughBalance
+                ? `เติม${SITE_CONFIG.coinName}เพิ่ม`
+                : 'ยืนยันการซื้อ'}
           </button>
         </DialogFooter>
       </DialogContent>
