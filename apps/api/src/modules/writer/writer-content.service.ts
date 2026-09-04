@@ -16,6 +16,12 @@ import {
   uploadWriterCover,
 } from './writer-cover.service'
 
+const WRITER_COVER_OPTIMIZATION = {
+  quality: 80,
+  width: 1200,
+  height: 1600,
+} as const
+
 export class CreateWriterContentError extends Error {
   constructor(
     message: string,
@@ -225,7 +231,9 @@ export async function createWriterContent(
     throw new CreateWriterContentError('ไม่พบหมวดหมู่รองที่เลือก', 400, 'secondary_genre_id')
   }
 
-  const uploadedCover = input.cover ? await uploadWriterCover(input.cover) : null
+  const uploadedCover = input.cover
+    ? await uploadWriterCover(input.cover, WRITER_COVER_OPTIMIZATION)
+    : null
 
   try {
     const [story] = await db<CreatedStory[]>`
@@ -328,7 +336,9 @@ export async function updateWriterContent(
     throw new CreateWriterContentError('ไม่พบหมวดหมู่รองที่เลือก', 400, 'secondary_genre_id')
   }
 
-  const uploadedCover = input.cover ? await uploadWriterCover(input.cover) : null
+  const uploadedCover = input.cover
+    ? await uploadWriterCover(input.cover, WRITER_COVER_OPTIMIZATION)
+    : null
   const shouldRemoveCover = input.remove_cover === 'true'
   const previousCoverUrl = existingStory.cover_url
   const hasCoverChanged = Boolean(uploadedCover) || shouldRemoveCover

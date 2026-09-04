@@ -1,11 +1,25 @@
 import { S3Client } from 'bun'
+import { Buffer } from 'node:buffer'
+import sharp from 'sharp'
 import { env } from '../../config/env'
 
-const extensionByMimeType = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-} as const
+const SUPPORTED_WRITER_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const OPTIMIZED_WRITER_COVER_TYPE = 'image/webp'
+const OPTIMIZED_WRITER_COVER_EXTENSION = 'webp'
+const DEFAULT_WRITER_COVER_QUALITY = 80
+const DEFAULT_WRITER_COVER_WIDTH = 1200
+const DEFAULT_WRITER_COVER_HEIGHT = 1600
+
+export interface WriterCoverOptimizationOptions {
+  quality?: number | string
+  width?: number | string
+  height?: number | string
+}
+
+interface OptimizedWriterCover {
+  body: Blob
+  contentType: typeof OPTIMIZED_WRITER_COVER_TYPE
+}
 
 function createR2Client() {
   if (
@@ -26,14 +40,76 @@ function createR2Client() {
   })
 }
 
-export async function uploadWriterCover(file: File) {
-  const extension = extensionByMimeType[file.type as keyof typeof extensionByMimeType]
-  if (!extension) throw new Error('Unsupported writer cover type')
+function parseIntegerOption(value: number | string | undefined): number | undefined {
+  if (value === undefined || value === '') return undefined
 
-  const key = `stories/covers/${crypto.randomUUID()}.${extension}`
+  const parsedValue = Number(value)
+  if (!Number.isInteger(parsedValue)) return undefined
+
+  return parsedValue
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+function normalizeOptimizationOptions(options: WriterCoverOptimizationOptions = {}) {
+  const quality = clamp(
+    parseIntegerOption(options.quality) ?? DEFAULT_WRITER_COVER_QUALITY,
+    1,
+    100,
+  )
+  const width = clamp(
+    parseIntegerOption(options.width) ?? DEFAULT_WRITER_COVER_WIDTH,
+    1,
+    4096,
+  )
+  const height = clamp(
+    parseIntegerOption(options.height) ?? DEFAULT_WRITER_COVER_HEIGHT,
+    1,
+    4096,
+  )
+
+  return { quality, width, height }
+}
+
+export async function optimizeWriterCover(
+  file: File,
+  options?: WriterCoverOptimizationOptions,
+): Promise<OptimizedWriterCover> {
+  if (!SUPPORTED_WRITER_COVER_TYPES.has(file.type)) {
+    throw new Error('Unsupported writer cover type')
+  }
+
+  const { quality, width, height } = normalizeOptimizationOptions(options)
+  const input = Buffer.from(await file.arrayBuffer())
+  const output = await sharp(input)
+    .rotate()
+    .resize({
+      width,
+      height,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality })
+    .toBuffer()
+
+  return {
+    body: new Blob([output], { type: OPTIMIZED_WRITER_COVER_TYPE }),
+    contentType: OPTIMIZED_WRITER_COVER_TYPE,
+  }
+}
+
+export async function uploadWriterCover(
+  file: File,
+  options?: WriterCoverOptimizationOptions,
+) {
+  const optimizedCover = await optimizeWriterCover(file, options)
+
+  const key = `stories/covers/${crypto.randomUUID()}.${OPTIMIZED_WRITER_COVER_EXTENSION}`
   const r2 = createR2Client()
 
-  await r2.write(key, file, { type: file.type })
+  await r2.write(key, optimizedCover.body, { type: optimizedCover.contentType })
 
   return {
     key,

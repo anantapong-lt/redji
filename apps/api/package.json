@@ -10,7 +10,8 @@
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.2",
-    "elysia": "latest"
+    "elysia": "latest",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/bun": "latest",
