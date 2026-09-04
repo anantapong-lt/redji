@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default async function LoginPage() {
   const user = await getServerAuthUser()
 
-  if (user) redirect(user.role === userRole.WRITER ? '/writer' : '/')
+  if (user) redirect('/');
 
   return <AuthCard heading={`เข้าสู่ระบบของ ${SITE_CONFIG.name}`}><LoginForm /></AuthCard>
 }
