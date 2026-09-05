@@ -57,7 +57,7 @@ export function StoryCard({
             sizes="(min-width: 1536px) 147px, (min-width: 1024px) 180px, calc((100vw - 56px) / 4)"
             quality={60}
             priority={eager}
-            loading={eager ? undefined : 'lazy'}
+            loading={eager ? 'eager' : 'lazy'}
             fetchPriority={eager ? 'high' : undefined}
             onLoad={() => setImageLoaded(true)}
             className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${
@@ -78,7 +78,7 @@ export function StoryCard({
             <span className="truncate">{author}</span>
           </p>
           <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-[11px] leading-[0.875rem] text-muted-foreground/75">{meta}</p>
+            <p className="min-w-0 truncate text-[11px] leading-[0.875rem] text-muted-foreground">{meta}</p>
             <span
               className="flex shrink-0 items-center gap-1 text-[11px] font-semibold leading-none text-muted-foreground"
               aria-label={`คะแนน ${ratingAverage.toFixed(1)} ดาว`}

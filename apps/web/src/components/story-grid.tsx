@@ -70,7 +70,7 @@ export function StoryGrid({
 
               return (
                 <div key={id} className="min-w-0">
-                  <StoryCard {...story} eager={eagerFirst && storyIndex === 0} />
+                  <StoryCard {...story} eager={eagerFirst && storyIndex < 6} />
                 </div>
               )
             })}
