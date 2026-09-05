@@ -12,6 +12,22 @@ export const importChaptersBodySchema = t.Object({
   }), { minItems: 1, maxItems: 500 }),
 })
 
+export const importMangaChaptersBodySchema = t.Object({
+  chapters: t.Array(t.Object({
+    title: t.String({ maxLength: 255 }),
+    chapter_number: t.String({ maxLength: 30 }),
+    price: t.String({ maxLength: 30 }),
+    status: t.UnionEnum(CHAPTER_STATUSES),
+    page_count: t.Number({ minimum: 1, maximum: 200, multipleOf: 1 }),
+    published_at: t.Optional(t.String({ maxLength: 40 })),
+  }), { minItems: 1, maxItems: 500 }),
+  images: t.Files({
+    type: ['image/jpeg', 'image/png', 'image/webp'],
+    maxSize: '10m',
+    maxItems: 5_000,
+  }),
+})
+
 export const writerChapterParamsSchema = t.Object({
   id: t.String({ format: 'uuid' }),
   chapterId: t.String({ format: 'uuid' }),
@@ -31,7 +47,7 @@ export const createWriterChapterBodySchema = t.Object({
   images: t.Optional(t.Files({
     type: ['image/jpeg', 'image/png', 'image/webp'],
     maxSize: '10m',
-    maxItems: 100,
+    maxItems: 200,
   })),
 })
 

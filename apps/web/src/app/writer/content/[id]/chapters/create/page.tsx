@@ -285,13 +285,13 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
         </span>
       </div>
 
-      {!chapterId && !isCartoon && (
+      {!chapterId && (
         <div className="mt-6 flex gap-2">
           <Button type="button" disabled={isImportBusy} variant={isImporting ? 'outline' : 'default'} onClick={() => setIsImporting(false)}>สร้างทีละตอน</Button>
           <Button type="button" disabled={isImportBusy} variant={isImporting ? 'default' : 'outline'} onClick={() => setIsImporting(true)}>อัปโหลด ZIP หลายตอน</Button>
         </div>
       )}
-      {isImporting && <ChapterImport contentId={id} onCancel={() => setIsImporting(false)} onBusyChange={setIsImportBusy} />}
+      {isImporting && <ChapterImport contentId={id} isManga={isCartoon} onCancel={() => setIsImporting(false)} onBusyChange={setIsImportBusy} />}
       <form onSubmit={handleSubmit} className={`mt-6 space-y-5 ${isImporting ? 'hidden' : ''}`}>
         <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
           <div className="space-y-2">

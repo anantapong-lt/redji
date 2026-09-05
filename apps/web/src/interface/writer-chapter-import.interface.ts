@@ -9,6 +9,7 @@ export interface ImportedChapter {
   status: ChapterStatus
   published_at: string
   content: string
+  images?: File[]
   readError?: string
 }
 

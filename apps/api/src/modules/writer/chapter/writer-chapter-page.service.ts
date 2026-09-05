@@ -5,6 +5,7 @@ import { env } from '../../../config/env'
 
 const PAGE_WIDTH = 2400
 const PAGE_QUALITY = 85
+const PAGE_COMPRESSION_THRESHOLD_BYTES = 700 * 1024
 
 export interface UploadedChapterPage {
   key: string
@@ -38,9 +39,11 @@ export async function uploadWriterChapterPage(
   chapterNumber: number,
 ): Promise<UploadedChapterPage> {
   const input = Buffer.from(await file.arrayBuffer())
-  const { data, info } = await sharp(input)
-    .rotate()
-    .resize({ width: PAGE_WIDTH, fit: 'inside', withoutEnlargement: true })
+  const image = sharp(input).rotate()
+  if (file.size > PAGE_COMPRESSION_THRESHOLD_BYTES) {
+    image.resize({ width: PAGE_WIDTH, fit: 'inside', withoutEnlargement: true })
+  }
+  const { data, info } = await image
     .webp({ quality: PAGE_QUALITY })
     .toBuffer({ resolveWithObject: true })
   const key = `stories/chapters/${storyId}/${chapterNumber}/${crypto.randomUUID()}.webp`

@@ -66,7 +66,89 @@ export async function readChapterZip(file: File): Promise<ImportedChapter[]> {
   return rows.sort((a, b) => Number(a.chapter_number || Infinity) - Number(b.chapter_number || Infinity))
 }
 
-export function chapterImportErrors(rows: ImportedChapter[]): Record<string, string[]> {
+const MANGA_IMAGE_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+}
+
+function mangaZipRow(title: string, images: File[]): ImportedChapter {
+  return {
+    id: crypto.randomUUID(), filename: title, title,
+    chapter_number: title.match(/\d+(?:\.\d+)?/)?.[0] ?? '',
+    price: '0.00', status: 'published', published_at: '', content: '', images,
+  }
+}
+
+export async function readMangaChapterZip(file: File): Promise<ImportedChapter[]> {
+  if (!/\.zip$/i.test(file.name)) throw new Error('กรุณาเลือกไฟล์ ZIP')
+  if (file.size > CHAPTER_IMPORT_MAX_BYTES) throw new Error('ไฟล์ ZIP ต้องมีขนาดไม่เกิน 100MB')
+
+  const chapters = new Map<string, File[]>()
+  let total = 0
+  let readError = ''
+  const unzip = new Unzip((entry) => {
+    if (entry.name.endsWith('/') || entry.name.startsWith('__MACOSX/') || entry.name.split('/').pop()?.startsWith('._')) return
+    const parts = entry.name.split('/').filter(Boolean)
+    const filename = parts.at(-1) ?? entry.name
+    const extension = Object.keys(MANGA_IMAGE_TYPES).find((item) => filename.toLowerCase().endsWith(item))
+    if (!extension) {
+      readError ||= `รองรับเฉพาะรูปภาพ JPG, PNG และ WEBP (${entry.name})`
+      entry.ondata = () => undefined
+      entry.start()
+      return
+    }
+    if (parts.length > 2) {
+      readError ||= `โครงสร้าง ZIP ซ้อนได้ไม่เกิน 1 โฟลเดอร์ (${entry.name})`
+      entry.ondata = () => undefined
+      entry.start()
+      return
+    }
+
+    const chapterName = parts.length === 1 ? file.name.replace(/\.zip$/i, '') : parts[0]
+    const data: Uint8Array[] = []
+    entry.ondata = (error, chunk, final) => {
+      if (error) {
+        readError ||= `ไม่สามารถแตกไฟล์ ${entry.name} ได้`
+        return
+      }
+      total += chunk.length
+      if (total > CHAPTER_IMPORT_MAX_BYTES) {
+        readError ||= 'ขนาดรูปภาพหลังแตกไฟล์ต้องไม่เกิน 100MB'
+        return
+      }
+      data.push(chunk)
+      if (final) {
+        const images = chapters.get(chapterName) ?? []
+        images.push(new File([new Blob(data)], filename, { type: MANGA_IMAGE_TYPES[extension] }))
+        chapters.set(chapterName, images)
+      }
+    }
+    if (entry.compression !== 0 && entry.compression !== 8) {
+      readError ||= 'รูปแบบการบีบอัดนี้ไม่รองรับ กรุณาสร้าง ZIP แบบปกติแล้วนำเข้าใหม่'
+      return
+    }
+    entry.start()
+  })
+  unzip.register(UnzipInflate)
+  for (let offset = 0; offset < file.size; offset += 16384) {
+    const end = Math.min(offset + 16384, file.size)
+    unzip.push(new Uint8Array(await file.slice(offset, end).arrayBuffer()), end === file.size)
+  }
+  if (readError) throw new Error(readError)
+  if (!chapters.size) throw new Error('ไม่พบรูปภาพใน ZIP')
+
+  const rows = [...chapters.entries()].map(([title, images]) => {
+    images.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+    return mangaZipRow(title, images)
+  })
+  if (rows.length > 500) throw new Error('นำเข้าได้สูงสุด 500 ตอน')
+  if (rows.some((row) => (row.images?.length ?? 0) > 200)) throw new Error('แต่ละตอนมีรูปภาพได้สูงสุด 200 รูป')
+  return rows.sort((a, b) => Number(a.chapter_number || Infinity) - Number(b.chapter_number || Infinity))
+}
+
+export function chapterImportErrors(rows: ImportedChapter[], isManga = false): Record<string, string[]> {
   const counts = new Map<number, number>()
   for (const row of rows) counts.set(Number(row.chapter_number), (counts.get(Number(row.chapter_number)) ?? 0) + 1)
   return Object.fromEntries(rows.map((row) => {
@@ -76,7 +158,7 @@ export function chapterImportErrors(rows: ImportedChapter[]): Record<string, str
     if (!/^\d+(\.\d)?$/.test(row.chapter_number) || Number(row.chapter_number) > 99_999_999.9) errors.push('กรุณาระบุเลขตอน 0–99,999,999.9 ทศนิยมไม่เกิน 1 ตำแหน่ง')
     else if ((counts.get(Number(row.chapter_number)) ?? 0) > 1) errors.push('เลขตอนซ้ำกับรายการอื่นที่นำเข้า')
     if (!/^\d+(\.\d{1,2})?$/.test(row.price) || Number(row.price) > 9_999_999_999.99) errors.push('ราคาไม่ถูกต้อง ต้องเป็น 0–9,999,999,999.99')
-    if (!row.content.trim() && !row.readError) errors.push('เนื้อหาตอนว่างเปล่า')
+    if (isManga ? !(row.images?.length) : !row.content.trim()) errors.push(isManga ? 'กรุณาเพิ่มรูปภาพอย่างน้อย 1 รูป' : 'เนื้อหาตอนว่างเปล่า')
     if (row.status === 'scheduled' && (!row.published_at || !Number.isFinite(new Date(row.published_at).getTime()) || new Date(row.published_at) <= new Date())) errors.push('กรุณาระบุเวลาเผยแพร่ในอนาคต')
     return [row.id, errors]
   }))

@@ -2,9 +2,10 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { EyeIcon, LoaderCircleIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { EyeIcon, Trash2Icon, UploadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
+import { FileUploadProgressDialog } from '@/components/common/file-upload-progress-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -13,10 +14,10 @@ import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { importWriterChapters } from '@/controllers/writer.controller'
+import { importWriterChapters, importWriterMangaChapters } from '@/controllers/writer.controller'
 import type { ImportedChapter } from '@/interface/writer-chapter-import.interface'
 import type { ChapterStatus } from '@/interface/writer-chapter.interface'
-import { chapterImportErrors, readChapterZip } from '@/utils/chapter-import.util'
+import { chapterImportErrors, readChapterZip, readMangaChapterZip } from '@/utils/chapter-import.util'
 import { SITE_CONFIG } from '@/site.config'
 
 const statuses: { value: ChapterStatus; label: string }[] = [
@@ -39,7 +40,7 @@ function StatusSelect({ value, onChange, label }: { value: string; onChange: (va
   </Select>
 }
 
-export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId: string; onCancel: () => void; onBusyChange: (busy: boolean) => void }) {
+export function ChapterImport({ contentId, isManga = false, onCancel, onBusyChange }: { contentId: string; isManga?: boolean; onCancel: () => void; onBusyChange: (busy: boolean) => void }) {
   const router = useRouter()
   const { accessToken } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -53,7 +54,7 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
   const [price, setPrice] = useState('0.00')
   const [status, setStatus] = useState<ChapterStatus | ''>('')
   const [date, setDate] = useState('')
-  const errors = chapterImportErrors(rows)
+  const errors = chapterImportErrors(rows, isManga)
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.id))
   const hasErrors = rows.some((row) => errors[row.id].length > 0 || serverErrors[row.id]?.length)
 
@@ -79,7 +80,7 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
     onBusyChange(true)
     setMessage('')
     try {
-      setRows(await readChapterZip(file))
+      setRows(await (isManga ? readMangaChapterZip(file) : readChapterZip(file)))
       setSelected(new Set())
       setServerErrors({})
     } catch (error) {
@@ -94,7 +95,7 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
 
   async function submit() {
     if (!accessToken || busyRef.current || !rows.length) return
-    const currentErrors = chapterImportErrors(rows)
+    const currentErrors = chapterImportErrors(rows, isManga)
     if (rows.some((row) => currentErrors[row.id].length)) {
       setMessage('')
       return
@@ -104,7 +105,9 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
     onBusyChange(true)
     setMessage('')
     try {
-      const result = await importWriterChapters(contentId, rows, accessToken)
+      const result = await (isManga
+        ? importWriterMangaChapters(contentId, rows, accessToken)
+        : importWriterChapters(contentId, rows, accessToken))
       if (result.errors.length) {
         const next: Record<string, string[]> = {}
         for (const error of result.errors) {
@@ -138,12 +141,25 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
         </div> : <>
           <UploadIcon className="mx-auto mb-3 size-6 text-muted-foreground" />
           <p className="text-sm font-medium">ลากไฟล์ ZIP มาวางที่นี่</p>
-          <p className="mt-1 text-xs text-muted-foreground">สูงสุด 100MB · 500 ตอน · TXT (UTF-8)</p>
+          <p className="mt-1 text-xs text-muted-foreground">สูงสุด 100MB · 500 ตอน · {isManga ? 'JPG, PNG หรือ WEBP' : 'TXT (UTF-8)'}</p>
         </>}
         <Button type="button" size="sm" variant="outline" className={rows.length ? 'shrink-0' : 'mt-4'} onClick={() => fileRef.current?.click()}>{rows.length ? 'เปลี่ยนไฟล์ ZIP' : 'เลือกไฟล์ ZIP'}</Button>
         {!rows.length && <div className="mt-5 space-y-1 text-xs text-muted-foreground">
-          <p>ชื่อไฟล์เป็นชื่อตอน ตัวเลขชุดแรกเป็นเลขตอน เช่น ตอนที่ 1 สวัสดี.txt</p>
-          <p>เนื้อหารวมหลังแตกไฟล์ไม่เกิน 100MB</p>
+          {isManga ? <div className="grid gap-3 text-left sm:grid-cols-2">
+            <div className="rounded-lg border border-border bg-background/60 p-3">
+              <p className="font-semibold text-foreground">นำเข้า 1 ตอน</p>
+              <p className="mt-2 whitespace-pre font-mono text-[11px] leading-5">{`ตอนที่ 23.zip\n├── 1.jpg\n└── 2.jpg`}</p>
+              <p className="mt-2">ชื่อ ZIP จะเป็นชื่อตอน และเลข 23 จะเป็นเลขตอน</p>
+            </div>
+            <div className="rounded-lg border border-border bg-background/60 p-3">
+              <p className="font-semibold text-foreground">นำเข้าหลายตอน</p>
+              <p className="mt-2 whitespace-pre font-mono text-[11px] leading-5">{`ไฟล์การ์ตูน.zip\n├── ตอนที่ 1/\n│   ├── 1.jpg\n│   └── 2.jpg\n└── ตอนที่ 2/\n    ├── 1.jpg\n    └── 2.jpg`}</p>
+              <p className="mt-2">ชื่อโฟลเดอร์จะเป็นชื่อตอน และตัวเลขในชื่อโฟลเดอร์จะเป็นเลขตอน</p>
+            </div>
+          </div> : <>
+            <p>ชื่อไฟล์เป็นชื่อตอน ตัวเลขชุดแรกเป็นเลขตอน เช่น ตอนที่ 1 สวัสดี.txt</p>
+            <p>เนื้อหารวมหลังแตกไฟล์ไม่เกิน 100MB</p>
+          </>}
         </div>}
       </div>
 
@@ -185,7 +201,7 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
             </colgroup>
             <TableHeader className="hidden bg-muted/30 @[70rem]:table-header-group [&_th]:whitespace-normal [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground"><TableRow>
               <TableHead><Checkbox aria-label="เลือกทุกตอน" checked={allSelected ? true : selected.size ? 'indeterminate' : false} onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((row) => row.id)))} /></TableHead>
-              {['ตอนที่', 'ชื่อตอน', 'ราคา', 'สถานะ', 'เวลาเผยแพร่', 'เนื้อหา', 'ลบ'].map((label) => <TableHead key={label}>{label}</TableHead>)}
+              {['ตอนที่', 'ชื่อตอน', 'ราคา', 'สถานะ', 'เวลาเผยแพร่', isManga ? 'รูปภาพ' : 'เนื้อหา', 'ลบ'].map((label) => <TableHead key={label}>{label}</TableHead>)}
             </TableRow></TableHeader>
             <TableBody className="block @[70rem]:table-row-group [&_td]:min-w-0 [&_td]:whitespace-normal [&_td]:py-2 [&_input]:h-9 [&_input]:min-w-0 [&_input]:bg-background [&_input]:shadow-none">{rows.map((row) => {
               const rowErrors = [...new Set([...errors[row.id], ...(serverErrors[row.id] ?? [])])]
@@ -198,7 +214,7 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
                 <TableCell data-label="ราคา"><Input aria-label={`ราคา ${row.title}`} className="w-full" type="number" min="0" step="0.01" value={row.price} onChange={(event) => change(row.id, { price: event.target.value })} onBlur={() => change(row.id, { price: formatPrice(row.price) })} /></TableCell>
                 <TableCell data-label="สถานะ"><StatusSelect value={row.status} onChange={(value) => change(row.id, { status: value })} label={`สถานะ ${row.title}`} /></TableCell>
                 <TableCell data-label="เวลาเผยแพร่">{row.status === 'scheduled' ? <DateTimePicker label={`เวลาเผยแพร่ ${row.title}`} value={row.published_at} onChange={(value) => change(row.id, { published_at: value })} disabled={busy} /> : <span className="text-xs text-muted-foreground">{row.status === 'published' ? 'ตอนนี้' : '—'}</span>}</TableCell>
-                <TableCell data-label="เนื้อหา"><Button type="button" variant="ghost" size="sm" className="h-auto max-w-full justify-start px-1 text-xs font-normal text-muted-foreground" onClick={() => setPreview(row)}><EyeIcon /><span className="min-w-0 whitespace-normal break-words">{row.content.length.toLocaleString('th-TH')} ตัวอักษร</span></Button></TableCell>
+                <TableCell data-label={isManga ? 'รูปภาพ' : 'เนื้อหา'}>{isManga ? <span className="text-xs text-muted-foreground">{(row.images?.length ?? 0).toLocaleString('th-TH')} รูป</span> : <Button type="button" variant="ghost" size="sm" className="h-auto max-w-full justify-start px-1 text-xs font-normal text-muted-foreground" onClick={() => setPreview(row)}><EyeIcon /><span className="min-w-0 whitespace-normal break-words">{row.content.length.toLocaleString('th-TH')} ตัวอักษร</span></Button>}</TableCell>
                 <TableCell><Button type="button" variant="ghost" size="icon" className="text-destructive" aria-label={`ลบ ${row.title}`} onClick={() => remove(new Set([row.id]))}><Trash2Icon /></Button></TableCell>
               </TableRow>
             })}</TableBody>
@@ -211,7 +227,7 @@ export function ChapterImport({ contentId, onCancel, onBusyChange }: { contentId
         {rows.length > 0 && <Button type="button" disabled={hasErrors || !accessToken} onClick={() => void submit()}>สร้าง {rows.length} ตอน</Button>}
       </div>
     </fieldset>
-    {busy && <p role="status" className="flex items-center gap-2 text-sm"><LoaderCircleIcon className="size-4 animate-spin" />กำลังดำเนินการ กรุณารอสักครู่...</p>}
+    <FileUploadProgressDialog open={busy} />
     <Dialog open={preview !== null} onOpenChange={(open) => { if (!open) setPreview(null) }}>
       <DialogContent className="sm:max-w-3xl"><DialogHeader><DialogTitle>{preview?.title}</DialogTitle><DialogDescription>ตัวอย่างเนื้อหาจาก {preview?.filename}</DialogDescription></DialogHeader>
         <div className="max-h-[65vh] overflow-auto whitespace-pre-wrap break-words text-sm leading-7">{preview?.content || preview?.readError || 'ไม่มีเนื้อหา'}</div>

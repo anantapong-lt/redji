@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
-import { importWriterChaptersResponse } from './chapter/writer-chapter.controller'
-import { importChaptersBodySchema } from './chapter/writer-chapter.schema'
+import { importWriterChaptersResponse, importWriterMangaChaptersResponse } from './chapter/writer-chapter.controller'
+import { importChaptersBodySchema, importMangaChaptersBodySchema } from './chapter/writer-chapter.schema'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
 import {
@@ -39,9 +39,13 @@ import { writerDashboardQuerySchema } from './writer.schema'
 
 export const writerRoutes = new Elysia({ prefix: '/writer' })
   .use(authMiddleware)
-  .post('/contents/:id/chapters/import',
+  .post('/contents/:id/chapters/import-novels',
     ({ currentUser, params, body }) => importWriterChaptersResponse(currentUser.id, params.id, body),
     { auth: USER_ROLE.WRITER, params: writerChaptersParamsSchema, body: importChaptersBodySchema },
+  )
+  .post('/contents/:id/chapters/import-manga',
+    ({ currentUser, params, body }) => importWriterMangaChaptersResponse(currentUser.id, params.id, body),
+    { auth: USER_ROLE.WRITER, params: writerChaptersParamsSchema, body: importMangaChaptersBodySchema },
   )
   .get(
     '/purchases',

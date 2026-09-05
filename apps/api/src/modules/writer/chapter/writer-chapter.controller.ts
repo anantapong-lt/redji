@@ -9,8 +9,8 @@ import type {
   WriterChaptersResult,
 } from '../../../models/writer-chapter.model'
 import { status } from 'elysia'
-import type { importChaptersBodySchema } from './writer-chapter.schema'
-import { insertImportedChapters } from './writer-chapter.service'
+import type { importChaptersBodySchema, importMangaChaptersBodySchema } from './writer-chapter.schema'
+import { insertImportedChapters, insertImportedMangaChapters } from './writer-chapter.service'
 
 export async function importWriterChaptersResponse(
   userId: string, storyId: string, body: typeof importChaptersBodySchema.static,
@@ -54,6 +54,88 @@ export async function importWriterChaptersResponse(
   } catch (error) {
     if (error instanceof WriterChapterError) return status(error.statusCode, { message: error.message })
     console.error('Unable to import writer chapters', error)
+    return status(500, { message: 'ไม่สามารถสร้างตอนได้ ยังไม่มีรายการถูกบันทึก กรุณาลองใหม่' })
+  }
+}
+
+export async function importWriterMangaChaptersResponse(
+  userId: string, storyId: string, body: typeof importMangaChaptersBodySchema.static,
+) {
+  const uploadedPages: UploadedChapterPage[] = []
+  try {
+    const type = await requireOwnedStoryType(userId, storyId)
+    if (type !== STORY_TYPE.MANGA) throw new WriterChapterError('การนำเข้า ZIP รูปภาพรองรับเฉพาะการ์ตูน', 400)
+
+    const parsed: unknown = body.chapters
+    if (!Array.isArray(parsed) || !parsed.length || parsed.length > 500) {
+      throw new WriterChapterError('ข้อมูลตอนที่นำเข้าไม่ถูกต้อง', 400)
+    }
+    const rows = parsed.map((row) => {
+      if (!row || typeof row !== 'object') throw new WriterChapterError('ข้อมูลตอนที่นำเข้าไม่ถูกต้อง', 400)
+      const value = row as Record<string, unknown>
+      if (
+        typeof value.title !== 'string'
+        || typeof value.chapter_number !== 'string'
+        || typeof value.price !== 'string'
+        || typeof value.status !== 'string'
+        || !Object.values(CHAPTER_STATUS).includes(value.status as typeof CHAPTER_STATUS[keyof typeof CHAPTER_STATUS])
+        || typeof value.page_count !== 'number'
+        || !Number.isInteger(value.page_count)
+        || value.page_count < 1
+        || value.page_count > 200
+        || (value.published_at !== undefined && typeof value.published_at !== 'string')
+      ) throw new WriterChapterError('ข้อมูลตอนที่นำเข้าไม่ถูกต้อง', 400)
+      return {
+        title: value.title,
+        chapter_number: value.chapter_number,
+        price: value.price,
+        status: value.status as CreateWriterChapterInput['status'],
+        page_count: value.page_count,
+        published_at: value.published_at as string | undefined,
+      }
+    })
+    const expectedPageCount = rows.reduce((total, row) => total + row.page_count, 0)
+    if (body.images.length !== expectedPageCount) throw new WriterChapterError('จำนวนรูปภาพไม่ตรงกับข้อมูลตอน', 400)
+
+    const errors: { index: number; message: string }[] = []
+    const inputs: ChapterWriteInput[] = []
+    const counts = new Map<number, number>()
+    for (const row of rows) counts.set(Number(row.chapter_number), (counts.get(Number(row.chapter_number)) ?? 0) + 1)
+    for (const [index, row] of rows.entries()) {
+      try {
+        if (!/^\d+(\.\d)?$/.test(row.chapter_number)) throw new Error('กรุณาระบุเลขตอนที่ถูกต้อง ทศนิยมไม่เกิน 1 ตำแหน่ง')
+        if ((counts.get(Number(row.chapter_number)) ?? 0) > 1) throw new Error('เลขตอนซ้ำกับรายการอื่นที่นำเข้า')
+        if (!/^\d+(\.\d{1,2})?$/.test(row.price)) throw new Error('กรุณาระบุราคาที่ถูกต้อง ทศนิยมไม่เกิน 2 ตำแหน่ง')
+        inputs.push(normalizeChapterInput(type, {
+          title: row.title, chapter_number: Number(row.chapter_number), price: Number(row.price),
+          status: row.status, published_at: row.published_at,
+        }))
+      } catch (error) {
+        errors.push({ index, message: error instanceof Error ? error.message : 'ข้อมูลตอนไม่ถูกต้อง' })
+      }
+    }
+    if (errors.length) return { created_count: 0, errors }
+
+    let offset = 0
+    const entries = []
+    for (const [index, input] of inputs.entries()) {
+      const files = body.images.slice(offset, offset + rows[index].page_count)
+      offset += files.length
+      const pages: UploadedChapterPage[] = []
+      for (const image of files) {
+        const page = await uploadWriterChapterPage(image, storyId, input.chapterNumber)
+        uploadedPages.push(page)
+        pages.push(page)
+      }
+      entries.push({ input, pages })
+    }
+    const result = await insertImportedMangaChapters(storyId, entries)
+    if (result.errors.length) await cleanupUploadedPages(uploadedPages)
+    return result
+  } catch (error) {
+    await cleanupUploadedPages(uploadedPages)
+    if (error instanceof WriterChapterError) return status(error.statusCode, { message: error.message })
+    console.error('Unable to import writer manga chapters', error)
     return status(500, { message: 'ไม่สามารถสร้างตอนได้ ยังไม่มีรายการถูกบันทึก กรุณาลองใหม่' })
   }
 }
@@ -317,8 +399,8 @@ export async function updateWriterChapter(
   if (existing.story_type === STORY_TYPE.MANGA && retainedPageIds.length + images.length === 0) {
     throw new WriterChapterError('กรุณาเพิ่มรูปภาพอย่างน้อย 1 รูป', 400, 'images')
   }
-  if (retainedPageIds.length + images.length > 100) {
-    throw new WriterChapterError('รูปภาพต้องไม่เกิน 100 รูป', 400, 'images')
+  if (retainedPageIds.length + images.length > 200) {
+    throw new WriterChapterError('รูปภาพต้องไม่เกิน 200 รูป', 400, 'images')
   }
 
   const removedPages = existing.pages.filter((page) => !retainedPageIds.includes(page.id))

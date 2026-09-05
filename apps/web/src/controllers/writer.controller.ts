@@ -2,7 +2,7 @@ import { apiRequest } from '@/lib/api-client'
 import type { ImportedChapter, ChapterImportResult } from '@/interface/writer-chapter-import.interface'
 
 export function importWriterChapters(contentId: string, rows: ImportedChapter[], accessToken: string): Promise<ChapterImportResult> {
-  return apiRequest(`/writer/contents/${contentId}/chapters/import`, {
+  return apiRequest(`/writer/contents/${contentId}/chapters/import-novels`, {
     method: 'POST', accessToken,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chapters: rows.map((row) => ({
@@ -10,6 +10,19 @@ export function importWriterChapters(contentId: string, rows: ImportedChapter[],
       status: row.status, content: row.content,
       ...(row.status === 'scheduled' ? { published_at: new Date(row.published_at).toISOString() } : {}),
     })) }),
+  })
+}
+
+export function importWriterMangaChapters(contentId: string, rows: ImportedChapter[], accessToken: string): Promise<ChapterImportResult> {
+  const body = new FormData()
+  body.set('chapters', JSON.stringify(rows.map((row) => ({
+    title: row.title, chapter_number: row.chapter_number, price: row.price,
+    status: row.status, page_count: row.images?.length ?? 0,
+    ...(row.status === 'scheduled' ? { published_at: new Date(row.published_at).toISOString() } : {}),
+  }))))
+  for (const row of rows) for (const image of row.images ?? []) body.append('images', image)
+  return apiRequest(`/writer/contents/${contentId}/chapters/import-manga`, {
+    method: 'POST', accessToken, body,
   })
 }
 import type { WriterPurchasesResponse } from '@/interface/writer-purchase.interface'
