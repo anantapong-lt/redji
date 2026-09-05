@@ -19,6 +19,7 @@ export async function countAdminUsers(search: string, status: UserStatus | null)
     SELECT COUNT(*)::TEXT AS total
     FROM users
     WHERE deleted_at IS NULL
+      AND role = 'user'
       AND (${status}::TEXT IS NULL OR users.status = ${status})
       AND (
         ${search} = ''
@@ -36,6 +37,7 @@ export function findAdminUsers(page: number, limit: number, search: string, stat
       email_verified_at, last_login_at, created_at
     FROM users
     WHERE deleted_at IS NULL
+      AND role = 'user'
       AND (${status}::TEXT IS NULL OR users.status = ${status})
       AND (
         ${search} = ''
@@ -46,4 +48,25 @@ export function findAdminUsers(page: number, limit: number, search: string, stat
     ORDER BY created_at DESC, id DESC
     LIMIT ${limit} OFFSET ${(page - 1) * limit}
   `
+}
+
+export async function updateAdminUser(
+  id: string,
+  input: { displayName: string; username: string; email: string; status: UserStatus; balance: string },
+) {
+  const [user] = await db<AdminUserRow[]>`
+    UPDATE users
+    SET display_name = ${input.displayName},
+        username = ${input.username},
+        email = ${input.email},
+        status = ${input.status},
+        balance = ROUND(${input.balance}::NUMERIC, 2),
+        updated_at = NOW()
+    WHERE id = ${id}
+      AND role = 'user'
+      AND deleted_at IS NULL
+    RETURNING id, email, username, display_name, balance::TEXT, role, status,
+      email_verified_at, last_login_at, created_at
+  `
+  return user ?? null
 }

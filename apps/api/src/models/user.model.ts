@@ -5,7 +5,7 @@ export const USER_ROLE = {
 } as const
 
 export const USER_ROLES = Object.values(USER_ROLE)
-export const USER_STATUSES = ['active', 'suspended', 'banned'] as const
+export const USER_STATUSES = ['active', 'banned'] as const
 
 export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE]
 export type UserStatus = (typeof USER_STATUSES)[number]

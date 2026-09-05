@@ -1,6 +1,6 @@
 import { status } from 'elysia'
-import { countAdminUsers, findAdminUsers } from './admin-users.service'
-import type { adminUsersQuerySchema } from './admin-users.schema'
+import { countAdminUsers, findAdminUsers, updateAdminUser } from './admin-users.service'
+import type { adminUsersQuerySchema, updateAdminUserBodySchema } from './admin-users.schema'
 
 export async function getAdminUsers(query: typeof adminUsersQuerySchema.static) {
   try {
@@ -16,5 +16,25 @@ export async function getAdminUsers(query: typeof adminUsersQuerySchema.static) 
   } catch (error) {
     console.error('Unable to load admin users', error)
     return status(500, { message: 'ไม่สามารถโหลดรายชื่อผู้ใช้ได้ กรุณาลองใหม่อีกครั้ง' })
+  }
+}
+
+export async function editAdminUser(id: string, body: typeof updateAdminUserBodySchema.static) {
+  try {
+    const user = await updateAdminUser(id, {
+      displayName: body.display_name.trim(),
+      username: body.username.trim(),
+      email: body.email.trim().toLowerCase(),
+      status: body.status,
+      balance: body.balance,
+    })
+    if (!user) return status(404, { message: 'ไม่พบผู้ใช้งาน' })
+    return { user }
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : null
+    if (code === '23505') return status(409, { message: 'อีเมลหรือ Username นี้ถูกใช้งานแล้ว' })
+
+    console.error('Unable to update admin user', error)
+    return status(500, { message: 'ไม่สามารถบันทึกข้อมูลผู้ใช้งานได้ กรุณาลองใหม่อีกครั้ง' })
   }
 }
