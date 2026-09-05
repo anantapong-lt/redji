@@ -1,6 +1,17 @@
 import { t } from 'elysia'
 import { CHAPTER_STATUSES } from '../../../models/story.model'
 
+export const importChaptersBodySchema = t.Object({
+  chapters: t.Array(t.Object({
+    title: t.String({ maxLength: 255 }),
+    chapter_number: t.String({ maxLength: 30 }),
+    price: t.String({ maxLength: 30 }),
+    status: t.UnionEnum(CHAPTER_STATUSES),
+    published_at: t.Optional(t.String({ maxLength: 40 })),
+    content: t.String(),
+  }), { minItems: 1, maxItems: 500 }),
+})
+
 export const writerChapterParamsSchema = t.Object({
   id: t.String({ format: 'uuid' }),
   chapterId: t.String({ format: 'uuid' }),

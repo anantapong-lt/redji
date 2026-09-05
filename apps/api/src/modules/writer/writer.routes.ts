@@ -1,4 +1,6 @@
 import { Elysia } from 'elysia'
+import { importWriterChaptersResponse } from './chapter/writer-chapter.controller'
+import { importChaptersBodySchema } from './chapter/writer-chapter.schema'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
 import {
@@ -36,6 +38,10 @@ import { writerPurchasesQuerySchema } from './purchase/writer-purchase.schema'
 
 export const writerRoutes = new Elysia({ prefix: '/writer' })
   .use(authMiddleware)
+  .post('/contents/:id/chapters/import',
+    ({ currentUser, params, body }) => importWriterChaptersResponse(currentUser.id, params.id, body),
+    { auth: USER_ROLE.WRITER, params: writerChaptersParamsSchema, body: importChaptersBodySchema },
+  )
   .get(
     '/purchases',
     ({ currentUser, query }) => getWriterPurchases(currentUser.id, query),

@@ -24,6 +24,6 @@ const app = new Elysia()
   .use(topupRoutes)
   .use(writerRoutes)
 
-app.listen(env.PORT)
+app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })
 
 console.log(`API server is running on http://localhost:${env.PORT}`)

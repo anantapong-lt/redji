@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
 import {
   Select,
   SelectContent,
@@ -195,57 +196,48 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
     })
   }
 
-  const handleBulkPrice = async () => {
+  const handleBulkSave = async () => {
+    const hasPrice = bulkPrice.trim() !== ''
     const price = Number(bulkPrice)
-    if (!accessToken || selectedIds.size === 0 || bulkPrice.trim() === '' || price < 0) return
-
-    setIsUpdating(true)
-    try {
-      const { updated_count: updatedCount } = await bulkUpdateWriterChapterPrice(
-        contentId,
-        [...selectedIds],
-        price,
-        accessToken,
-      )
-      toast.success(`อัปเดตราคา ${updatedCount} ตอนเรียบร้อยแล้ว`)
-      setBulkPrice('')
-      setReloadKey((current) => current + 1)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'ไม่สามารถอัปเดตราคาตอนได้')
-    } finally {
-      setIsUpdating(false)
+    if (!accessToken || isUpdating || selectedIds.size === 0 || (!hasPrice && !bulkStatus)) return
+    if (hasPrice && (!Number.isFinite(price) || price < 0)) {
+      toast.error('กรุณาระบุราคาที่ถูกต้อง')
+      return
     }
-  }
-
-  const handleBulkStatus = async () => {
-    if (!accessToken || selectedIds.size === 0 || !bulkStatus) return
 
     let publishedAt: string | undefined
     if (bulkStatus === 'scheduled') {
       const date = new Date(scheduledAt)
-      if (!scheduledAt || Number.isNaN(date.getTime())) {
-        toast.error('กรุณาระบุวันและเวลาเผยแพร่')
+      if (!scheduledAt || Number.isNaN(date.getTime()) || date <= new Date()) {
+        toast.error('กรุณาระบุวันและเวลาเผยแพร่ในอนาคต')
         return
       }
       publishedAt = date.toISOString()
     }
 
     setIsUpdating(true)
+    let priceSaved = false
+    let saved = false
     try {
-      const { updated_count: updatedCount } = await bulkUpdateWriterChapterStatus(
-        contentId,
-        [...selectedIds],
-        bulkStatus,
-        publishedAt,
-        accessToken,
-      )
-      toast.success(`อัปเดตสถานะ ${updatedCount} ตอนเรียบร้อยแล้ว`)
-      setBulkStatus('')
-      setScheduledAt('')
-      setReloadKey((current) => current + 1)
+      const ids = [...selectedIds]
+      if (hasPrice) {
+        await bulkUpdateWriterChapterPrice(contentId, ids, price, accessToken)
+        priceSaved = true
+        saved = true
+        setBulkPrice('')
+      }
+      if (bulkStatus) {
+        await bulkUpdateWriterChapterStatus(contentId, ids, bulkStatus, publishedAt, accessToken)
+        saved = true
+        setBulkStatus('')
+        setScheduledAt('')
+      }
+      toast.success(`บันทึก ${ids.length} ตอนเรียบร้อยแล้ว`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'ไม่สามารถอัปเดตสถานะตอนได้')
+      const message = error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลได้'
+      toast.error(priceSaved ? `บันทึกราคาแล้ว แต่บันทึกสถานะไม่สำเร็จ: ${message}` : message)
     } finally {
+      if (saved) setReloadKey((current) => current + 1)
       setIsUpdating(false)
     }
   }
@@ -281,37 +273,30 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="readji-surface flex flex-col gap-3 rounded-xl p-4">
+        <div className="readji-surface @container min-w-0 flex flex-col gap-3 rounded-xl p-4">
           <p className="text-sm font-semibold">เลือกแล้ว {selectedIds.size} ตอน</p>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+          <div className="grid min-w-0 gap-3 @[48rem]:grid-cols-2 @[48rem]:items-end">
+            <div className="min-w-0">
               <Input
                 type="number"
                 min={0}
                 step="0.01"
                 value={bulkPrice}
+                disabled={isUpdating}
                 onChange={(event) => setBulkPrice(event.target.value)}
                 placeholder="ราคา (0 = ฟรี)"
                 aria-label="ราคาที่ต้องการอัปเดต"
                 className="h-10 rounded-xl"
               />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isUpdating || bulkPrice.trim() === '' || Number(bulkPrice) < 0}
-                onClick={handleBulkPrice}
-                className="h-10 rounded-xl"
-              >
-                อัปเดตราคา
-              </Button>
             </div>
 
-            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+            <div className={`grid min-w-0 items-center gap-2 ${bulkStatus === 'scheduled' ? '@[48rem]:grid-cols-2' : ''}`}>
               <Select
                 value={bulkStatus}
+                disabled={isUpdating}
                 onValueChange={(value) => setBulkStatus(value as ChapterStatus)}
               >
-                <SelectTrigger className="h-10! w-full rounded-xl">
+                <SelectTrigger className="h-10! w-full min-w-0 rounded-xl [&_[data-slot=select-value]]:truncate">
                   <SelectValue placeholder="เลือกสถานะ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,24 +308,24 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
                 </SelectContent>
               </Select>
               {bulkStatus === 'scheduled' && (
-                <Input
-                  type="datetime-local"
+                <DateTimePicker
                   value={scheduledAt}
-                  onChange={(event) => setScheduledAt(event.target.value)}
-                  aria-label="วันและเวลาเผยแพร่"
-                  className="h-10 rounded-xl"
+                  onChange={setScheduledAt}
+                  label="วันและเวลาเผยแพร่"
+                  disabled={isUpdating}
                 />
               )}
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isUpdating || !bulkStatus || (bulkStatus === 'scheduled' && !scheduledAt)}
-                onClick={handleBulkStatus}
-                className="h-10 rounded-xl"
-              >
-                อัปเดตสถานะ
-              </Button>
             </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              disabled={isUpdating || (bulkPrice.trim() === '' && !bulkStatus) || (bulkPrice.trim() !== '' && (!Number.isFinite(Number(bulkPrice)) || Number(bulkPrice) < 0)) || (bulkStatus === 'scheduled' && !scheduledAt)}
+              onClick={handleBulkSave}
+              className="h-10 rounded-xl"
+            >
+              {isUpdating ? 'กำลังบันทึก...' : 'บันทึก'}
+            </Button>
           </div>
         </div>
       )}

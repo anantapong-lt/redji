@@ -8,6 +8,55 @@ import type {
   WriterChapterDetail,
   WriterChaptersResult,
 } from '../../../models/writer-chapter.model'
+import { status } from 'elysia'
+import type { importChaptersBodySchema } from './writer-chapter.schema'
+import { insertImportedChapters } from './writer-chapter.service'
+
+export async function importWriterChaptersResponse(
+  userId: string, storyId: string, body: typeof importChaptersBodySchema.static,
+) {
+  try {
+    const type = await requireOwnedStoryType(userId, storyId)
+    if (type !== STORY_TYPE.NOVEL) throw new WriterChapterError('การนำเข้า TXT รองรับเฉพาะนิยาย', 400)
+    if (body.chapters.reduce((total, row) => total + Buffer.byteLength(row.content, 'utf8'), 0) > 100 * 1024 * 1024) {
+      throw new WriterChapterError('เนื้อหารวมหลังแตกไฟล์ต้องไม่เกิน 100MB', 400)
+    }
+    const errors: { index: number; message: string }[] = []
+    const inputs: ChapterWriteInput[] = []
+    const counts = new Map<number, number>()
+    for (const row of body.chapters) {
+      const number = Number(row.chapter_number)
+      counts.set(number, (counts.get(number) ?? 0) + 1)
+    }
+    for (const [index, row] of body.chapters.entries()) {
+      try {
+        if (!/^\d+(\.\d{1,2})?$/.test(row.chapter_number)) throw new Error('กรุณาระบุเลขตอนที่ถูกต้อง ทศนิยมไม่เกิน 2 ตำแหน่ง')
+        if ((counts.get(Number(row.chapter_number)) ?? 0) > 1) throw new Error('เลขตอนซ้ำกับรายการอื่นที่นำเข้า')
+        if (!/^\d+(\.\d{1,2})?$/.test(row.price)) throw new Error('กรุณาระบุราคาที่ถูกต้อง ทศนิยมไม่เกิน 2 ตำแหน่ง')
+        if (row.content.includes('\u0000')) throw new Error('เนื้อหามีอักขระที่ไม่รองรับ')
+        const content = row.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/\r\n?/g, '\n').split('\n').map((line) => `<p>${line || '<br>'}</p>`).join('')
+        inputs.push(normalizeChapterInput(type, { ...row, chapter_number: Number(row.chapter_number), price: Number(row.price), content }))
+      } catch (error) {
+        errors.push({ index, message: error instanceof Error ? error.message : 'ข้อมูลตอนไม่ถูกต้อง' })
+      }
+    }
+    if (errors.length) return { created_count: 0, errors }
+    try {
+      return await insertImportedChapters(storyId, inputs)
+    } catch (error) {
+      if (isUniqueViolation(error)) return {
+        created_count: 0,
+        errors: inputs.map((_, index) => ({ index, message: 'มีเลขตอนซ้ำจากการบันทึกพร้อมกัน กรุณาตรวจสอบแล้วลองใหม่' })),
+      }
+      throw error
+    }
+  } catch (error) {
+    if (error instanceof WriterChapterError) return status(error.statusCode, { message: error.message })
+    console.error('Unable to import writer chapters', error)
+    return status(500, { message: 'ไม่สามารถสร้างตอนได้ ยังไม่มีรายการถูกบันทึก กรุณาลองใหม่' })
+  }
+}
 import { CHAPTER_STATUS, STORY_TYPE, type StoryType } from '../../../models/story.model'
 import {
   deleteWriterChapterPage,
@@ -54,9 +103,11 @@ function plainTextFromHtml(html: string): string {
 }
 
 function countWords(text: string): number {
-  return Array.from(
-    new Intl.Segmenter('th', { granularity: 'word' }).segment(text),
-  ).filter((part) => part.isWordLike).length
+  let count = 0
+  for (const part of new Intl.Segmenter('th', { granularity: 'word' }).segment(text)) {
+    if (part.isWordLike) count++
+  }
+  return count
 }
 
 async function requireOwnedStoryType(creatorUserId: string, storyId: string) {

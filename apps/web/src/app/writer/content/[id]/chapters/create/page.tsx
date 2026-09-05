@@ -10,6 +10,7 @@ import {
   type FormEvent,
 } from 'react'
 import Link from 'next/link'
+import { ChapterImport } from './chapter-import'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeftIcon,
@@ -82,6 +83,8 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [images, setImages] = useState<ChapterImage[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [isImportBusy, setIsImportBusy] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const chaptersHref = `/writer/content/${id}/chapters`
 
@@ -282,7 +285,14 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
         </span>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+      {!chapterId && !isCartoon && (
+        <div className="mt-6 flex gap-2">
+          <Button type="button" disabled={isImportBusy} variant={isImporting ? 'outline' : 'default'} onClick={() => setIsImporting(false)}>สร้างทีละตอน</Button>
+          <Button type="button" disabled={isImportBusy} variant={isImporting ? 'default' : 'outline'} onClick={() => setIsImporting(true)}>อัปโหลด ZIP หลายตอน</Button>
+        </div>
+      )}
+      {isImporting && <ChapterImport contentId={id} onCancel={() => setIsImporting(false)} onBusyChange={setIsImportBusy} />}
+      <form onSubmit={handleSubmit} className={`mt-6 space-y-5 ${isImporting ? 'hidden' : ''}`}>
         <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
           <div className="space-y-2">
             <Label htmlFor="chapter-title" className="text-sm font-semibold">

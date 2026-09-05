@@ -25,6 +25,32 @@ export interface ChapterWriteInput {
   wordCount: number
 }
 
+export async function insertImportedChapters(storyId: string, inputs: ChapterWriteInput[]) {
+  return db.begin(async (transaction) => {
+    await transaction`SELECT id FROM stories WHERE id = ${storyId} FOR UPDATE`
+    const existing = await transaction<{ chapter_number: string }[]>`
+      SELECT chapter_number::TEXT FROM chapters WHERE story_id = ${storyId}
+    `
+    const numbers = new Set(existing.map((row) => Number(row.chapter_number)))
+    const errors = inputs.flatMap((input, index) => numbers.has(input.chapterNumber)
+      ? [{ index, message: 'เลขตอนนี้มีอยู่ในผลงานแล้ว' }] : [])
+    if (errors.length) return { created_count: 0, errors }
+    for (const input of inputs) {
+      const [chapter] = await transaction<{ id: string }[]>`
+        INSERT INTO chapters (story_id, chapter_number, title, price, is_free, status, published_at)
+        VALUES (${storyId}, ${input.chapterNumber}, ${input.title}, ROUND(${input.price}::NUMERIC, 2),
+          ${input.price === 0}, ${input.status}, ${input.publishedAt}) RETURNING id
+      `
+      await transaction`
+        INSERT INTO novel_chapter_contents (chapter_id, content, word_count)
+        VALUES (${chapter.id}, ${input.content}, ${input.wordCount})
+      `
+    }
+    await transaction`UPDATE stories SET updated_at = NOW() WHERE id = ${storyId}`
+    return { created_count: inputs.length, errors: [] }
+  })
+}
+
 export async function findOwnedStoryType(
   creatorUserId: string,
   storyId: string,

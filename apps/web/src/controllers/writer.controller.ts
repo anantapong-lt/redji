@@ -1,4 +1,17 @@
 import { apiRequest } from '@/lib/api-client'
+import type { ImportedChapter, ChapterImportResult } from '@/interface/writer-chapter-import.interface'
+
+export function importWriterChapters(contentId: string, rows: ImportedChapter[], accessToken: string): Promise<ChapterImportResult> {
+  return apiRequest(`/writer/contents/${contentId}/chapters/import`, {
+    method: 'POST', accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chapters: rows.map((row) => ({
+      title: row.title, chapter_number: row.chapter_number, price: row.price,
+      status: row.status, content: row.content,
+      ...(row.status === 'scheduled' ? { published_at: new Date(row.published_at).toISOString() } : {}),
+    })) }),
+  })
+}
 import type { WriterPurchasesResponse } from '@/interface/writer-purchase.interface'
 import type { OverviewPeriod, WriterOverview } from '@/interface/writer-overview.interface'
 import type { StoryType } from '@/constants/story.constant'
