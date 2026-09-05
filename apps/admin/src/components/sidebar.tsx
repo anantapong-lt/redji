@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Banknote, BarChart3, BookOpen, Flag, History, LayoutTemplate, LogOut, MessageSquare, PenSquare, Swords, UserCog, Users, Volume2 } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, Flag, History, LayoutTemplate, LogOut, MessageSquare, PenSquare, ShieldCheck, Swords, UserCog, Users, Volume2 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Button } from '@/components/ui/button'
@@ -16,8 +16,8 @@ export function Sidebar() {
   const { logout } = useAdminAuth()
 
   return <SidebarPrimitive>
-    <SidebarHeader><p className="text-xs font-semibold tracking-widest text-primary">CONTROL CENTER</p><p className="text-lg font-semibold">Readji Admin</p></SidebarHeader>
-    <SidebarContent><SidebarGroup><SidebarGroupLabel>เมนู</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{navigation.map(({ href, label, icon: Icon }) => <SidebarMenuItem key={href}><SidebarMenuButton isActive={pathname === href} render={<Link href={href} />}><Icon />{label}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
+    <SidebarHeader><SidebarMenu><SidebarMenuItem><SidebarMenuButton size="lg"><div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"><ShieldCheck className="size-4" /></div><div className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-semibold">Readji Admin</span><span className="truncate text-xs text-sidebar-foreground/70">CONTROL CENTER</span></div></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarHeader>
+    <SidebarContent><SidebarGroup><SidebarGroupLabel>เมนู</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{navigation.map(({ href, label, icon: Icon }) => <SidebarMenuItem key={href}><SidebarMenuButton isActive={pathname === href} render={<Link href={href} />} className="data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground data-active:hover:bg-sidebar-primary/90 data-active:[&_svg]:text-sidebar-primary-foreground"><Icon />{label}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
     <SidebarFooter><Button variant="outline" onClick={() => void logout()}><LogOut />ออกจากระบบ</Button></SidebarFooter>
   </SidebarPrimitive>
 }
