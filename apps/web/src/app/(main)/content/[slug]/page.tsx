@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
-import { BookOpenText, Clock3, Eye, ListOrdered, ShieldCheck, UserRound } from 'lucide-react'
+import { BookOpenText, ChevronDown, Clock3, Eye, UserRound } from 'lucide-react'
 import { ShareButtons } from '@/components/common/share-buttons'
 import { PublicChapterList } from '@/components/content/public-chapter-list'
 import { FavoriteButton } from '@/components/content/favorite-button'
@@ -25,6 +25,13 @@ function formatDate(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function formatCompactCount(value: string) {
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(Number(value))
 }
 
 export async function generateMetadata({ params }: ContentPageProps): Promise<Metadata> {
@@ -64,25 +71,29 @@ export default async function ContentPage({ params }: ContentPageProps) {
             __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
           }}
         />
-        <article className="readji-surface relative overflow-hidden rounded-[1.75rem]">
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_18%_0%,color-mix(in_srgb,var(--primary)_20%,transparent),transparent_60%),linear-gradient(to_bottom,color-mix(in_srgb,var(--secondary)_72%,transparent),transparent)]"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute right-[-4rem] top-[-5rem] size-52 rounded-full border-[2.5rem] border-primary/5"
-          />
-
-          <div className="relative grid gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)] lg:items-start lg:gap-9 lg:p-8">
-            <div className="mx-auto w-full max-w-[19rem] lg:mx-0">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-muted shadow-[0_28px_60px_-24px_rgb(45_29_32_/_0.65)] ring-1 ring-white/70">
+        <article className="readji-surface relative isolate overflow-hidden rounded-3xl border border-border/70">
+          {story.cover_url ? (
+            <>
+              <Image
+                src={story.cover_blur_data_url ?? story.cover_url}
+                alt=""
+                fill
+                sizes="100vw"
+                quality={40}
+                className={`object-cover opacity-20 ${story.cover_blur_data_url ? '' : 'blur-sm'}`}
+              />
+              <div aria-hidden="true" className="absolute inset-0 bg-background/65" />
+            </>
+          ) : null}
+          <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-8 lg:p-9">
+            <div className="mx-auto w-full max-w-[13rem] lg:mx-0">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted shadow-lg ring-1 ring-border/60">
                 {story.cover_url ? (
                   <Image
                     src={story.cover_url}
                     alt={`ปกเรื่อง ${story.title}`}
                     fill
-                    sizes="(max-width: 367px) calc(100vw - 64px), 304px"
+                    sizes="208px"
                     quality={60}
                     preload
                     fetchPriority="high"
@@ -97,53 +108,33 @@ export default async function ContentPage({ params }: ContentPageProps) {
                   </div>
                 )}
               </div>
-              <div className="mt-3 flex flex-wrap justify-center gap-2 lg:justify-start">
-                <div className="flex items-center gap-2 rounded-full border border-border/70 bg-card/75 py-1.5 pr-3 pl-2 text-xs shadow-sm backdrop-blur-sm">
-                  <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Eye className="size-3.5" aria-hidden="true" />
-                  </span>
-                  <span className="text-muted-foreground">ยอดอ่าน</span>
-                  <span className="font-extrabold tabular-nums text-foreground">
-                    {Number(story.total_views).toLocaleString('th-TH')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 rounded-full border border-border/70 bg-card/75 py-1.5 pr-3 pl-2 text-xs shadow-sm backdrop-blur-sm">
-                  <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <ListOrdered className="size-3.5" aria-hidden="true" />
-                  </span>
-                  <span className="text-muted-foreground">ทั้งหมด</span>
-                  <span className="font-extrabold tabular-nums text-foreground">
-                    {Number(story.chapter_count).toLocaleString('th-TH')} ตอน
-                  </span>
-                </div>
-              </div>
             </div>
 
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm">
-                  {story.primary_genre.name}
-                </span>
+              <h1 className="readji-page-title line-clamp-2 text-center text-2xl leading-[1.25] sm:text-3xl lg:text-left lg:text-3xl">
+                {story.title}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span>{story.primary_genre.name}</span>
                 {story.secondary_genre ? (
-                  <span
-                    className="rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm"
-                  >
-                   {story.secondary_genre.name}
-                  </span>
+                  <>
+                    <span aria-hidden="true">•</span>
+                    <span>{story.secondary_genre.name}</span>
+                  </>
                 ) : null}
-                <span className="flex items-center gap-1.5 rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm">
-                  <ShieldCheck className="size-3.5" aria-hidden="true" />
-                  เรต {ageRatingLabel}
+                <span aria-hidden="true">•</span>
+                <span>เรต {ageRatingLabel}</span>
+                <span aria-hidden="true">•</span>
+                <span className="flex items-center gap-1 font-medium tabular-nums text-foreground">
+                  <Eye className="size-3.5" aria-hidden="true" />
+                  <span className="sr-only">ยอดอ่าน</span>
+                  {formatCompactCount(story.total_views)}
                 </span>
               </div>
 
-              <h1 className="readji-page-title mt-4 line-clamp-2 text-3xl leading-[1.2] sm:text-4xl lg:text-5xl">
-                {story.title}
-              </h1>
-
               <Link
                 href={`/profile/${encodeURIComponent(story.author.username)}`}
-                className="group mt-4 flex w-fit items-center gap-3 rounded-xl p-1.5 pr-3 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/30"
+                className="group mt-3 flex w-fit items-center gap-2.5 rounded-lg py-1 transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/30"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground ring-1 ring-border/60 transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <UserRound className="size-5" aria-hidden="true" />
@@ -180,13 +171,19 @@ export default async function ContentPage({ params }: ContentPageProps) {
                 />
               </div>
 
-              <section className="mt-6 rounded-2xl border  p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-extrabold text-foreground">เรื่องย่อ</h2>
-                </div>
-                <p className="mt-4 whitespace-pre-line leading-7 text-muted-foreground">
-                  {story.synopsis || 'ยังไม่มีเรื่องย่อ'}
-                </p>
+              <section className="mt-6 border-t border-border/70 pt-5">
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2.5 text-base font-extrabold text-foreground transition-colors hover:bg-muted/80 marker:content-none">
+                    เรื่องย่อ
+                    <ChevronDown
+                      className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
+                    {story.synopsis || 'ยังไม่มีเรื่องย่อ'}
+                  </p>
+                </details>
               </section>
 
             </div>
