@@ -173,7 +173,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
 
               <section className="mt-6 border-t border-border/70 pt-5">
                 <details className="group">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2.5 text-base font-extrabold text-foreground transition-colors hover:bg-muted/80 marker:content-none">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-background px-3 py-2.5 text-base font-extrabold text-foreground marker:content-none">
                     เรื่องย่อ
                     <ChevronDown
                       className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
