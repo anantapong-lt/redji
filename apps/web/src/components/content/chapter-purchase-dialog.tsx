@@ -72,9 +72,9 @@ export function ChapterPurchaseDialog({
         chapters.map((chapter) => chapter.id),
         accessToken,
       )
+      await refresh()
       onPurchased(result.purchases.map((purchase) => purchase.chapter_id))
       onOpenChange(false)
-      void refresh()
     } catch (error) {
       setErrorMessage(
         error instanceof ApiError
