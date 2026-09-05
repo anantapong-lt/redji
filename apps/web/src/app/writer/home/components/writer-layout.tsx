@@ -15,7 +15,9 @@ import {
   UserCog,
   X,
 } from 'lucide-react'
+import { GiTwoCoins } from 'react-icons/gi'
 import type { AuthUser } from '@/interface/user.interface'
+import { SITE_CONFIG } from '@/site.config'
 
 const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
@@ -113,8 +115,11 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
         </div>
 
         <div className="mx-4 rounded-2xl bg-sidebar-accent px-4 py-3.5">
-          <p className="text-xs font-medium text-muted-foreground">ยอดเงินคงเหลือ</p>
-          <p className="mt-0.5 text-xl font-bold text-primary">฿{formattedBalance}</p>
+          <p className="text-xs font-medium text-muted-foreground">ยอด{SITE_CONFIG.coinName}คงเหลือ</p>
+          <p className="mt-0.5 flex items-center gap-2 text-xl font-bold text-primary">
+            <GiTwoCoins className="size-5 shrink-0" aria-hidden="true" />
+            <span>{formattedBalance}</span>
+          </p>
         </div>
 
         <nav className="mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3" aria-label="เมนูนักเขียน">
