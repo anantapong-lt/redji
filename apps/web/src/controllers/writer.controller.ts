@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api-client'
+import type { WriterPurchasesResponse } from '@/interface/writer-purchase.interface'
 import type { OverviewPeriod, WriterOverview } from '@/interface/writer-overview.interface'
 import type { StoryType } from '@/constants/story.constant'
 import type {
@@ -21,6 +22,20 @@ export function getWriterOverview(
   signal?: AbortSignal,
 ): Promise<WriterOverview> {
   return apiRequest(`/writer/contents/${contentId}/overview?period=${period}`, {
+    accessToken,
+    signal,
+    cache: 'no-store',
+  })
+}
+
+export function getWriterPurchases(
+  page: number,
+  limit: number,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<WriterPurchasesResponse> {
+  const query = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return apiRequest(`/writer/purchases?${query}`, {
     accessToken,
     signal,
     cache: 'no-store',

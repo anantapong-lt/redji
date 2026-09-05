@@ -35,9 +35,19 @@ import {
 import { getWriterStats } from './writer.service'
 import { getWriterOverview } from './overview/writer-overview.controller'
 import { writerOverviewQuerySchema } from './overview/writer-overview.schema'
+import { getWriterPurchases } from './purchase/writer-purchase.controller'
+import { writerPurchasesQuerySchema } from './purchase/writer-purchase.schema'
 
 export const writerRoutes = new Elysia({ prefix: '/writer' })
   .use(authMiddleware)
+  .get(
+    '/purchases',
+    ({ currentUser, query }) => getWriterPurchases(currentUser.id, query),
+    {
+      auth: USER_ROLE.WRITER,
+      query: writerPurchasesQuerySchema,
+    },
+  )
   .get(
     '/contents/:id/overview',
     ({ currentUser, params, query }) => getWriterOverview(currentUser.id, params.id, query),
