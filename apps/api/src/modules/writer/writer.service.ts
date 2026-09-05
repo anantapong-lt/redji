@@ -6,6 +6,10 @@ export interface WriterStats {
   total_views: string
   favorite_count: string
   free_chapter_count: string
+  gross_sales: string
+  platform_revenue: string
+  writer_revenue: string
+  sales_count: string
 }
 
 export async function getWriterStats(userId: string): Promise<WriterStats> {
@@ -44,7 +48,20 @@ export async function getWriterStats(userId: string): Promise<WriterStats> {
         WHERE stories.creator_user_id = ${userId}
           AND stories.deleted_at IS NULL
           AND chapters.is_free = TRUE
-      )::TEXT AS free_chapter_count
+      )::TEXT AS free_chapter_count,
+      purchases.gross_sales,
+      purchases.platform_revenue,
+      purchases.writer_revenue,
+      purchases.sales_count
+    FROM (
+      SELECT
+        ROUND(COALESCE(SUM(price), 0), 2)::TEXT AS gross_sales,
+        ROUND(COALESCE(SUM(platform_revenue), 0), 2)::TEXT AS platform_revenue,
+        ROUND(COALESCE(SUM(writer_revenue), 0), 2)::TEXT AS writer_revenue,
+        COUNT(*)::TEXT AS sales_count
+      FROM chapter_purchases
+      WHERE writer_user_id = ${userId}
+    ) AS purchases
   `
 
   return stats

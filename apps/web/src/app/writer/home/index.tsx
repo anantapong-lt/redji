@@ -38,7 +38,7 @@ export default function WriterPage() {
       <div className="mx-auto">
         <h1 className="mt-1 text-2xl font-bold tracking-[-0.025em] md:text-3xl">แดชบอร์ดนักเขียน</h1>
         <WriterStatsSection stats={stats} hasError={statsError} />
-        <WriterRevenueSection />
+        <WriterRevenueSection stats={stats} hasError={statsError} />
         <WriterPurchasesSection />
       </div>
     </main>

@@ -2,21 +2,18 @@ import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
 import {
-  bulkUpdateChapterPrice,
-  bulkUpdateChapterStatus,
-  createWriterChapter,
-  getWriterChapter,
-  getWriterChapters,
-  updateWriterChapter,
-  WriterChapterError,
-} from './chapter/writer-chapter.controller'
-import {
-  createWriterContent,
-  CreateWriterContentError,
-  getMyContents,
-  getWriterContent,
-  updateWriterContent,
-} from './content/writer-content.controller'
+  getWriterStatsResponse,
+  getWriterContentsResponse,
+  createWriterContentResponse,
+  getWriterContentResponse,
+  createWriterChapterResponse,
+  getWriterChapterResponse,
+  updateWriterChapterResponse,
+  updateWriterContentResponse,
+  getWriterChaptersResponse,
+  bulkUpdateChapterPriceResponse,
+  bulkUpdateChapterStatusResponse,
+} from './writer.controller'
 import {
   createWriterContentBodySchema,
   updateWriterContentBodySchema,
@@ -32,7 +29,6 @@ import {
   writerChapterParamsSchema,
   writerChaptersParamsSchema,
 } from './chapter/writer-chapter.schema'
-import { getWriterStats } from './writer.service'
 import { getWriterOverview } from './overview/writer-overview.controller'
 import { writerOverviewQuerySchema } from './overview/writer-overview.schema'
 import { getWriterPurchases } from './purchase/writer-purchase.controller'
@@ -59,16 +55,12 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/stats',
-    async ({ currentUser }) => ({ stats: await getWriterStats(currentUser.id) }),
+    ({ currentUser }) => getWriterStatsResponse(currentUser.id),
     { auth: USER_ROLE.WRITER },
   )
   .get(
     '/contents',
-    async ({ currentUser, query }) => getMyContents(currentUser.id, {
-      tab: query.tab,
-      page: query.page ?? 1,
-      limit: query.limit ?? 10,
-    }),
+    ({ currentUser, query }) => getWriterContentsResponse(currentUser.id, query),
     {
       auth: USER_ROLE.WRITER,
       query: writerContentsQuerySchema,
@@ -76,22 +68,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .post(
     '/contents',
-    async ({ body, currentUser, status }) => {
-      try {
-        const story = await createWriterContent(currentUser.id, body)
-        return status(201, { story })
-      } catch (error) {
-        if (error instanceof CreateWriterContentError) {
-          return status(error.statusCode, {
-            message: error.message,
-            field: error.field,
-          })
-        }
-
-        console.error('Unable to create writer content', error)
-        return status(500, { message: 'ไม่สามารถสร้างเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, body }) => createWriterContentResponse(currentUser.id, body),
     {
       auth: USER_ROLE.WRITER,
       body: createWriterContentBodySchema,
@@ -99,21 +76,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/contents/:id',
-    async ({ currentUser, params, status }) => {
-      try {
-        return { story: await getWriterContent(currentUser.id, params.id) }
-      } catch (error) {
-        if (error instanceof CreateWriterContentError) {
-          return status(error.statusCode, {
-            message: error.message,
-            field: error.field,
-          })
-        }
-
-        console.error('Unable to load writer content', error)
-        return status(500, { message: 'ไม่สามารถโหลดเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params }) => getWriterContentResponse(currentUser.id, params.id),
     {
       auth: USER_ROLE.WRITER,
       params: writerContentParamsSchema,
@@ -121,19 +84,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .post(
     '/contents/:id/chapters',
-    async ({ body, currentUser, params, status }) => {
-      try {
-        const chapter = await createWriterChapter(currentUser.id, params.id, body)
-        return status(201, { chapter })
-      } catch (error) {
-        if (error instanceof WriterChapterError) {
-          return status(error.statusCode, { message: error.message, field: error.field })
-        }
-
-        console.error('Unable to create writer chapter', error)
-        return status(500, { message: 'ไม่สามารถสร้างตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params, body }) => createWriterChapterResponse(currentUser.id, params.id, body),
     {
       auth: USER_ROLE.WRITER,
       params: writerChaptersParamsSchema,
@@ -142,20 +93,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/contents/:id/chapters/:chapterId',
-    async ({ currentUser, params, status }) => {
-      try {
-        return {
-          chapter: await getWriterChapter(currentUser.id, params.id, params.chapterId),
-        }
-      } catch (error) {
-        if (error instanceof WriterChapterError) {
-          return status(error.statusCode, { message: error.message, field: error.field })
-        }
-
-        console.error('Unable to load writer chapter', error)
-        return status(500, { message: 'ไม่สามารถโหลดข้อมูลตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params }) => getWriterChapterResponse(currentUser.id, params.id, params.chapterId),
     {
       auth: USER_ROLE.WRITER,
       params: writerChapterParamsSchema,
@@ -163,24 +101,12 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .patch(
     '/contents/:id/chapters/:chapterId',
-    async ({ body, currentUser, params, status }) => {
-      try {
-        const chapter = await updateWriterChapter(
-          currentUser.id,
-          params.id,
-          params.chapterId,
-          body,
-        )
-        return { chapter }
-      } catch (error) {
-        if (error instanceof WriterChapterError) {
-          return status(error.statusCode, { message: error.message, field: error.field })
-        }
-
-        console.error('Unable to update writer chapter', error)
-        return status(500, { message: 'ไม่สามารถแก้ไขตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params, body }) => updateWriterChapterResponse(
+      currentUser.id,
+      params.id,
+      params.chapterId,
+      body,
+    ),
     {
       auth: USER_ROLE.WRITER,
       params: writerChapterParamsSchema,
@@ -189,22 +115,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .patch(
     '/contents/:id',
-    async ({ body, currentUser, params, status }) => {
-      try {
-        const story = await updateWriterContent(currentUser.id, params.id, body)
-        return { story }
-      } catch (error) {
-        if (error instanceof CreateWriterContentError) {
-          return status(error.statusCode, {
-            message: error.message,
-            field: error.field,
-          })
-        }
-
-        console.error('Unable to update writer content', error)
-        return status(500, { message: 'ไม่สามารถแก้ไขเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params, body }) => updateWriterContentResponse(currentUser.id, params.id, body),
     {
       auth: USER_ROLE.WRITER,
       params: writerContentParamsSchema,
@@ -213,22 +124,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/contents/:id/chapters',
-    async ({ currentUser, params, query, status }) => {
-      try {
-        return await getWriterChapters(currentUser.id, params.id, {
-          search: query.search,
-          page: query.page ?? 1,
-          limit: query.limit ?? 10,
-        })
-      } catch (error) {
-        if (error instanceof WriterChapterError) {
-          return status(error.statusCode, { message: error.message })
-        }
-
-        console.error('Unable to load writer chapters', error)
-        return status(500, { message: 'ไม่สามารถโหลดรายการตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params, query }) => getWriterChaptersResponse(currentUser.id, params.id, query),
     {
       auth: USER_ROLE.WRITER,
       params: writerChaptersParamsSchema,
@@ -237,19 +133,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .patch(
     '/contents/:id/chapters/bulk-price',
-    async ({ body, currentUser, params, status }) => {
-      try {
-        const updatedCount = await bulkUpdateChapterPrice(currentUser.id, params.id, body)
-        return { updated_count: updatedCount }
-      } catch (error) {
-        if (error instanceof WriterChapterError) {
-          return status(error.statusCode, { message: error.message })
-        }
-
-        console.error('Unable to bulk update chapter price', error)
-        return status(500, { message: 'ไม่สามารถอัปเดตราคาตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params, body }) => bulkUpdateChapterPriceResponse(currentUser.id, params.id, body),
     {
       auth: USER_ROLE.WRITER,
       params: writerChaptersParamsSchema,
@@ -258,19 +142,7 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .patch(
     '/contents/:id/chapters/bulk-status',
-    async ({ body, currentUser, params, status }) => {
-      try {
-        const updatedCount = await bulkUpdateChapterStatus(currentUser.id, params.id, body)
-        return { updated_count: updatedCount }
-      } catch (error) {
-        if (error instanceof WriterChapterError) {
-          return status(error.statusCode, { message: error.message })
-        }
-
-        console.error('Unable to bulk update chapter status', error)
-        return status(500, { message: 'ไม่สามารถอัปเดตสถานะตอนได้ กรุณาลองใหม่อีกครั้ง' })
-      }
-    },
+    ({ currentUser, params, body }) => bulkUpdateChapterStatusResponse(currentUser.id, params.id, body),
     {
       auth: USER_ROLE.WRITER,
       params: writerChaptersParamsSchema,
