@@ -7,7 +7,19 @@ import { contentRoutes } from './modules/content/content.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { landingRoutes } from './modules/landing/landing.routes'
 import { topupRoutes } from './modules/topup/topup.routes'
+import { publishScheduledChapters } from './modules/writer/chapter/writer-chapter.service'
 import { writerRoutes } from './modules/writer/writer.routes'
+
+const CHAPTER_PUBLISH_INTERVAL_MS = 60_000
+
+async function runChapterPublisher() {
+  try {
+    const publishedCount = await publishScheduledChapters()
+    if (publishedCount > 0) console.log(`Published ${publishedCount} scheduled chapter(s)`)
+  } catch (error) {
+    console.error('Unable to publish scheduled chapters', error)
+  }
+}
 
 const app = new Elysia()
   .use(
@@ -25,5 +37,8 @@ const app = new Elysia()
   .use(writerRoutes)
 
 app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })
+
+void runChapterPublisher()
+setInterval(() => void runChapterPublisher(), CHAPTER_PUBLISH_INTERVAL_MS)
 
 console.log(`API server is running on http://localhost:${env.PORT}`)

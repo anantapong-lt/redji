@@ -326,3 +326,21 @@ export async function updateChapterStatuses(
   `
   return rows.length
 }
+
+export async function publishScheduledChapters(): Promise<number> {
+  const chapters = await db<{ story_id: string }[]>`
+    UPDATE chapters
+    SET status = ${CHAPTER_STATUS.PUBLISHED}, updated_at = NOW()
+    WHERE status = ${CHAPTER_STATUS.SCHEDULED}
+      AND published_at IS NOT NULL
+      AND published_at <= NOW()
+    RETURNING story_id
+  `
+
+  if (chapters.length > 0) {
+    const storyIds = db.array([...new Set(chapters.map((chapter) => chapter.story_id))], 'UUID')
+    await db`UPDATE stories SET updated_at = NOW() WHERE id = ANY(${storyIds})`
+  }
+
+  return chapters.length
+}
