@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/sidebar'
 import { useAdminAuth } from '@/components/admin-auth-provider'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -28,9 +29,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="admin-shell">
+    <SidebarProvider>
       <Sidebar />
-      <main className="admin-content">{children}</main>
-    </div>
+      <SidebarInset>{children}</SidebarInset>
+    </SidebarProvider>
   )
 }

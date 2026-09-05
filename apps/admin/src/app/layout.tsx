@@ -1,15 +1,11 @@
 import type { Metadata } from 'next'
-import { Noto_Sans_Thai } from 'next/font/google'
+import { Noto_Sans_Thai, Geist } from 'next/font/google'
 import { AdminAuthProvider } from '@/components/admin-auth-provider'
 import { AdminShell } from '@/components/admin-shell'
 import './globals.css'
+import { cn } from "@/lib/utils";
 
-const notoSansThai = Noto_Sans_Thai({
-  subsets: ['thai', 'latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-sans',
-  display: 'swap',
-})
+const geist = Geist({subsets:['latin'],variable:'--font-sans'})
 
 export const metadata: Metadata = {
   title: 'Readji Admin',
@@ -18,8 +14,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="th">
-      <body className={notoSansThai.variable}>
+    <html lang="th" className={cn("font-sans", geist.variable)}>
+      <body className={geist.variable}>
         <AdminAuthProvider>
           <AdminShell>{children}</AdminShell>
         </AdminAuthProvider>
