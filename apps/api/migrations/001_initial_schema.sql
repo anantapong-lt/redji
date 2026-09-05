@@ -113,7 +113,7 @@ CREATE INDEX story_genres_genre_id_idx ON story_genres (genre_id);
 CREATE TABLE chapters (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   story_id UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
-  chapter_number NUMERIC(10, 2) NOT NULL,
+  chapter_number NUMERIC(10, 1) NOT NULL,
   title VARCHAR(255) NOT NULL,
   status chapter_status NOT NULL DEFAULT 'draft',
   published_at TIMESTAMPTZ,
