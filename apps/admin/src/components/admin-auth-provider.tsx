@@ -32,6 +32,7 @@ interface AuthSession {
 interface AdminAuthContextValue {
   status: AuthStatus
   user: AdminUser | null
+  accessToken: string | null
   login: (email: string, password: string, turnstileToken?: string) => Promise<void>
   logout: () => Promise<void>
 }
@@ -61,9 +62,16 @@ function isAdmin(session: AuthSession): session is AuthSession & { user: AdminUs
   return session.user.role === 'super_admin'
 }
 
-export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>('loading')
+export function AdminAuthProvider({
+  children,
+  initiallyAuthenticated = false,
+}: {
+  children: React.ReactNode
+  initiallyAuthenticated?: boolean
+}) {
+  const [status, setStatus] = useState<AuthStatus>(initiallyAuthenticated ? 'authenticated' : 'loading')
   const [user, setUser] = useState<AdminUser | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const refreshPromise = useRef<Promise<boolean> | null>(null)
 
   const logout = useCallback(async () => {
@@ -71,6 +79,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       await request('/auth/logout', { method: 'POST' })
     } finally {
       setUser(null)
+      setAccessToken(null)
       setStatus('unauthenticated')
     }
   }, [])
@@ -82,16 +91,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           if (!isAdmin(session)) {
             await request('/auth/logout', { method: 'POST' }).catch(() => undefined)
             setUser(null)
+            setAccessToken(null)
             setStatus('unauthenticated')
             return false
           }
 
           setUser(session.user)
+          setAccessToken(session.access_token)
           setStatus('authenticated')
           return true
         })
         .catch(() => {
           setUser(null)
+          setAccessToken(null)
           setStatus('unauthenticated')
           return false
         })
@@ -129,10 +141,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUser(session.user)
+    setAccessToken(session.access_token)
     setStatus('authenticated')
   }, [])
 
-  const value = useMemo(() => ({ status, user, login, logout }), [login, logout, status, user])
+  const value = useMemo(() => ({ status, user, accessToken, login, logout }), [accessToken, login, logout, status, user])
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>
 }
