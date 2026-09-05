@@ -6,8 +6,6 @@ import type {
   PurchasableChapter,
 } from '../../models/chapter-purchase.model'
 
-const WRITER_REVENUE_RATE = '0.85'
-
 type PurchaseErrorStatus = 400 | 402 | 404 | 409
 
 export class ChapterPurchaseError extends Error {
@@ -110,13 +108,28 @@ export async function purchaseChapters(
         throw new ChapterPurchaseError('ยอดเงินคงเหลือไม่เพียงพอ', 402)
       }
 
+      const [commissionConfig] = await transaction<{ percent: string | null }[]>`
+        SELECT CASE
+          WHEN jsonb_typeof(value) = 'number' THEN
+            CASE WHEN value::TEXT::NUMERIC BETWEEN 0 AND 100
+              THEN value::TEXT
+            END
+        END AS percent
+        FROM website_configs
+        WHERE key = 'writer_commission_percent'
+      `
+      if (commissionConfig && commissionConfig.percent === null) {
+        throw new Error('Invalid writer_commission_percent configuration')
+      }
+      const configuredCommissionPercent = commissionConfig?.percent ?? '0'
+
       const purchases: ChapterPurchase[] = []
       const writerRevenues = new Map<string, number>()
 
       for (const chapter of chapters) {
-        const writerRevenueRate = chapter.writer_user_id === buyerUserId
-          ? '0'
-          : WRITER_REVENUE_RATE
+        const commissionPercent = chapter.writer_user_id === buyerUserId
+          ? '100'
+          : configuredCommissionPercent
         const [purchase] = await transaction<ChapterPurchase[]>`
           INSERT INTO chapter_purchases (
             buyer_user_id,
@@ -124,15 +137,17 @@ export async function purchaseChapters(
             chapter_id,
             price,
             writer_revenue,
-            platform_revenue
+            platform_revenue,
+            writer_commission_percent
           ) VALUES (
             ${buyerUserId},
             ${chapter.writer_user_id},
             ${chapter.id},
             ${chapter.price}::NUMERIC,
-            ROUND(${chapter.price}::NUMERIC * ${writerRevenueRate}::NUMERIC, 2),
+            ROUND(${chapter.price}::NUMERIC * (1 - ${commissionPercent}::NUMERIC / 100), 2),
             ${chapter.price}::NUMERIC
-              - ROUND(${chapter.price}::NUMERIC * ${writerRevenueRate}::NUMERIC, 2)
+              - ROUND(${chapter.price}::NUMERIC * (1 - ${commissionPercent}::NUMERIC / 100), 2),
+            ${commissionPercent}::NUMERIC
           )
           RETURNING
             id,
@@ -140,6 +155,7 @@ export async function purchaseChapters(
             price::TEXT,
             writer_revenue::TEXT,
             platform_revenue::TEXT,
+            writer_commission_percent::TEXT,
             purchased_at
         `
         if (!purchase) throw new Error('Unable to create chapter purchase')
