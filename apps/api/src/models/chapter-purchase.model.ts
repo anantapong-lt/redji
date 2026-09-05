@@ -20,8 +20,5 @@ export interface ChapterPurchase {
   id: string
   chapter_id: string
   price: string
-  writer_revenue: string
-  platform_revenue: string
-  writer_commission_percent: string
   purchased_at: Date
 }

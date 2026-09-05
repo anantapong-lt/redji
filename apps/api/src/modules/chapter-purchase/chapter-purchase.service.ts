@@ -108,63 +108,35 @@ export async function purchaseChapters(
         throw new ChapterPurchaseError('ยอดเงินคงเหลือไม่เพียงพอ', 402)
       }
 
-      const [commissionConfig] = await transaction<{ percent: string | null }[]>`
-        SELECT CASE
-          WHEN jsonb_typeof(value) = 'number' THEN
-            CASE WHEN value::TEXT::NUMERIC BETWEEN 0 AND 100
-              THEN value::TEXT
-            END
-        END AS percent
-        FROM website_configs
-        WHERE key = 'writer_commission_percent'
-      `
-      if (commissionConfig && commissionConfig.percent === null) {
-        throw new Error('Invalid writer_commission_percent configuration')
-      }
-      const configuredCommissionPercent = commissionConfig?.percent ?? '0'
-
       const purchases: ChapterPurchase[] = []
-      const writerRevenues = new Map<string, number>()
+      const writerCredits = new Map<string, number>()
 
       for (const chapter of chapters) {
-        const commissionPercent = chapter.writer_user_id === buyerUserId
-          ? '100'
-          : configuredCommissionPercent
         const [purchase] = await transaction<ChapterPurchase[]>`
           INSERT INTO chapter_purchases (
             buyer_user_id,
             writer_user_id,
             chapter_id,
-            price,
-            writer_revenue,
-            platform_revenue,
-            writer_commission_percent
+            price
           ) VALUES (
             ${buyerUserId},
             ${chapter.writer_user_id},
             ${chapter.id},
-            ${chapter.price}::NUMERIC,
-            ROUND(${chapter.price}::NUMERIC * (1 - ${commissionPercent}::NUMERIC / 100), 2),
             ${chapter.price}::NUMERIC
-              - ROUND(${chapter.price}::NUMERIC * (1 - ${commissionPercent}::NUMERIC / 100), 2),
-            ${commissionPercent}::NUMERIC
           )
           RETURNING
             id,
             chapter_id,
             price::TEXT,
-            writer_revenue::TEXT,
-            platform_revenue::TEXT,
-            writer_commission_percent::TEXT,
             purchased_at
         `
         if (!purchase) throw new Error('Unable to create chapter purchase')
 
         purchases.push(purchase)
-        const currentRevenue = writerRevenues.get(chapter.writer_user_id) ?? 0
-        writerRevenues.set(
+        const currentCredit = writerCredits.get(chapter.writer_user_id) ?? 0
+        writerCredits.set(
           chapter.writer_user_id,
-          Math.round((currentRevenue + Number(purchase.writer_revenue)) * 100) / 100,
+          Math.round((currentCredit + Number(chapter.price)) * 100) / 100,
         )
       }
 
@@ -174,11 +146,11 @@ export async function purchaseChapters(
         WHERE id = ${buyerUserId}
       `
 
-      for (const [writerUserId, revenue] of writerRevenues) {
-        if (revenue <= 0) continue
+      for (const [writerUserId, credit] of writerCredits) {
+        if (credit <= 0) continue
         await transaction`
           UPDATE users
-          SET balance = balance + ${revenue}::NUMERIC, updated_at = NOW()
+          SET balance = balance + ${credit}::NUMERIC, updated_at = NOW()
           WHERE id = ${writerUserId}
         `
       }
