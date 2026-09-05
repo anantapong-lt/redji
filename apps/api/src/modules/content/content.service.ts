@@ -36,6 +36,11 @@ export interface MangaChapterPageRecord {
   alt_text: string | null
 }
 
+export interface MangaChapterPagesResult {
+  pages: MangaChapterPageRecord[]
+  total: number
+}
+
 export async function findPublicChapterForReading(
   slug: string,
   chapterNumber: number,
@@ -128,13 +133,26 @@ export async function findNovelChapterContent(chapterId: string): Promise<string
 
 export async function findMangaChapterPages(
   chapterId: string,
-): Promise<MangaChapterPageRecord[]> {
-  return db<MangaChapterPageRecord[]>`
-    SELECT id, page_number, image_key, width, height, alt_text
-    FROM manga_chapter_pages
-    WHERE chapter_id = ${chapterId}
-    ORDER BY page_number ASC, id ASC
-  `
+  page: number,
+  limit: number,
+): Promise<MangaChapterPagesResult> {
+  const offset = (page - 1) * limit
+  const [pages, [count]] = await Promise.all([
+    db<MangaChapterPageRecord[]>`
+      SELECT id, page_number, image_key, width, height, alt_text
+      FROM manga_chapter_pages
+      WHERE chapter_id = ${chapterId}
+      ORDER BY page_number ASC, id ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db<Array<{ total: string }>>`
+      SELECT COUNT(*)::TEXT AS total
+      FROM manga_chapter_pages
+      WHERE chapter_id = ${chapterId}
+    `,
+  ])
+
+  return { pages, total: Number(count.total) }
 }
 
 export async function incrementPublicContentView(storyId: string): Promise<void> {

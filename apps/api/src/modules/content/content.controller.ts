@@ -18,6 +18,8 @@ export async function getPublicChapter(
   slug: string,
   chapterNumber: string,
   currentUserId: string | null,
+  page = 1,
+  limit = 5,
 ) {
   try {
     const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
@@ -32,22 +34,22 @@ export async function getPublicChapter(
       )
     }
 
-    const [chapters, content, storedPages] = await Promise.all([
+    const [chapters, content, mangaPages] = await Promise.all([
       findPublicReaderChapters(chapter.story.id, currentUserId),
       chapter.story.type === 'novel'
         ? findNovelChapterContent(chapter.id)
         : Promise.resolve(null),
       chapter.story.type === 'manga'
-        ? findMangaChapterPages(chapter.id)
-        : Promise.resolve([]),
+        ? findMangaChapterPages(chapter.id, page, limit)
+        : Promise.resolve({ pages: [], total: 0 }),
     ])
 
-    const pages = storedPages.map(({ image_key, ...page }) => ({
+    const pages = mangaPages.pages.map(({ image_key, ...page }) => ({
       ...page,
       image_url: createWriterChapterPageSignedUrl(image_key),
     }))
 
-    await incrementPublicContentView(chapter.story.id)
+    if (page === 1) await incrementPublicContentView(chapter.story.id)
 
     return Response.json(
       {
@@ -61,6 +63,12 @@ export async function getPublicChapter(
         chapters,
         content,
         pages,
+        manga_page_pagination: {
+          page,
+          limit,
+          total: mangaPages.total,
+          has_next_page: page * limit < mangaPages.total,
+        },
       },
       { headers: { 'Cache-Control': 'no-store' } },
     )
@@ -70,6 +78,52 @@ export async function getPublicChapter(
       { message: 'ไม่สามารถโหลดเนื้อหาตอนได้ กรุณาลองใหม่อีกครั้ง' },
       { status: 500 },
     )
+  }
+}
+
+export async function getPublicMangaChapterPages(
+  slug: string,
+  chapterNumber: string,
+  currentUserId: string | null,
+  page = 1,
+  limit = 5,
+) {
+  try {
+    const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
+    if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+
+    if (!chapter.can_read) {
+      return Response.json(
+        { message: currentUserId ? 'กรุณาซื้อตอนนี้ก่อนอ่าน' : 'กรุณาเข้าสู่ระบบก่อนอ่านตอนนี้' },
+        { status: currentUserId ? 403 : 401 },
+      )
+    }
+
+    if (chapter.story.type !== 'manga') {
+      return Response.json({ message: 'ไม่พบหน้ามังงะที่ต้องการ' }, { status: 404 })
+    }
+
+    const mangaPages = await findMangaChapterPages(chapter.id, page, limit)
+    const pages = mangaPages.pages.map(({ image_key, ...mangaPage }) => ({
+      ...mangaPage,
+      image_url: createWriterChapterPageSignedUrl(image_key),
+    }))
+
+    return Response.json(
+      {
+        pages,
+        pagination: {
+          page,
+          limit,
+          total: mangaPages.total,
+          has_next_page: page * limit < mangaPages.total,
+        },
+      },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
+  } catch (error) {
+    console.error('Unable to load public manga chapter pages', error)
+    return Response.json({ message: 'ไม่สามารถโหลดภาพมังงะได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }
 

@@ -9,6 +9,11 @@ export const contentChapterParamsSchema = t.Object({
   chapterNumber: t.String({ pattern: '^\\d{1,8}(?:\\.\\d)?$' }),
 })
 
+export const contentReaderPagesQuerySchema = t.Object({
+  page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 25, multipleOf: 1 })),
+})
+
 export const contentRatingBodySchema = t.Object({
   rating: t.Numeric({ minimum: 1, maximum: 5, multipleOf: 1 }),
 })

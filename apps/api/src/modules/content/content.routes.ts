@@ -3,6 +3,7 @@ import { authMiddleware } from '../../middleware/auth.middleware'
 import {
   favoritePublicContent,
   getPublicChapter,
+  getPublicMangaChapterPages,
   getPublicContent,
   getPublicContentChapters,
   getPublicContentSitemap,
@@ -12,6 +13,7 @@ import {
 import {
   contentChapterParamsSchema,
   contentChaptersQuerySchema,
+  contentReaderPagesQuerySchema,
   contentParamsSchema,
   contentRatingBodySchema,
 } from './content.schema'
@@ -54,15 +56,33 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
     },
   )
   .get(
-    '/:slug/chapters/:chapterNumber/read',
-    ({ currentUser, params }) => getPublicChapter(
+    '/:slug/chapters/:chapterNumber/read/pages',
+    ({ currentUser, params, query }) => getPublicMangaChapterPages(
       params.slug,
       params.chapterNumber,
       currentUser?.id ?? null,
+      query.page ?? 1,
+      query.limit ?? 5,
     ),
     {
       optionalAuth: true,
       params: contentChapterParamsSchema,
+      query: contentReaderPagesQuerySchema,
+    },
+  )
+  .get(
+    '/:slug/chapters/:chapterNumber/read',
+    ({ currentUser, params, query }) => getPublicChapter(
+      params.slug,
+      params.chapterNumber,
+      currentUser?.id ?? null,
+      query.page ?? 1,
+      query.limit ?? 5,
+    ),
+    {
+      optionalAuth: true,
+      params: contentChapterParamsSchema,
+      query: contentReaderPagesQuerySchema,
     },
   )
   .get(

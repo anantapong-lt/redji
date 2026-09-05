@@ -109,7 +109,13 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
 
         <div className="overflow-hidden rounded-b-2xl sm:rounded-b-[1.75rem]">
           {data.story.type === 'manga' ? (
-            <MangaChapterContent storyTitle={data.story.title} pages={data.pages} />
+            <MangaChapterContent
+              storyTitle={data.story.title}
+              slug={data.story.slug}
+              chapterNumber={data.chapter.chapter_number}
+              initialPages={data.pages}
+              initialPagination={data.manga_page_pagination}
+            />
           ) : (
             <NovelChapterContent
               content={data.content ?? ''}

@@ -110,6 +110,16 @@ export interface PublicMangaChapterPage {
   alt_text: string | null
 }
 
+export interface PublicMangaChapterPagesResponse {
+  pages: PublicMangaChapterPage[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    has_next_page: boolean
+  }
+}
+
 export interface PublicChapterResponse {
   story: {
     id: string
@@ -127,4 +137,10 @@ export interface PublicChapterResponse {
   chapters: PublicReaderChapter[]
   content: string | null
   pages: PublicMangaChapterPage[]
+  manga_page_pagination: {
+    page: number
+    limit: number
+    total: number
+    has_next_page: boolean
+  }
 }

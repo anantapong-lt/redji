@@ -1,5 +1,6 @@
 import type {
   PublicChapterResponse,
+  PublicMangaChapterPagesResponse,
   PublicContentResponse,
   PublicContentFavoriteResponse,
   PublicContentRatingResponse,
@@ -23,13 +24,35 @@ export function getPublicChapter(
   slug: string,
   chapterNumber: string,
   cookieHeader?: string,
+  page = 1,
+  limit = 5,
 ): Promise<PublicChapterResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  })
   return apiRequest<PublicChapterResponse>(
-    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/read`,
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/read?${searchParams.toString()}`,
     {
       cache: 'no-store',
       headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
     },
+  )
+}
+
+export function getPublicMangaChapterPages(
+  slug: string,
+  chapterNumber: string,
+  page: number,
+  limit: number,
+): Promise<PublicMangaChapterPagesResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  })
+  return apiRequest<PublicMangaChapterPagesResponse>(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/read/pages?${searchParams.toString()}`,
+    { cache: 'no-store' },
   )
 }
 
