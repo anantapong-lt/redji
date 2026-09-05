@@ -6,7 +6,7 @@ export const contentParamsSchema = t.Object({
 
 export const contentChapterParamsSchema = t.Object({
   slug: t.String({ minLength: 1, maxLength: 255 }),
-  chapterNumber: t.Numeric({ minimum: 0, maximum: 99_999_999.9, multipleOf: 0.1 }),
+  chapterNumber: t.String({ pattern: '^\\d{1,8}(?:\\.\\d)?$' }),
 })
 
 export const contentRatingBodySchema = t.Object({

@@ -15,11 +15,11 @@ import {
 
 export async function getPublicChapter(
   slug: string,
-  chapterNumber: number,
+  chapterNumber: string,
   currentUserId: string | null,
 ) {
   try {
-    const chapter = await findPublicChapterForReading(slug, chapterNumber, currentUserId)
+    const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
     if (!chapter) {
       return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
     }
