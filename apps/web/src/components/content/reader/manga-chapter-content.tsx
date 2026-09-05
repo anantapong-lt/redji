@@ -4,12 +4,74 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { getPublicMangaChapterPages } from '@/controllers/content.controller'
 import type { PublicMangaChapterPage } from '@/interface/content.interface'
+import { useReaderContentProtection } from './use-reader-content-protection'
 
 interface MangaPagePagination {
   page: number
   limit: number
   total: number
   has_next_page: boolean
+}
+
+function MangaPageImage({
+  src,
+  alt,
+  width,
+  height,
+  loading,
+  draggable,
+  className,
+  onLoadError,
+}: {
+  src: string
+  alt: string
+  width?: number
+  height?: number
+  loading?: 'eager' | 'lazy'
+  draggable: boolean
+  className: string
+  onLoadError: () => void
+}) {
+  const pageRef = useRef<HTMLDivElement>(null)
+  const hasRefreshedRef = useRef(false)
+  const [isNearViewport, setIsNearViewport] = useState(loading === 'eager')
+
+  useEffect(() => {
+    const target = pageRef.current
+    if (!target) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(entry?.isIntersecting ?? false),
+      { rootMargin: '1600px 0px' },
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [])
+
+  const aspectRatio = width && height
+    ? `${width} / ${height}`
+    : '2 / 3'
+
+  return (
+    <div ref={pageRef} className="w-full bg-muted/10" style={{ aspectRatio }}>
+      {isNearViewport ? (
+        <img
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          loading={loading}
+          draggable={draggable}
+          className={className}
+          onError={() => {
+            if (hasRefreshedRef.current) return
+            hasRefreshedRef.current = true
+            onLoadError()
+          }}
+        />
+      ) : null}
+    </div>
+  )
 }
 
 export function MangaChapterContent({
@@ -25,12 +87,13 @@ export function MangaChapterContent({
   initialPages: PublicMangaChapterPage[]
   initialPagination: MangaPagePagination
 }) {
-  const isDev = process.env.NODE_ENV === 'development'
+  const { isProduction, preventInteraction } = useReaderContentProtection()
   const [pages, setPages] = useState(initialPages)
   const [pagination, setPagination] = useState(initialPagination)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const loadingRef = useRef(false)
+  const refreshingPageRef = useRef(new Set<number>())
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const loadMore = useCallback(async () => {
@@ -59,6 +122,27 @@ export function MangaChapterContent({
     }
   }, [chapterNumber, pagination, slug])
 
+  const refreshExpiredPage = useCallback(async (pageNumber: number) => {
+    const requestedPage = Math.ceil(pageNumber / pagination.limit)
+    if (refreshingPageRef.current.has(requestedPage)) return
+
+    refreshingPageRef.current.add(requestedPage)
+    try {
+      const response = await getPublicMangaChapterPages(
+        slug,
+        String(Number(chapterNumber)),
+        requestedPage,
+        pagination.limit,
+      )
+      const refreshedPages = new Map(response.pages.map((page) => [page.id, page]))
+      setPages((current) => current.map((page) => refreshedPages.get(page.id) ?? page))
+    } catch {
+      // The existing reader error state is reserved for loading the next batch.
+    } finally {
+      refreshingPageRef.current.delete(requestedPage)
+    }
+  }, [chapterNumber, pagination.limit, slug])
+
   useEffect(() => {
     const target = loadMoreRef.current
     if (!target || !pagination.has_next_page) return
@@ -80,19 +164,21 @@ export function MangaChapterContent({
       </p>
       <div
         className="mx-auto flex max-w-3xl select-none flex-col"
-        onContextMenu={isDev ? undefined : (event) => event.preventDefault()}
-        onCopy={isDev ? undefined : (event) => event.preventDefault()}
+        onContextMenu={preventInteraction}
+        onCopy={preventInteraction}
+        onDragStart={preventInteraction}
       >
         {pages.map((page) => (
-          <img
+          <MangaPageImage
             key={page.id}
             src={page.image_url}
             alt={page.alt_text ?? `หน้า ${page.page_number}`}
             width={page.width ?? undefined}
             height={page.height ?? undefined}
             loading={page.page_number === 1 ? 'eager' : 'lazy'}
-            draggable={isDev}
+            draggable={!isProduction}
             className="h-auto w-full"
+            onLoadError={() => void refreshExpiredPage(page.page_number)}
           />
         ))}
       </div>

@@ -107,7 +107,7 @@ export async function readMangaChapterZip(file: File): Promise<ImportedChapter[]
     }
 
     const chapterName = parts.length === 1 ? file.name.replace(/\.zip$/i, '') : parts[0]
-    const data: Uint8Array[] = []
+    const data: ArrayBuffer[] = []
     entry.ondata = (error, chunk, final) => {
       if (error) {
         readError ||= `ไม่สามารถแตกไฟล์ ${entry.name} ได้`
@@ -118,7 +118,9 @@ export async function readMangaChapterZip(file: File): Promise<ImportedChapter[]
         readError ||= 'ขนาดรูปภาพหลังแตกไฟล์ต้องไม่เกิน 100MB'
         return
       }
-      data.push(chunk)
+      const copiedChunk = new Uint8Array(chunk.byteLength)
+      copiedChunk.set(chunk)
+      data.push(copiedChunk.buffer)
       if (final) {
         const images = chapters.get(chapterName) ?? []
         images.push(new File([new Blob(data)], filename, { type: MANGA_IMAGE_TYPES[extension] }))

@@ -94,7 +94,10 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
 
   return (
     <div className="mx-auto w-full max-w-7xl py-4 sm:px-6 sm:py-8">
-      <section className="readji-surface overflow-visible rounded-2xl sm:rounded-[1.75rem]">
+      <section
+        className="readji-surface overflow-visible rounded-2xl sm:rounded-[1.75rem]"
+        data-reader-type={data.story.type}
+      >
         <ChapterReaderHeader
           slug={data.story.slug}
           chapterNumber={data.chapter.chapter_number}

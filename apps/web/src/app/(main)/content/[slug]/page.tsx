@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { BookOpenText, ChevronDown, Clock3, Eye, UserRound } from 'lucide-react'
@@ -132,20 +131,17 @@ export default async function ContentPage({ params }: ContentPageProps) {
                 </span>
               </div>
 
-              <Link
-                href={`/profile/${encodeURIComponent(story.author.username)}`}
-                className="group mt-3 flex w-fit items-center gap-2.5 rounded-lg py-1 transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/30"
-              >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground ring-1 ring-border/60 transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              <div className="mt-3 flex w-fit items-center gap-2.5 py-1">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground ring-1 ring-border/60">
                   <UserRound className="size-5" aria-hidden="true" />
                 </span>
                 <div>
                   <p className="text-xs text-muted-foreground">เขียนโดย</p>
-                  <p className="font-bold text-foreground transition-colors group-hover:text-primary">
+                  <p className="font-bold text-foreground">
                     {story.author.display_name}
                   </p>
                 </div>
-              </Link>
+              </div>
 
               {story.latest_chapter ? (
                 <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">

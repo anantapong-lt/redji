@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { ReadingSettings } from '@/lib/reading-settings'
 import { READING_THEMES } from '@/lib/reading-settings'
 import { ReaderContentSkeleton } from './reader-content-skeleton'
+import { useReaderContentProtection } from './use-reader-content-protection'
 
 const BLOCKED_ELEMENTS = 'script,style,iframe,object,embed,form,input,button,textarea,select,meta,link,base,svg,math,img,audio,video,source,canvas'
 const SAFE_ATTRIBUTES = new Set(['data-type', 'dir', 'start', 'style'])
@@ -83,6 +84,7 @@ export function NovelChapterContent({
   content: string
   settings: ReadingSettings
 }) {
+  const { isProduction, preventInteraction } = useReaderContentProtection({ replaceNovelCopy: true })
   const [sanitizedContent, setSanitizedContent] = useState<{
     source: string
     html: string
@@ -108,13 +110,26 @@ export function NovelChapterContent({
         <ReaderContentSkeleton />
       ) : (
         <div
-          className={`mx-auto max-w-3xl select-none break-words [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/35 [&_blockquote]:pl-4 [&_h1]:my-6 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_hr]:my-8 [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:min-h-[1lh] [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7 ${
-            settings.fontFamily === 'serif' ? 'font-serif' : 'font-sans'
-          }`}
-          style={{ fontSize: settings.fontSize, lineHeight: 2 }}
-          onCopy={(event) => event.preventDefault()}
-          dangerouslySetInnerHTML={{ __html: safeContent }}
-        />
+          className="relative"
+          onContextMenu={preventInteraction}
+          onDragStart={preventInteraction}
+        >
+          <div
+            className={`mx-auto max-w-3xl select-none break-words [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/35 [&_blockquote]:pl-4 [&_h1]:my-6 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_hr]:my-8 [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:min-h-[1lh] [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7 ${
+              settings.fontFamily === 'serif' ? 'font-serif' : 'font-sans'
+            }`}
+            style={{ fontSize: settings.fontSize, lineHeight: 2 }}
+            dangerouslySetInnerHTML={{ __html: safeContent }}
+          />
+          {isProduction ? (
+            <div
+              aria-hidden
+              className="absolute inset-0 z-10 cursor-text"
+              onContextMenu={preventInteraction}
+              onDragStart={preventInteraction}
+            />
+          ) : null}
+        </div>
       )}
     </article>
   )
