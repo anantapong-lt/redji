@@ -108,18 +108,31 @@ function ManageContentMenu({ contentId }: { contentId: string }) {
 }
 
 function LoadingRows({ isVisible }: { isVisible: boolean }) {
-  return Array.from({ length: 5 }, (_, index) => (
+  return Array.from({ length: PAGE_LIMIT }, (_, index) => (
     <TableRow
       key={index}
       className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
     >
-      {Array.from({ length: 10 }, (_, cellIndex) => (
-        <TableCell key={cellIndex} className="px-3 py-2">
-          <Skeleton className="h-5 w-full min-w-16" />
-        </TableCell>
-      ))}
+      <TableCell className="p-0">
+        <div className="flex px-3 py-2">
+          <Skeleton className="h-12 w-9 rounded-md" />
+        </div>
+      </TableCell>
+      <TableCell className="max-w-72 p-0">
+        <div className="px-3 py-2">
+          <Skeleton className="h-5 w-48 max-w-full" />
+        </div>
+      </TableCell>
+      <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-10" /></TableCell>
+      <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-12" /></TableCell>
+      <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-10" /></TableCell>
+      <TableCell className="max-w-64 px-3 py-2"><Skeleton className="h-5 w-40 max-w-full" /></TableCell>
+      <TableCell className="px-3 py-2"><Skeleton className="h-5 w-16" /></TableCell>
+      <TableCell className="px-3 py-2"><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+      <TableCell className="px-3 py-2"><Skeleton className="h-5 w-20" /></TableCell>
+      <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-7 w-16 rounded-[min(var(--radius-md),12px)]" /></TableCell>
     </TableRow>
   ))
 }

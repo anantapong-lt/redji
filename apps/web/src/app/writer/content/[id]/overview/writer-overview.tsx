@@ -51,16 +51,16 @@ function PurchaseChartSkeleton() {
     <div role="status" aria-label="กำลังโหลดข้อมูลการซื้อ">
       <span className="sr-only">กำลังโหลดข้อมูลการซื้อ</span>
       <div aria-hidden="true" className="motion-safe:animate-pulse">
-        <div className="my-6 grid gap-4 sm:grid-cols-2">
+        <div className="my-4 grid gap-3 sm:grid-cols-2">
           {[0, 1].map((item) => (
-            <div key={item} className="rounded-xl bg-muted/50 p-4">
-              <div className="h-5 w-40 max-w-full rounded bg-chart-2/15" />
-              <div className="mt-2 h-8 w-28 rounded bg-chart-2/20" />
+            <div key={item} className="rounded-lg bg-muted/50 p-3">
+              <div className="h-4 w-40 max-w-full rounded bg-chart-2/15" />
+              <div className="mt-1 h-7 w-28 rounded bg-chart-2/20" />
             </div>
           ))}
         </div>
-        <div className="h-80 w-full">
-          <svg viewBox="0 0 800 280" preserveAspectRatio="none" className="h-70 w-full text-chart-2" focusable="false">
+        <div className="h-60 w-full sm:h-64">
+          <svg viewBox="0 0 800 280" preserveAspectRatio="none" className="h-50 w-full text-chart-2 sm:h-54" focusable="false">
             {[25, 80, 135, 190, 245].map((y) => (
               <g key={y}>
                 <line x1="45" y1={y} x2="735" y2={y} stroke="currentColor" strokeOpacity="0.12" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
@@ -153,10 +153,10 @@ export function WriterOverview({ contentId }: { contentId: string }) {
   ]
 
   return (
-    <section className="mt-6 space-y-6" aria-busy={loading && !data}>
+    <section className="mt-4 space-y-4" aria-busy={loading && !data}>
 
       {error && !data && (
-        <div role="alert" className="readji-surface space-y-3 rounded-2xl bg-card p-6">
+        <div role="alert" className="readji-surface space-y-2 rounded-xl bg-card p-4">
           <p className="text-destructive">{error}</p>
           <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>ลองใหม่</Button>
         </div>
@@ -164,36 +164,36 @@ export function WriterOverview({ contentId }: { contentId: string }) {
 
       {(loading || data) && (
         <>
-          <div className="space-y-3">
-            <h2 className="text-lg font-bold">สถิติภาพรวม <span className="text-sm font-normal text-muted-foreground">ทั้งหมด</span></h2>
-            <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <h2 className="text-base font-bold">สถิติภาพรวม <span className="text-sm font-normal text-muted-foreground">ทั้งหมด</span></h2>
+            <div className="grid gap-3 sm:grid-cols-3">
               {stats.map(({ label, value, icon: Icon, unit }) => (
-                <div key={label} className="readji-surface rounded-2xl bg-card p-5">
+                <div key={label} className="readji-surface rounded-xl bg-card p-3 sm:p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="size-4 text-primary" />{label}</div>
                   {data ? (
-                    <p className="mt-3 text-3xl font-bold tabular-nums">{countFormat.format(Number(value))} <span className="text-sm font-normal text-muted-foreground">{unit}</span></p>
+                    <p className="mt-2 text-2xl font-bold tabular-nums">{countFormat.format(Number(value))} <span className="text-sm font-normal text-muted-foreground">{unit}</span></p>
                   ) : (
-                    <div role="status" className="mt-3 h-9">
+                    <div role="status" className="mt-2 h-8">
                       <span className="sr-only">กำลังโหลด{label}</span>
-                      <Skeleton className="h-9 w-28 max-w-full" />
+                      <Skeleton className="h-8 w-28 max-w-full" />
                     </div>
                   )}
                 </div>
               ))}
             </div>
           </div>
-          <div className="readji-surface rounded-2xl bg-card p-5">
-            <h2 className="text-lg font-bold">สถานะตอน</h2>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="readji-surface rounded-xl bg-card p-3 sm:p-4">
+            <h2 className="text-base font-bold">สถานะตอน</h2>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {statuses.map(({ key, label }) => (
-                <div key={key} className="rounded-xl bg-muted/50 p-4">
+                <div key={key} className="rounded-lg bg-muted/50 p-3">
                   <p className="text-sm text-muted-foreground">{label}</p>
                   {data ? (
-                    <p className="mt-2 text-2xl font-bold tabular-nums">{countFormat.format(Number(data.summary[key]))} <span className="text-sm font-normal text-muted-foreground">ตอน</span></p>
+                    <p className="mt-1 text-xl font-bold tabular-nums">{countFormat.format(Number(data.summary[key]))} <span className="text-sm font-normal text-muted-foreground">ตอน</span></p>
                   ) : (
-                    <div role="status" className="mt-2 h-8">
+                    <div role="status" className="mt-1 h-7">
                       <span className="sr-only">กำลังโหลดจำนวนตอน{label}</span>
-                      <Skeleton className="h-8 w-20 max-w-full" />
+                      <Skeleton className="h-7 w-20 max-w-full" />
                     </div>
                   )}
                 </div>
@@ -203,13 +203,13 @@ export function WriterOverview({ contentId }: { contentId: string }) {
         </>
       )}
 
-      <div className="readji-surface min-w-0 rounded-2xl bg-card p-4 sm:p-6" aria-busy={loading}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="readji-surface min-w-0 rounded-xl bg-card p-3 sm:p-4" aria-busy={loading}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold">การซื้อจากเรื่องนี้</h2>
-            <p className="mt-1 text-sm text-muted-foreground">ยอดซื้อรวมก่อนหักส่วนแบ่ง · เวลาไทย</p>
+            <h2 className="text-base font-bold">การซื้อจากเรื่องนี้</h2>
+            <p className="mt-1 text-xs text-muted-foreground">ยอดซื้อรวมก่อนหักส่วนแบ่ง · เวลาไทย</p>
           </div>
-          <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1" role="group" aria-label="ช่วงเวลาการซื้อ">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1" role="group" aria-label="ช่วงเวลาการซื้อ">
             {periods.map((item) => (
               <Button key={item.value} size="sm" variant={period === item.value ? 'default' : 'ghost'} aria-pressed={period === item.value} onClick={() => { setPeriod(item.value); setError(null); setLoading(true) }} disabled={period === item.value} className="rounded-lg disabled:opacity-100">
                 {item.label}
@@ -217,28 +217,28 @@ export function WriterOverview({ contentId }: { contentId: string }) {
             ))}
           </div>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground">
           {period === 'today' ? 'วันนี้ แสดงรายชั่วโมง' : period === 'this-week' ? 'สัปดาห์นี้ เริ่มวันจันทร์ แสดงรายวัน' : 'เดือนนี้ เริ่มวันที่ 1 แสดงรายวัน'} · ข้อมูลถึงเวลาที่โหลดล่าสุด
         </p>
         {loading ? <PurchaseChartSkeleton /> : error && data ? (
-          <div role="alert" className="space-y-3 py-12 text-center">
+          <div role="alert" className="space-y-2 py-8 text-center">
             <p className="text-destructive">{error}</p>
             <Button variant="outline" onClick={() => setReloadKey((key) => key + 1)}>ลองใหม่</Button>
           </div>
         ) : data ? (
           <>
-            <div className="my-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl bg-muted/50 p-4">
+            <div className="my-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-sm text-muted-foreground">จำนวนครั้งที่ซื้อตอนในช่วงนี้</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{countFormat.format(purchaseCount)} <span className="text-sm font-normal">ครั้ง</span></p>
+                <p className="mt-1 text-xl font-bold tabular-nums">{countFormat.format(purchaseCount)} <span className="text-sm font-normal">ครั้ง</span></p>
               </div>
-              <div className="rounded-xl bg-muted/50 p-4">
+              <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-sm text-muted-foreground">ยอดซื้อรวมในช่วงนี้</p>
-                <p className="mt-2 flex flex-wrap items-center gap-2 text-2xl font-bold tabular-nums"><GiTwoCoins className="size-5 shrink-0 text-primary" />{salesFormat.format(grossSales)} <span className="text-sm font-normal">{SITE_CONFIG.coinName}</span></p>
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xl font-bold tabular-nums"><GiTwoCoins className="size-5 shrink-0 text-primary" />{salesFormat.format(grossSales)} <span className="text-sm font-normal">{SITE_CONFIG.coinName}</span></p>
               </div>
             </div>
-            {purchaseCount === 0 && <p role="status" className="mb-4 text-center text-sm text-muted-foreground">ยังไม่มีการซื้อในช่วงเวลานี้</p>}
-            <div className="h-80 min-w-0 w-full" role="group" aria-label="กราฟจำนวนครั้งที่ซื้อตอนและยอดซื้อรวมก่อนหักส่วนแบ่ง">
+            {purchaseCount === 0 && <p role="status" className="mb-2 text-center text-sm text-muted-foreground">ยังไม่มีการซื้อในช่วงเวลานี้</p>}
+            <div className="h-60 min-w-0 w-full sm:h-64" role="group" aria-label="กราฟจำนวนครั้งที่ซื้อตอนและยอดซื้อรวมก่อนหักส่วนแบ่ง">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 20, right: 0, bottom: 10, left: 0 }} accessibilityLayer>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -253,9 +253,9 @@ export function WriterOverview({ contentId }: { contentId: string }) {
               </ResponsiveContainer>
             </div>
           </>
-        ) : <p className="py-12 text-center text-sm text-muted-foreground">ไม่สามารถแสดงกราฟได้</p>}
+        ) : <p className="py-8 text-center text-sm text-muted-foreground">ไม่สามารถแสดงกราฟได้</p>}
       </div>
-      <Button asChild variant="outline" className="h-11 w-fit rounded-xl">
+      <Button asChild variant="outline" className="h-9 w-fit rounded-lg">
         <Link href="/writer/contents"><ArrowLeftIcon />ย้อนกลับ</Link>
       </Button>
     </section>
