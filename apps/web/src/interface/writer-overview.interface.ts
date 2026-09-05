@@ -5,11 +5,6 @@ export interface WriterOverview {
     title: string
     total_views: string
     chapter_count: string
-    sales_count: string
-    published: string
-    draft: string
-    scheduled: string
-    hidden: string
   }
   period: OverviewPeriod
   purchases: {

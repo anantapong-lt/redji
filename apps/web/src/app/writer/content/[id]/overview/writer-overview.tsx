@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, BookOpenIcon, EyeIcon, ShoppingBagIcon } from 'lucide-react'
+import { ArrowLeftIcon, BookOpenIcon, EyeIcon } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import {
   Bar, CartesianGrid, ComposedChart, Legend, Line,
@@ -20,12 +20,6 @@ const periods: { value: OverviewPeriod; label: string }[] = [
   { value: 'this-week', label: 'สัปดาห์นี้' },
   { value: 'this-month', label: 'เดือนนี้' },
 ]
-const statuses = [
-  { key: 'published', label: 'เผยแพร่แล้ว' },
-  { key: 'draft', label: 'ฉบับร่าง' },
-  { key: 'scheduled', label: 'ตั้งเวลาเผยแพร่' },
-  { key: 'hidden', label: 'ซ่อน' },
-] as const
 const countFormat = new Intl.NumberFormat('th-TH')
 const salesFormat = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -149,7 +143,6 @@ export function WriterOverview({ contentId }: { contentId: string }) {
   const stats = [
     { label: 'ยอดเข้าชม', value: data?.summary.total_views, icon: EyeIcon, unit: 'ครั้ง' },
     { label: 'จำนวนตอน', value: data?.summary.chapter_count, icon: BookOpenIcon, unit: 'ตอน' },
-    { label: 'จำนวนครั้งที่ซื้อตอน', value: data?.summary.sales_count, icon: ShoppingBagIcon, unit: 'ครั้ง' },
   ]
 
   return (
@@ -165,8 +158,15 @@ export function WriterOverview({ contentId }: { contentId: string }) {
       {(loading || data) && (
         <>
           <div className="space-y-2">
-            <h2 className="text-base font-bold">สถิติภาพรวม <span className="text-sm font-normal text-muted-foreground">ทั้งหมด</span></h2>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="icon" className="size-8 shrink-0 rounded-lg">
+                <Link href="/writer/contents" aria-label="ย้อนกลับ" title="ย้อนกลับ">
+                  <ArrowLeftIcon />
+                </Link>
+              </Button>
+              <h2 className="text-base font-bold">สถิติภาพรวม <span className="text-sm font-normal text-muted-foreground">ทั้งหมด</span></h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               {stats.map(({ label, value, icon: Icon, unit }) => (
                 <div key={label} className="readji-surface rounded-xl bg-card p-3 sm:p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="size-4 text-primary" />{label}</div>
@@ -176,24 +176,6 @@ export function WriterOverview({ contentId }: { contentId: string }) {
                     <div role="status" className="mt-2 h-8">
                       <span className="sr-only">กำลังโหลด{label}</span>
                       <Skeleton className="h-8 w-28 max-w-full" />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="readji-surface rounded-xl bg-card p-3 sm:p-4">
-            <h2 className="text-base font-bold">สถานะตอน</h2>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {statuses.map(({ key, label }) => (
-                <div key={key} className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  {data ? (
-                    <p className="mt-1 text-xl font-bold tabular-nums">{countFormat.format(Number(data.summary[key]))} <span className="text-sm font-normal text-muted-foreground">ตอน</span></p>
-                  ) : (
-                    <div role="status" className="mt-1 h-7">
-                      <span className="sr-only">กำลังโหลดจำนวนตอน{label}</span>
-                      <Skeleton className="h-7 w-20 max-w-full" />
                     </div>
                   )}
                 </div>
@@ -255,9 +237,6 @@ export function WriterOverview({ contentId }: { contentId: string }) {
           </>
         ) : <p className="py-8 text-center text-sm text-muted-foreground">ไม่สามารถแสดงกราฟได้</p>}
       </div>
-      <Button asChild variant="outline" className="h-9 w-fit rounded-lg">
-        <Link href="/writer/contents"><ArrowLeftIcon />ย้อนกลับ</Link>
-      </Button>
     </section>
   )
 }

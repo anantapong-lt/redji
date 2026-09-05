@@ -6,11 +6,6 @@ interface OverviewSummary {
   title: string
   total_views: string
   chapter_count: string
-  sales_count: string
-  published: string
-  draft: string
-  scheduled: string
-  hidden: string
 }
 
 interface PurchasePoint {
@@ -22,14 +17,7 @@ interface PurchasePoint {
 export async function findOverviewSummary(userId: string, contentId: string) {
   const [summary] = await db<OverviewSummary[]>`
     SELECT stories.title, stories.total_views::TEXT,
-      COUNT(chapters.id)::TEXT AS chapter_count,
-      COUNT(chapters.id) FILTER (WHERE chapters.status = 'published')::TEXT AS published,
-      COUNT(chapters.id) FILTER (WHERE chapters.status = 'draft')::TEXT AS draft,
-      COUNT(chapters.id) FILTER (WHERE chapters.status = 'scheduled')::TEXT AS scheduled,
-      COUNT(chapters.id) FILTER (WHERE chapters.status = 'hidden')::TEXT AS hidden,
-      (SELECT COUNT(*) FROM chapter_purchases
-        JOIN chapters AS purchased ON purchased.id = chapter_purchases.chapter_id
-        WHERE purchased.story_id = stories.id)::TEXT AS sales_count
+      COUNT(chapters.id)::TEXT AS chapter_count
     FROM stories
     LEFT JOIN chapters ON chapters.story_id = stories.id
     WHERE stories.id = ${contentId} AND stories.creator_user_id = ${userId}
