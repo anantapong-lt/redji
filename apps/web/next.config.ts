@@ -74,6 +74,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
+    proxyClientMaxBodySize: '650mb',
     // The generated stylesheet is small enough to keep on the critical path
     // without paying for a separate render-blocking request.
     inlineCss: true,
