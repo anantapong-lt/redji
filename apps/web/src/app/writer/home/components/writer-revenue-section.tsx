@@ -19,7 +19,7 @@ export function WriterRevenueSection({ stats, hasError }: WriterRevenueSectionPr
   return (
     <section className="mt-6" aria-labelledby="writer-revenue-heading">
       <h2 id="writer-revenue-heading" className="text-base font-semibold">
-        รายได้และยอดขาย
+        รายได้และยอดขาย <span className="text-muted-foreground text-xs">(ตั้งแต่เริ่มใช้งาน)</span>
       </h2>
       {hasError ? (
         <p role="alert" className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
