@@ -6,5 +6,6 @@
 
 # Web UI conventions
 
+- Use shadcn/ui components when building or updating Web UI. Reuse existing shadcn/ui components in the project instead of creating custom equivalents.
 - Use `GiTwoCoins` from `react-icons/gi` whenever displaying a coin icon.
 - Use `SITE_CONFIG.coinName` instead of hardcoding the coin name in user-facing text.
