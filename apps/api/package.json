@@ -6,6 +6,7 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "backfill:cover-blur": "bun run scripts/backfill-story-cover-blur.ts",
+    "create:admin-user": "bun run scripts/create-admin-user.ts",
     "create:test-user": "bun run scripts/create-test-user.ts",
     "seed:test-chapters": "bun run scripts/seed-test-novel-chapters.ts"
   },

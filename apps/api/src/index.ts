@@ -24,7 +24,7 @@ async function runChapterPublisher() {
 const app = new Elysia()
   .use(
     cors({
-      origin: env.WEB_ORIGIN,
+      origin: [env.WEB_ORIGIN, env.ADMIN_ORIGIN],
       credentials: true,
     }),
   )

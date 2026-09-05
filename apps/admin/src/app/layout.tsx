@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_Thai } from 'next/font/google'
-import { Sidebar } from '@/components/sidebar'
+import { AdminAuthProvider } from '@/components/admin-auth-provider'
+import { AdminShell } from '@/components/admin-shell'
 import './globals.css'
 
 const notoSansThai = Noto_Sans_Thai({
@@ -19,10 +20,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="th">
       <body className={notoSansThai.variable}>
-        <div className="admin-shell">
-          <Sidebar />
-          <main className="admin-content">{children}</main>
-        </div>
+        <AdminAuthProvider>
+          <AdminShell>{children}</AdminShell>
+        </AdminAuthProvider>
       </body>
     </html>
   )
