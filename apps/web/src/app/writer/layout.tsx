@@ -1,5 +1,4 @@
 import { GenreOptionsInitializer } from '@/components/genre-options-initializer'
-import { Toaster } from '@/components/ui/sonner'
 import { redirect } from 'next/navigation'
 import { userRole } from '@/interface/user.interface'
 import { getServerAuthUser } from '@/lib/server-auth'
@@ -15,7 +14,6 @@ export default async function WriterRootLayout({ children }: { children: React.R
     <WriterLayout user={user}>
       <GenreOptionsInitializer />
       {children}
-      <Toaster />
     </WriterLayout>
   )
 }

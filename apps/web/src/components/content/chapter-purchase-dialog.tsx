@@ -5,6 +5,7 @@ import { LoaderCircle, ShoppingCart, Sparkles, WalletCards } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import {
   Dialog,
@@ -76,7 +77,17 @@ export function ChapterPurchaseDialog({
       await refresh()
       onPurchased(result.purchases.map((purchase) => purchase.chapter_id))
       onOpenChange(false)
+      toast.success(
+        chapters.length === 1
+          ? 'ซื้อตอนสำเร็จแล้ว'
+          : `ซื้อ ${chapters.length.toLocaleString('th-TH')} ตอนสำเร็จแล้ว`,
+      )
     } catch (error) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : 'ไม่สามารถซื้อตอนได้ กรุณาลองใหม่อีกครั้ง',
+      )
       setErrorMessage(
         error instanceof ApiError
           ? error.message
