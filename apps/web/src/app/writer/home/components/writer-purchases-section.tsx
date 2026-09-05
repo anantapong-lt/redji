@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ImageIcon, UserRound } from 'lucide-react'
+import { ImageIcon, Search, UserRound } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -26,12 +27,15 @@ export function WriterPurchasesSection() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [retry, setRetry] = useState(0)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [result, setResult] = useState<{
     data: WriterPurchasesResponse
     token: string
     userId: string
     page: number
     limit: number
+    search: string
   } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
@@ -45,10 +49,10 @@ export function WriterPurchasesSection() {
     const controller = new AbortController()
     setIsLoading(true)
     setHasError(false)
-    void getWriterPurchases(page, limit, accessToken, controller.signal)
+    void getWriterPurchases(page, limit, accessToken, controller.signal, search)
       .then((data) => {
         if (!controller.signal.aborted) {
-          setResult({ data, token: accessToken, userId: user.id, page, limit })
+          setResult({ data, token: accessToken, userId: user.id, page, limit, search })
         }
       })
       .catch(() => {
@@ -58,29 +62,62 @@ export function WriterPurchasesSection() {
         if (!controller.signal.aborted) setIsLoading(false)
       })
     return () => controller.abort()
-  }, [accessToken, user?.id, user?.role, page, limit, retry])
+  }, [accessToken, user?.id, user?.role, page, limit, retry, search])
 
   const data = result?.token === accessToken && result?.userId === user?.id
-    && result?.page === page && result?.limit === limit ? result?.data : null
+    && result?.page === page && result?.limit === limit && result?.search === search ? result?.data : null
   const loading = isLoading || (!data && !hasError)
   const pagination = data?.pagination
 
   return (
     <section className="readji-surface mt-6 overflow-hidden rounded-2xl" aria-labelledby="writer-purchases-title">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-        <h2 id="writer-purchases-title" className="text-lg font-bold">รายการซื้อตอนล่าสุด</h2>
-        <div className="flex items-center gap-2 text-sm">
-          <label htmlFor="writer-purchases-limit">รายการต่อหน้า</label>
-          <Select value={String(limit)} onValueChange={(value) => { setLimit(Number(value)); setPage(1) }}>
-            <SelectTrigger id="writer-purchases-limit" className="w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {limits.map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <header className="space-y-4 border-b border-border/60 p-4 sm:p-5">
+        <h2 id="writer-purchases-title" className="text-base font-semibold tracking-tight">รายการซื้อตอนล่าสุด</h2>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <form
+            role="search"
+            aria-label="ค้นหารายการซื้อตอน"
+            className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-1"
+            onSubmit={(event) => {
+              event.preventDefault()
+              setSearch(searchInput.trim())
+              setPage(1)
+            }}
+          >
+            <div className="relative min-w-[min(100%,14rem)] flex-1 lg:max-w-sm">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                maxLength={255}
+                placeholder="ค้นหา username ผู้ซื้อหรือชื่อเรื่อง"
+                aria-label="username ผู้ซื้อหรือชื่อเรื่อง"
+                className="h-9 rounded-lg bg-background pl-9 text-sm"
+              />
+            </div>
+            <Button type="submit" variant="outline" size="sm" className="h-9 rounded-lg px-4">ค้นหา</Button>
+            {search ? (
+              <Button type="button" variant="ghost" size="sm" className="h-9 rounded-lg text-muted-foreground" onClick={() => {
+                setSearchInput('')
+                setSearch('')
+                setPage(1)
+              }}>ล้างค้นหา</Button>
+            ) : null}
+          </form>
+          <div className="flex shrink-0 items-center justify-end gap-2 text-xs text-muted-foreground">
+            <label htmlFor="writer-purchases-limit">รายการต่อหน้า</label>
+            <Select value={String(limit)} onValueChange={(value) => { setLimit(Number(value)); setPage(1) }}>
+              <SelectTrigger id="writer-purchases-limit" className="h-9 w-20 rounded-lg bg-background text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {limits.map((value) => <SelectItem key={value} value={String(value)}>{value}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      </header>
       <Table className="min-w-[760px]" aria-busy={loading}>
         <TableHeader className="bg-muted/40">
           <TableRow>
@@ -107,7 +144,7 @@ export function WriterPurchasesSection() {
               </TableCell>
             </TableRow>
           ) : !data?.purchases.length ? (
-            <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">ยังไม่มีรายการซื้อตอน</TableCell></TableRow>
+            <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">{search ? 'ไม่พบรายการซื้อตอนที่ตรงกับคำค้นหา' : 'ยังไม่มีรายการซื้อตอน'}</TableCell></TableRow>
           ) : data.purchases.map((purchase) => (
             <TableRow key={purchase.id}>
               <TableCell className="px-5 py-3">

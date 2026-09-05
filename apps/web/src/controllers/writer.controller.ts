@@ -33,8 +33,10 @@ export function getWriterPurchases(
   limit: number,
   accessToken: string,
   signal?: AbortSignal,
+  search?: string,
 ): Promise<WriterPurchasesResponse> {
   const query = new URLSearchParams({ page: String(page), limit: String(limit) })
+  if (search) query.set('search', search)
   return apiRequest(`/writer/purchases?${query}`, {
     accessToken,
     signal,

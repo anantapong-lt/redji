@@ -12,19 +12,25 @@ interface WriterPurchase {
   purchased_at: Date
 }
 
-export async function countWriterPurchases(userId: string): Promise<number> {
+export async function countWriterPurchases(userId: string, search: string): Promise<number> {
   const [row] = await db<{ total: string }[]>`
     SELECT COUNT(*)::TEXT AS total
     FROM chapter_purchases cp
     JOIN chapters ON chapters.id = cp.chapter_id
     JOIN stories ON stories.id = chapters.story_id
+    JOIN users buyer ON buyer.id = cp.buyer_user_id
     WHERE stories.creator_user_id = ${userId}
       AND stories.deleted_at IS NULL
+      AND (
+        ${search} = ''
+        OR STRPOS(LOWER(buyer.username), LOWER(${search})) > 0
+        OR STRPOS(LOWER(stories.title), LOWER(${search})) > 0
+      )
   `
   return Number(row?.total ?? 0)
 }
 
-export async function findWriterPurchases(userId: string, page: number, limit: number) {
+export async function findWriterPurchases(userId: string, page: number, limit: number, search: string) {
   return db<WriterPurchase[]>`
     SELECT cp.id, stories.title AS story_title, stories.cover_url,
       chapters.chapter_number::TEXT, chapters.title AS chapter_title,
@@ -36,6 +42,11 @@ export async function findWriterPurchases(userId: string, page: number, limit: n
     JOIN users buyer ON buyer.id = cp.buyer_user_id
     WHERE stories.creator_user_id = ${userId}
       AND stories.deleted_at IS NULL
+      AND (
+        ${search} = ''
+        OR STRPOS(LOWER(buyer.username), LOWER(${search})) > 0
+        OR STRPOS(LOWER(stories.title), LOWER(${search})) > 0
+      )
     ORDER BY cp.purchased_at DESC, cp.id DESC
     LIMIT ${limit} OFFSET ${(page - 1) * limit}
   `
