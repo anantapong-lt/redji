@@ -6,7 +6,7 @@ import { READING_THEMES } from '@/lib/reading-settings'
 import { ReaderContentSkeleton } from './reader-content-skeleton'
 
 const BLOCKED_ELEMENTS = 'script,style,iframe,object,embed,form,input,button,textarea,select,meta,link,base,svg,math,img,audio,video,source,canvas'
-const SAFE_ATTRIBUTES = new Set(['data-type', 'href', 'rel', 'start', 'style', 'target'])
+const SAFE_ATTRIBUTES = new Set(['data-type', 'dir', 'start', 'style'])
 const SAFE_STYLE_PROPERTIES = new Set([
   'display',
   'font-family',
@@ -25,34 +25,33 @@ const SAFE_STYLE_PROPERTIES = new Set([
   'text-indent',
 ])
 
+function isSafeStyleValue(value: string) {
+  return value.length <= 200
+    && !/(?:@import|behavior|expression|javascript|[-]moz-binding|url)\s*\(/i.test(value)
+    && !/[<>\u0000]/.test(value)
+}
+
 function sanitizeChapterHtml(html: string) {
   const document = new DOMParser().parseFromString(html, 'text/html')
+  document.querySelectorAll('a').forEach((element) => element.replaceWith(...element.childNodes))
   document.querySelectorAll(BLOCKED_ELEMENTS).forEach((element) => element.remove())
 
   document.body.querySelectorAll('*').forEach((element) => {
     for (const attribute of [...element.attributes]) {
       const name = attribute.name.toLowerCase()
-      const value = attribute.value.trim().toLowerCase()
 
       if (!SAFE_ATTRIBUTES.has(name)) {
         element.removeAttribute(attribute.name)
         continue
       }
 
-      if ((name === 'href' || name === 'src') && (
-        value.startsWith('javascript:') || value.startsWith('data:text/html')
-      )) {
-        element.removeAttribute(attribute.name)
-      }
-    }
-
-    if (element instanceof HTMLAnchorElement && element.target === '_blank') {
-      element.rel = 'noopener noreferrer'
     }
 
     const style = (element as HTMLElement).style
     for (const property of [...style]) {
-      if (!SAFE_STYLE_PROPERTIES.has(property)) style.removeProperty(property)
+      if (!SAFE_STYLE_PROPERTIES.has(property) || !isSafeStyleValue(style.getPropertyValue(property).trim())) {
+        style.removeProperty(property)
+      }
     }
 
     if (element.matches('span[data-type="paragraph"]')) {

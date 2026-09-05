@@ -66,7 +66,6 @@ const formattingStyleProperties = [
 ] as const
 
 const allowedPasteElements = new Set([
-  'A',
   'B',
   'BLOCKQUOTE',
   'BR',
@@ -233,19 +232,6 @@ function resolveClassBasedStyles(parsedDocument: Document) {
   }
 }
 
-function sanitizeHref(value: string | null): string | null {
-  if (!value) return null
-  const trimmed = value.trim()
-  if (trimmed.startsWith('#')) return trimmed
-
-  try {
-    const url = new URL(trimmed, window.location.href)
-    return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) ? trimmed : null
-  } catch {
-    return null
-  }
-}
-
 function replaceElementTag(element: HTMLElement, tagName: 'p' | 'span'): HTMLElement {
   const replacement = element.ownerDocument.createElement(tagName)
   for (const attribute of Array.from(element.attributes)) {
@@ -284,12 +270,6 @@ function sanitizePastedElement(element: HTMLElement) {
   const safeStyle = normalizedElement.ownerDocument.createElement('span').style
   copyAllowedStyles(originalStyle, safeStyle, true)
 
-  const href = normalizedElement.tagName === 'A'
-    ? sanitizeHref(normalizedElement.getAttribute('href'))
-    : null
-  const title = normalizedElement.tagName === 'A'
-    ? normalizedElement.getAttribute('title')
-    : null
   const direction = normalizedElement.getAttribute('dir')?.toLowerCase()
   const listStart = normalizedElement.tagName === 'OL'
     ? normalizedElement.getAttribute('start')
@@ -300,8 +280,6 @@ function sanitizePastedElement(element: HTMLElement) {
   }
 
   if (safeStyle.cssText) normalizedElement.setAttribute('style', safeStyle.cssText)
-  if (href) normalizedElement.setAttribute('href', href)
-  if (title) normalizedElement.setAttribute('title', title.slice(0, 255))
   if (direction === 'ltr' || direction === 'rtl' || direction === 'auto') {
     normalizedElement.setAttribute('dir', direction)
   }

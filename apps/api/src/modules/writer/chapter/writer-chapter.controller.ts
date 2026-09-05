@@ -110,6 +110,69 @@ function countWords(text: string): number {
   return count
 }
 
+const SAFE_NOVEL_TAGS = new Set([
+  'blockquote', 'br', 'code', 'del', 'em', 'h2', 'h3', 'hr', 'li', 'ol',
+  'p', 'pre', 's', 'span', 'strong', 'u', 'ul',
+])
+const SAFE_NOVEL_STYLE_PROPERTIES = new Set([
+  'background-color', 'color', 'font-family', 'font-size', 'font-style',
+  'font-weight', 'letter-spacing', 'line-height', 'margin-bottom', 'margin-left',
+  'margin-right', 'margin-top', 'text-align', 'text-decoration', 'text-indent',
+])
+
+function sanitizeNovelStyle(value: string): string {
+  return value.split(';').flatMap((declaration) => {
+    const separator = declaration.indexOf(':')
+    if (separator === -1) return []
+
+    const property = declaration.slice(0, separator).trim().toLowerCase()
+    const propertyValue = declaration.slice(separator + 1).trim()
+    if (
+      !SAFE_NOVEL_STYLE_PROPERTIES.has(property)
+      || !propertyValue
+      || propertyValue.length > 200
+      || /(?:@import|behavior|expression|javascript|[-]moz-binding|url)\s*\(/i.test(propertyValue)
+      || /[<>\u0000]/.test(propertyValue)
+    ) return []
+
+    return [`${property}: ${propertyValue}`]
+  }).join('; ')
+}
+
+function sanitizeNovelHtml(html: string): string {
+  return html
+    .replace(/<(script|style|iframe|object|embed|form|svg|math|audio|video|canvas)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<[^>]*>/g, (tag) => {
+      const match = /^<\s*(\/?)\s*([a-z0-9]+)\b([^>]*)>$/i.exec(tag)
+      if (!match) return ''
+
+      const [, closing, rawName, attributes] = match
+      const name = rawName.toLowerCase()
+      if (!SAFE_NOVEL_TAGS.has(name)) return ''
+      if (closing) return `</${name}>`
+
+      const safeAttributes: string[] = []
+      const styleMatch = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attributes)
+      const style = sanitizeNovelStyle(styleMatch?.[1] ?? styleMatch?.[2] ?? styleMatch?.[3] ?? '')
+      if (style) safeAttributes.push(`style="${style.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
+
+      if (name === 'span' && /\bdata-type\s*=\s*(?:"paragraph"|'paragraph'|paragraph)(?=\s|$)/i.test(attributes)) {
+        safeAttributes.push('data-type="paragraph"')
+      }
+      const direction = /\bdir\s*=\s*(?:"(ltr|rtl|auto)"|'(ltr|rtl|auto)'|(ltr|rtl|auto))(?=\s|$)/i.exec(attributes)
+      const directionValue = direction?.[1] ?? direction?.[2] ?? direction?.[3]
+      if (directionValue) {
+        safeAttributes.push(`dir="${directionValue.toLowerCase()}"`)
+      }
+      if (name === 'ol') {
+        const start = /\bstart\s*=\s*(?:"(\d+)"|'(\d+)'|(\d+))(?=\s|$)/i.exec(attributes)
+        if (start) safeAttributes.push(`start="${start[1] ?? start[2] ?? start[3]}"`)
+      }
+
+      return `<${name}${safeAttributes.length ? ` ${safeAttributes.join(' ')}` : ''}>`
+    })
+}
+
 async function requireOwnedStoryType(creatorUserId: string, storyId: string) {
   const storyType = await findOwnedStoryType(creatorUserId, storyId)
   if (!storyType) throw new WriterChapterError('ไม่พบผลงานที่ต้องการจัดการ', 404)
@@ -124,7 +187,9 @@ function normalizeChapterInput(
   const title = input.title.trim()
   const chapterNumber = Number(input.chapter_number)
   const price = Number(input.price)
-  const content = input.content?.trim() ?? ''
+  const content = storyType === STORY_TYPE.NOVEL
+    ? sanitizeNovelHtml(input.content?.trim() ?? '')
+    : input.content?.trim() ?? ''
 
   if (!title) throw new WriterChapterError('กรุณากรอกชื่อตอน', 400, 'title')
   if (!Number.isFinite(chapterNumber) || chapterNumber < 0 || chapterNumber > 99_999_999.9 || !Number.isInteger(chapterNumber * 10)) {
