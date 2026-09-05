@@ -30,7 +30,8 @@ import type {
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
 import { CreateContentDialog } from './create-content-dialog'
-import { ChevronDownIcon, CoinsIcon, ImageIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, ImageIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { GiTwoCoins } from 'react-icons/gi'
 
 const PAGE_LIMIT = 10
 
@@ -115,7 +116,7 @@ function LoadingRows({ isVisible }: { isVisible: boolean }) {
       }`}
     >
       {Array.from({ length: 10 }, (_, cellIndex) => (
-        <TableCell key={cellIndex} className="px-4 py-4">
+        <TableCell key={cellIndex} className="px-3 py-2">
           <Skeleton className="h-5 w-full min-w-16" />
         </TableCell>
       ))}
@@ -131,15 +132,15 @@ function LoadingCards({ isVisible }: { isVisible: boolean }) {
       }`}
     >
       {Array.from({ length: 3 }, (_, index) => (
-        <div key={index} className="space-y-4 border-b p-4 last:border-b-0">
+        <div key={index} className="space-y-3 border-b p-3 last:border-b-0">
           <div className="flex items-start justify-between gap-3">
             <Skeleton className="h-5 w-2/3" />
             <Skeleton className="h-5 w-16" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
           <Skeleton className="h-4 w-full" />
         </div>
@@ -218,19 +219,19 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
   const contentOpacity = showContent ? 'opacity-100' : 'opacity-0'
 
   return (
-    <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
+    <main className="min-w-0 flex-1 px-4 py-4 md:px-5 md:py-5">
       <div className="mx-auto">
         <Tabs value={activeTab} onValueChange={changeTab} className="block">
-          <div className="relative flex flex-col gap-4 lg:min-h-14 lg:block">
+          <div className="relative flex flex-col gap-3 lg:min-h-10 lg:block">
             <TabsList
               aria-label="ประเภทผลงาน"
-              className="readji-surface mx-auto flex h-auto w-fit rounded-2xl bg-white p-1.5"
+              className="readji-surface mx-auto flex h-auto w-fit rounded-xl bg-white p-1"
             >
               {(Object.entries(tabLabels) as [WriterContentTab, string][]).map(([value, label]) => (
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="h-auto min-w-28 flex-none rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground sm:min-w-36 sm:px-8 sm:py-4 sm:text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+                  className="h-8 min-w-24 flex-none rounded-lg px-4 py-1.5 text-sm font-bold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground sm:min-w-28 sm:px-5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
                 >
                   {label}
                 </TabsTrigger>
@@ -242,7 +243,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
           <TabsContent
             value={activeTab}
-            className="mt-6 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
+            className="mt-4 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
           >
           <div className="md:hidden">
             {showSkeleton && <LoadingCards isVisible={isLoading} />}
@@ -252,56 +253,56 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
               >
                 {hasError && (
-                  <div className="px-4 py-12 text-center text-sm text-destructive">
+                  <div className="px-4 py-8 text-center text-sm text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </div>
                 )}
 
                 {!hasError && contents.length === 0 && (
-                  <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </div>
                 )}
 
                 {!hasError && contents.map((content) => (
-              <article key={content.id} className="border-b p-4 last:border-b-0">
+              <article key={content.id} className="border-b p-3 last:border-b-0">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="min-w-0 font-semibold break-words">{content.title}</h2>
+                  <h2 className="min-w-0 text-sm font-semibold break-words">{content.title}</h2>
                   <Badge className="shrink-0" variant={statusVariant(content.status)}>
                     {statusLabels[content.status]}
                   </Badge>
                 </div>
 
-                <dl className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-                  <div className="rounded-xl bg-muted/50 p-3">
+                <dl className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-muted/50 px-2.5 py-2">
                     <dt className="text-xs text-muted-foreground">จำนวนตอน</dt>
-                    <dd className="mt-1 font-semibold tabular-nums">
+                    <dd className="mt-0.5 text-sm font-semibold tabular-nums">
                       {formatNumber(content.chapter_count)}
                     </dd>
                   </div>
-                  <div className="rounded-xl bg-muted/50 p-3">
+                  <div className="rounded-lg bg-muted/50 px-2.5 py-2">
                     <dt className="text-xs text-muted-foreground">จำนวนเข้าชม</dt>
-                    <dd className="mt-1 font-semibold tabular-nums">
+                    <dd className="mt-0.5 text-sm font-semibold tabular-nums">
                       {formatNumber(content.total_views)}
                     </dd>
                   </div>
-                  <div className="rounded-xl bg-muted/50 p-3">
+                  <div className="rounded-lg bg-muted/50 px-2.5 py-2">
                     <dt className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <CoinsIcon className="size-3.5 text-orange-500" strokeWidth={1.8} />
+                      <GiTwoCoins className="size-3.5 text-orange-500" />
                       ยอดขาย
                     </dt>
-                    <dd className="mt-1 font-semibold tabular-nums">
+                    <dd className="mt-0.5 text-sm font-semibold tabular-nums">
                       {formatNumber(content.sales_count)}
                     </dd>
                   </div>
                 </dl>
 
-                <div className="mt-4 space-y-1 text-sm">
+                <div className="mt-3 space-y-0.5 text-sm">
                   <p className="text-xs text-muted-foreground">ตอนล่าสุด</p>
                   <p className="break-words"><LatestChapter content={content} /></p>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3">
+                <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2">
                   <div className="min-w-0 text-xs text-muted-foreground">
                     <p>{typeLabels[content.type]}</p>
                     <p className="mt-0.5">สร้างเมื่อ {formatDate(content.created_at)}</p>
@@ -314,24 +315,24 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
             )}
           </div>
 
-          <Table className="hidden min-w-[1080px] md:table">
+          <Table className="hidden min-w-[960px] md:table">
             <TableHeader className="bg-muted/40">
               <TableRow>
-                <TableHead className="w-20 px-5 py-4">ปก</TableHead>
-                <TableHead className="px-5 py-4">ชื่อ</TableHead>
-                <TableHead className="px-4 py-4 text-right">จำนวนตอน</TableHead>
-                <TableHead className="px-4 py-4 text-right">จำนวนเข้าชม</TableHead>
-                <TableHead className="px-4 py-4">
+                <TableHead className="w-16 px-3 py-2">ปก</TableHead>
+                <TableHead className="px-3 py-2">ชื่อ</TableHead>
+                <TableHead className="px-3 py-2 text-right">จำนวนตอน</TableHead>
+                <TableHead className="px-3 py-2 text-right">จำนวนเข้าชม</TableHead>
+                <TableHead className="px-3 py-2">
                   <span className="flex items-center justify-end gap-1">
-                    <CoinsIcon className="size-4 text-orange-500" strokeWidth={1.8} />
+                    <GiTwoCoins className="size-4 text-orange-500" />
                     ยอดขาย
                   </span>
                 </TableHead>
-                <TableHead className="px-4 py-4">ตอนล่าสุด</TableHead>
-                <TableHead className="px-4 py-4">ประเภท</TableHead>
-                <TableHead className="px-4 py-4">สถานะ</TableHead>
-                <TableHead className="px-4 py-4">วันที่สร้าง</TableHead>
-                <TableHead className="px-5 py-4 text-right">จัดการ</TableHead>
+                <TableHead className="px-3 py-2">ตอนล่าสุด</TableHead>
+                <TableHead className="px-3 py-2">ประเภท</TableHead>
+                <TableHead className="px-3 py-2">สถานะ</TableHead>
+                <TableHead className="px-3 py-2">วันที่สร้าง</TableHead>
+                <TableHead className="px-3 py-2 text-right">จัดการ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -341,7 +342,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
                 >
-                  <TableCell colSpan={10} className="h-32 text-center text-destructive">
+                  <TableCell colSpan={10} className="h-24 text-center text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </TableCell>
                 </TableRow>
@@ -351,7 +352,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
                 >
-                  <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </TableCell>
                 </TableRow>
@@ -366,9 +367,9 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     <Link
                       href={`/writer/content/${content.id}/overview`}
                       aria-label={`แก้ไข ${content.title}`}
-                      className="flex px-5 py-3"
+                      className="flex px-3 py-2"
                     >
-                      <div className="flex h-16 w-12 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                      <div className="flex h-12 w-9 items-center justify-center overflow-hidden rounded-md bg-muted">
                         {content.cover_url ? (
                           <img
                             src={content.cover_url}
@@ -384,31 +385,31 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   <TableCell className="max-w-72 p-0 font-semibold whitespace-normal">
                     <Link
                       href={`/writer/content/${content.id}/overview`}
-                      className="block px-5 py-4 transition-colors hover:text-primary"
+                      className="block px-3 py-2 transition-colors hover:text-primary"
                     >
                       {content.title}
                     </Link>
                   </TableCell>
-                  <TableCell className="px-4 py-4 text-right tabular-nums">
+                  <TableCell className="px-3 py-2 text-right tabular-nums">
                     {formatNumber(content.chapter_count)}
                   </TableCell>
-                  <TableCell className="px-4 py-4 text-right tabular-nums">
+                  <TableCell className="px-3 py-2 text-right tabular-nums">
                     {formatNumber(content.total_views)}
                   </TableCell>
-                  <TableCell className="px-4 py-4 text-right tabular-nums">
+                  <TableCell className="px-3 py-2 text-right tabular-nums">
                     {formatNumber(content.sales_count)}
                   </TableCell>
-                  <TableCell className="max-w-64 px-4 py-4 whitespace-normal">
+                  <TableCell className="max-w-64 px-3 py-2 whitespace-normal">
                     <LatestChapter content={content} />
                   </TableCell>
-                  <TableCell className="px-4 py-4">{typeLabels[content.type]}</TableCell>
-                  <TableCell className="px-4 py-4">
+                  <TableCell className="px-3 py-2">{typeLabels[content.type]}</TableCell>
+                  <TableCell className="px-3 py-2">
                     <Badge variant={statusVariant(content.status)}>
                       {statusLabels[content.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="px-4 py-4">{formatDate(content.created_at)}</TableCell>
-                  <TableCell className="px-5 py-4 text-right">
+                  <TableCell className="px-3 py-2">{formatDate(content.created_at)}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">
                     <ManageContentMenu contentId={content.id} />
                   </TableCell>
                 </TableRow>
@@ -418,7 +419,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
           {showResolvedState && !hasError && pagination && (
             <div
-              className={`flex flex-col gap-3 border-t px-4 py-3 transition-opacity duration-300 ease-out motion-reduce:transition-none sm:flex-row sm:items-center sm:justify-between ${contentOpacity}`}
+              className={`flex flex-col gap-2 border-t px-3 py-2 transition-opacity duration-300 ease-out motion-reduce:transition-none sm:flex-row sm:items-center sm:justify-between ${contentOpacity}`}
             >
               <p className="text-sm text-muted-foreground">
                 ทั้งหมด {new Intl.NumberFormat('th-TH').format(pagination.total)} รายการ
@@ -433,7 +434,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 >
                   ก่อนหน้า
                 </Button>
-                <span className="min-w-20 text-center text-sm text-muted-foreground">
+                <span className="min-w-16 text-center text-sm text-muted-foreground">
                   {pagination.page} / {Math.max(pagination.totalPages, 1)}
                 </span>
                 <Button

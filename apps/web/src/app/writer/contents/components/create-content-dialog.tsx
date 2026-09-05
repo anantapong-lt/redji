@@ -64,7 +64,7 @@ export function CreateContentDialog({ defaultType }: CreateContentDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="order-first min-h-12 w-full rounded-xl px-5 py-3 text-sm font-bold hover:text-white sm:w-auto sm:self-end lg:absolute lg:top-0 lg:right-0 lg:order-none">
+        <Button className="order-first min-h-10 w-full rounded-lg px-4 py-2 text-sm font-bold hover:text-white sm:w-auto sm:self-end lg:absolute lg:top-0 lg:right-0 lg:order-none">
           <Plus className="size-4" strokeWidth={2} />
           สร้างเนื้อหาใหม่
         </Button>
