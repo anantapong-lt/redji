@@ -7,7 +7,6 @@ import type { WriterStats } from '@/interface/writer-stats.interface'
 import { userRole } from '@/interface/user.interface'
 import { WriterRevenueSection } from './components/writer-revenue-section'
 import { WriterStatsSection } from './components/writer-stats-section'
-import { WriterPurchasesSection } from './components/writer-purchases-section'
 
 export default function WriterPage() {
   const { accessToken, user } = useAuth()
@@ -39,7 +38,6 @@ export default function WriterPage() {
         <h1 className="mt-1 text-2xl font-bold tracking-[-0.025em] md:text-3xl">แดชบอร์ดนักเขียน</h1>
         <WriterStatsSection stats={stats} hasError={statsError} />
         <WriterRevenueSection stats={stats} hasError={statsError} />
-        <WriterPurchasesSection />
       </div>
     </main>
   )

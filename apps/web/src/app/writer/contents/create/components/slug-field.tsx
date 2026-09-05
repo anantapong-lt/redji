@@ -11,13 +11,11 @@ import { useCreateStoryForm } from './create-story-form'
 interface SlugFieldProps {
   initialSlug?: string
   allowAutoGenerate?: boolean
-  readOnly?: boolean
 }
 
 export function SlugField({
   initialSlug = '',
   allowAutoGenerate = false,
-  readOnly = false,
 }: SlugFieldProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
   const [slug, setSlug] = useState(initialSlug)
@@ -29,7 +27,7 @@ export function SlugField({
     <div className="space-y-2 md:col-span-2" data-field="slug">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor="slug" className="text-sm font-semibold">
-          ลิงก์ URL{!autoGenerate && !readOnly && <span className="text-destructive">*</span>}
+          ลิงก์ URL{!autoGenerate && <span className="text-destructive">*</span>}
         </Label>
         {allowAutoGenerate && (
           <Label
@@ -56,7 +54,6 @@ export function SlugField({
         name="slug"
         value={slug}
         disabled={autoGenerate}
-        readOnly={readOnly}
         onChange={(event) => {
           setSlug(event.target.value)
           clearFieldError('slug')
@@ -65,7 +62,7 @@ export function SlugField({
         aria-invalid={Boolean(errors.slug)}
         aria-describedby={errors.slug ? 'slug-error' : undefined}
         placeholder="ตัวอย่าง: my-story-title"
-        className="h-11 rounded-xl px-3 read-only:cursor-not-allowed read-only:bg-input/50 read-only:opacity-70"
+        className="h-11 rounded-xl px-3"
       />
       {errors.slug && (
         <p id="slug-error" className="text-xs text-destructive">{errors.slug}</p>
@@ -82,20 +79,9 @@ export function SlugField({
           </span>
         </p>
       )}
-      {readOnly ? (
-        <p className="text-xs text-muted-foreground">
-          ลิงก์ URL ไม่สามารถแก้ไขได้หลังสร้างเนื้อหาแล้ว
-        </p>
-      ) : (
-        <>
-          <p className="text-xs text-muted-foreground">
-            ใช้เป็นส่วนหนึ่งของลิงก์และต้องไม่ซ้ำกับเนื้อหาอื่น
-          </p>
-          <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-            คำเตือน: ลิงก์ URL จะไม่สามารถแก้ไขได้หลังจากสร้างเนื้อหา
-          </p>
-        </>
-      )}
+      <p className="text-xs text-muted-foreground">
+        ใช้เป็นส่วนหนึ่งของลิงก์และต้องไม่ซ้ำกับเนื้อหาอื่น
+      </p>
     </div>
   )
 }
