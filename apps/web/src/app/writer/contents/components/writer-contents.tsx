@@ -29,6 +29,7 @@ import type {
   WriterContentTab,
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 import { CreateContentDialog } from './create-content-dialog'
 import { ChevronDownIcon, ImageIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
@@ -62,10 +63,6 @@ function statusVariant(status: StoryStatus): 'default' | 'secondary' | 'outline'
 
 function formatNumber(value: string): string {
   return new Intl.NumberFormat('th-TH').format(Number(value))
-}
-
-function formatChapterNumber(value: string): string {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function formatDate(value: string): string {

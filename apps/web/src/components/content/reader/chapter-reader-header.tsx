@@ -5,12 +5,9 @@ import Link from 'next/link'
 import { ShareButtons } from '@/components/common/share-buttons'
 import type { PublicReaderChapter } from '@/interface/content.interface'
 import type { ReadingSettings } from '@/lib/reading-settings'
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 import { ChapterTocDialog } from './chapter-toc-dialog'
 import { ReadingSettingsMenu } from './reading-settings-menu'
-
-function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
-}
 
 export function ChapterReaderHeader({
   slug,

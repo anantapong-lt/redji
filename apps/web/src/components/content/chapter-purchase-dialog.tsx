@@ -19,6 +19,7 @@ import { purchaseChapters } from '@/controllers/chapter-purchase.controller'
 import type { PublicChapter } from '@/interface/content.interface'
 import { ApiError } from '@/lib/api-client'
 import { SITE_CONFIG } from '@/site.config'
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 function formatCoins(value: number) {
   return value.toLocaleString('th-TH', {
@@ -149,7 +150,7 @@ export function ChapterPurchaseDialog({
                   className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm"
                 >
                   <span className="min-w-0 truncate text-muted-foreground">
-                    ตอนที่ {Number(chapter.chapter_number).toLocaleString('th-TH', { maximumFractionDigits: 1 })}: {chapter.title}
+                    ตอนที่ {formatChapterNumber(chapter.chapter_number)}: {chapter.title}
                   </span>
                   <span className="shrink-0 font-bold tabular-nums text-foreground">
                     {formatCoins(Number(chapter.price))}

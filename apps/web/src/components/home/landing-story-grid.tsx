@@ -8,10 +8,7 @@ import type {
   LandingSection,
   LandingStory,
 } from '@/interface/landing.interface'
-
-function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
-}
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 function formatUpdatedAt(value: string, renderedAt: number) {
   const elapsedSeconds = Math.max(

@@ -22,10 +22,7 @@ import type {
   PublicChaptersResponse,
 } from '@/interface/content.interface'
 import { SITE_CONFIG } from '@/site.config'
-
-function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
-}
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 function formatRelativeDate(value: string, referenceTime: number) {
   const elapsedSeconds = Math.max(

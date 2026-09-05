@@ -12,10 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import type { PublicReaderChapter } from '@/interface/content.interface'
 import { cn } from '@/lib/utils'
-
-function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
-}
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 export function ChapterTocDialog({
   chapters,

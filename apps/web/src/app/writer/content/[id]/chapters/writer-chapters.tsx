@@ -36,6 +36,7 @@ import type {
   ChapterStatus,
   WriterChaptersResponse,
 } from '@/interface/writer-chapter.interface'
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 const PAGE_LIMIT = 10
 
@@ -63,10 +64,6 @@ function formatPrice(value: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value))
-}
-
-function formatChapterNumber(value: string): string {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function statusVariant(status: ChapterStatus): 'default' | 'secondary' | 'outline' | 'destructive' {

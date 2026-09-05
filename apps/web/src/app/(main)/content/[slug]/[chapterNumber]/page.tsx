@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { ChapterReader } from '@/components/content/reader/chapter-reader'
 import { getPublicChapter, getPublicContent } from '@/controllers/content.controller'
 import { ApiError } from '@/lib/api-client'
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 interface ChapterPageProps {
   params: Promise<{ slug: string; chapterNumber: string }>
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: ChapterPageProps): Promise<Me
       Number(item.chapter_number) === Number(chapterNumber)
     ))
     const title = chapter
-      ? `ตอนที่ ${Number(chapter.chapter_number).toLocaleString('th-TH', { maximumFractionDigits: 1 })}: ${chapter.title} - ${story.title}`
+      ? `ตอนที่ ${formatChapterNumber(chapter.chapter_number)}: ${chapter.title} - ${story.title}`
       : story.title
 
     return {

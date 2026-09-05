@@ -14,13 +14,10 @@ import {
   createContentMetadata,
   createContentStructuredData,
 } from '@/utils/content-metadata.util'
+import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 interface ContentPageProps {
   params: Promise<{ slug: string }>
-}
-
-function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function formatDate(value: string) {
