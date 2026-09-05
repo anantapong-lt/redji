@@ -90,15 +90,10 @@ export default function UsersPage() {
     <main className="mx-auto w-full p-4 md:p-6">
       <div className="mb-6 flex flex-col gap-1">
         <h1 className="flex items-center gap-2 text-2xl font-semibold"><Users className="size-6 text-primary" />ผู้ใช้ทั้งหมด</h1>
-        <p className="text-sm text-muted-foreground">จัดการและตรวจสอบบัญชีผู้ใช้ในระบบ</p>
       </div>
-
       <Card>
         <CardHeader className="gap-4 border-b">
-          <div>
-            <CardTitle>รายชื่อผู้ใช้</CardTitle>
-            <CardDescription>{data ? `พบผู้ใช้ ${data.pagination.total.toLocaleString('th-TH')} ราย` : 'กำลังโหลดข้อมูลผู้ใช้'}</CardDescription>
-          </div>
+       
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <form onSubmit={applySearch} className="flex flex-1 gap-2 sm:min-w-80">
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาชื่อ, Username หรืออีเมล" aria-label="ค้นหาผู้ใช้" />
