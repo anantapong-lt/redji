@@ -29,7 +29,7 @@ export interface CreatedWriterChapter {
 
 export interface WriterChapterPage {
   id: string
-  image_url: string
+  image_key: string
   page_number: number
   width: number | null
   height: number | null

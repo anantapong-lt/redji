@@ -25,6 +25,22 @@ function trustedPublicMediaUrl(value: string | undefined): URL | null {
   }
 }
 
+function trustedR2S3Origin(value: string | undefined): string | null {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    if (
+      url.protocol !== 'https:'
+      || url.username
+      || url.password
+      || !url.hostname.endsWith('.r2.cloudflarestorage.com')
+    ) return null
+    return url.origin
+  } catch {
+    return null
+  }
+}
+
 const isProduction = process.env.NODE_ENV === 'production'
 const apiOrigin = trustedHttpOrigin(process.env.NEXT_PUBLIC_API_URL)
   ?? (isProduction ? null : 'http://localhost:4000')
@@ -33,6 +49,7 @@ const apiWebSocketOrigin = apiOrigin
   : null
 const publicMediaUrl = trustedPublicMediaUrl(process.env.NEXT_PUBLIC_R2_PUBLIC_URL)
 const publicMediaOrigin = publicMediaUrl?.origin
+const privateMangaR2Origin = trustedR2S3Origin(process.env.NEXT_PUBLIC_R2_MANGA_S3_ENDPOINT)
 const publicMediaRemotePattern = publicMediaUrl
   ? {
       protocol: 'https' as const,
@@ -47,7 +64,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  `img-src 'self' data: blob: https://images.unsplash.com${publicMediaOrigin ? ` ${publicMediaOrigin}` : ''}`,
+  `img-src 'self' data: blob: https://images.unsplash.com${publicMediaOrigin ? ` ${publicMediaOrigin}` : ''}${privateMangaR2Origin ? ` ${privateMangaR2Origin}` : ''}`,
   `media-src 'self' blob:${publicMediaOrigin ? ` ${publicMediaOrigin}` : ''}`,
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",

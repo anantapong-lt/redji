@@ -9,7 +9,6 @@ const PAGE_COMPRESSION_THRESHOLD_BYTES = 700 * 1024
 
 export interface UploadedChapterPage {
   key: string
-  image_url: string
   width: number
   height: number
 }
@@ -19,8 +18,7 @@ function createR2Client() {
     !env.R2_ACCOUNT_ID
     || !env.R2_ACCESS_KEY_ID
     || !env.R2_SECRET_ACCESS_KEY
-    || !env.R2_BUCKET_NAME
-    || !env.R2_PUBLIC_URL
+    || !env.R2_MANGA_BUCKET_NAME
   ) {
     throw new Error('R2 configuration is incomplete')
   }
@@ -28,7 +26,7 @@ function createR2Client() {
   return new S3Client({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-    bucket: env.R2_BUCKET_NAME,
+    bucket: env.R2_MANGA_BUCKET_NAME,
     endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   })
 }
@@ -54,20 +52,18 @@ export async function uploadWriterChapterPage(
 
   return {
     key,
-    image_url: `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`,
     width: info.width,
     height: info.height,
   }
 }
 
-export async function deleteWriterChapterPage(key: string): Promise<void> {
-  await createR2Client().delete(key)
+export function createWriterChapterPageSignedUrl(key: string): string {
+  return createR2Client().presign(key, {
+    expiresIn: 5 * 60,
+    method: 'GET',
+  })
 }
 
-export async function deleteWriterChapterPageByUrl(imageUrl: string): Promise<void> {
-  const publicUrl = env.R2_PUBLIC_URL.replace(/\/$/, '')
-  const prefix = `${publicUrl}/`
-  if (!publicUrl || !imageUrl.startsWith(prefix)) return
-
-  await deleteWriterChapterPage(imageUrl.slice(prefix.length))
+export async function deleteWriterChapterPage(key: string): Promise<void> {
+  await createR2Client().delete(key)
 }

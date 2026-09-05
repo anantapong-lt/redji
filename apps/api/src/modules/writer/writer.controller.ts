@@ -115,9 +115,10 @@ export async function getWriterChapterResponse(
   chapterId: string,
 ) {
   try {
-    return {
-      chapter: await getWriterChapter(userId, contentId, chapterId),
-    }
+    return Response.json(
+      { chapter: await getWriterChapter(userId, contentId, chapterId) },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
   } catch (error) {
     if (error instanceof WriterChapterError) {
       return status(error.statusCode, { message: error.message, field: error.field })

@@ -27,10 +27,10 @@ export interface PublicChapterForReading {
   }
 }
 
-export interface PublicMangaChapterPage {
+export interface MangaChapterPageRecord {
   id: string
   page_number: number
-  image_url: string
+  image_key: string
   width: number | null
   height: number | null
   alt_text: string | null
@@ -128,9 +128,9 @@ export async function findNovelChapterContent(chapterId: string): Promise<string
 
 export async function findMangaChapterPages(
   chapterId: string,
-): Promise<PublicMangaChapterPage[]> {
-  return db<PublicMangaChapterPage[]>`
-    SELECT id, page_number, image_url, width, height, alt_text
+): Promise<MangaChapterPageRecord[]> {
+  return db<MangaChapterPageRecord[]>`
+    SELECT id, page_number, image_key, width, height, alt_text
     FROM manga_chapter_pages
     WHERE chapter_id = ${chapterId}
     ORDER BY page_number ASC, id ASC

@@ -141,7 +141,7 @@ CREATE TABLE manga_chapter_pages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
   page_number INTEGER NOT NULL,
-  image_url TEXT NOT NULL,
+  image_key TEXT NOT NULL,
   width INTEGER,
   height INTEGER,
   alt_text VARCHAR(255),

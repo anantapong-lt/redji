@@ -5,7 +5,6 @@ import type {
   CreateWriterChapterInput,
   GetWriterChaptersInput,
   UpdateWriterChapterInput,
-  WriterChapterDetail,
   WriterChaptersResult,
 } from '../../../models/writer-chapter.model'
 import { status } from 'elysia'
@@ -141,8 +140,8 @@ export async function importWriterMangaChaptersResponse(
 }
 import { CHAPTER_STATUS, STORY_TYPE, type StoryType } from '../../../models/story.model'
 import {
+  createWriterChapterPageSignedUrl,
   deleteWriterChapterPage,
-  deleteWriterChapterPageByUrl,
   uploadWriterChapterPage,
   type UploadedChapterPage,
 } from './writer-chapter-page.service'
@@ -335,11 +334,17 @@ export async function getWriterChapter(
   creatorUserId: string,
   storyId: string,
   chapterId: string,
-): Promise<WriterChapterDetail> {
+) {
   const storyType = await requireOwnedStoryType(creatorUserId, storyId)
   const chapter = await findWriterChapter(storyId, chapterId, storyType)
   if (!chapter) throw new WriterChapterError('ไม่พบตอนที่ต้องการแก้ไข', 404)
-  return chapter
+  return {
+    ...chapter,
+    pages: chapter.pages.map(({ image_key, ...page }) => ({
+      ...page,
+      image_url: createWriterChapterPageSignedUrl(image_key),
+    })),
+  }
 }
 
 export async function getWriterChapters(
@@ -386,7 +391,9 @@ export async function updateWriterChapter(
   chapterId: string,
   input: UpdateWriterChapterInput,
 ): Promise<CreatedWriterChapter> {
-  const existing = await getWriterChapter(creatorUserId, storyId, chapterId)
+  const storyType = await requireOwnedStoryType(creatorUserId, storyId)
+  const existing = await findWriterChapter(storyId, chapterId, storyType)
+  if (!existing) throw new WriterChapterError('ไม่พบตอนที่ต้องการแก้ไข', 404)
   const writeInput = normalizeChapterInput(existing.story_type, input, existing.published_at)
   const images = input.images ?? []
   const retainedPageIds = existing.story_type === STORY_TYPE.MANGA
@@ -422,7 +429,7 @@ export async function updateWriterChapter(
     )
 
     const deletionResults = await Promise.allSettled(
-      removedPages.map((page) => deleteWriterChapterPageByUrl(page.image_url)),
+      removedPages.map((page) => deleteWriterChapterPage(page.image_key)),
     )
     for (const result of deletionResults) {
       if (result.status === 'rejected') {

@@ -73,8 +73,8 @@ export async function insertImportedMangaChapters(
       `
       for (const [index, page] of pages.entries()) {
         await transaction`
-          INSERT INTO manga_chapter_pages (chapter_id, page_number, image_url, width, height, alt_text)
-          VALUES (${chapter.id}, ${index + 1}, ${page.image_url}, ${page.width}, ${page.height},
+          INSERT INTO manga_chapter_pages (chapter_id, page_number, image_key, width, height, alt_text)
+          VALUES (${chapter.id}, ${index + 1}, ${page.key}, ${page.width}, ${page.height},
             ${`หน้า ${index + 1}: ${input.title}`})
         `
       }
@@ -118,7 +118,7 @@ export async function findWriterChapter(
   }
 
   const pages = await db<WriterChapterDetail['pages']>`
-    SELECT id, image_url, page_number, width, height
+    SELECT id, image_key, page_number, width, height
     FROM manga_chapter_pages
     WHERE chapter_id = ${chapterId}
     ORDER BY page_number
@@ -199,9 +199,9 @@ export async function insertWriterChapter(
       for (const [index, page] of pages.entries()) {
         await transaction`
           INSERT INTO manga_chapter_pages (
-            chapter_id, page_number, image_url, width, height, alt_text
+            chapter_id, page_number, image_key, width, height, alt_text
           ) VALUES (
-            ${chapter.id}, ${index + 1}, ${page.image_url}, ${page.width}, ${page.height},
+            ${chapter.id}, ${index + 1}, ${page.key}, ${page.width}, ${page.height},
             ${`หน้า ${index + 1}: ${input.title}`}
           )
         `
@@ -263,9 +263,9 @@ export async function updateWriterChapterRecord(
         const pageNumber = retainedPageIds.length + index + 1
         await transaction`
           INSERT INTO manga_chapter_pages (
-            chapter_id, page_number, image_url, width, height, alt_text
+            chapter_id, page_number, image_key, width, height, alt_text
           ) VALUES (
-            ${chapterId}, ${pageNumber}, ${page.image_url}, ${page.width}, ${page.height},
+            ${chapterId}, ${pageNumber}, ${page.key}, ${page.width}, ${page.height},
             ${`หน้า ${pageNumber}: ${input.title}`}
           )
         `

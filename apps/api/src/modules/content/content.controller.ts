@@ -12,6 +12,7 @@ import {
   incrementPublicContentView,
   type PublicChapterSort,
 } from './content.service'
+import { createWriterChapterPageSignedUrl } from '../writer/chapter/writer-chapter-page.service'
 
 export async function getPublicChapter(
   slug: string,
@@ -31,7 +32,7 @@ export async function getPublicChapter(
       )
     }
 
-    const [chapters, content, pages] = await Promise.all([
+    const [chapters, content, storedPages] = await Promise.all([
       findPublicReaderChapters(chapter.story.id, currentUserId),
       chapter.story.type === 'novel'
         ? findNovelChapterContent(chapter.id)
@@ -40,6 +41,11 @@ export async function getPublicChapter(
         ? findMangaChapterPages(chapter.id)
         : Promise.resolve([]),
     ])
+
+    const pages = storedPages.map(({ image_key, ...page }) => ({
+      ...page,
+      image_url: createWriterChapterPageSignedUrl(image_key),
+    }))
 
     await incrementPublicContentView(chapter.story.id)
 
