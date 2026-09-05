@@ -284,7 +284,12 @@ function normalizeChapterInput(
   let publishedAt = existingPublishedAt ?? null
   if (input.status === CHAPTER_STATUS.SCHEDULED) {
     publishedAt = input.published_at ? new Date(input.published_at) : null
-    if (!publishedAt || Number.isNaN(publishedAt.getTime()) || publishedAt <= new Date()) {
+    const isExistingScheduledAt = Boolean(
+      publishedAt
+      && existingPublishedAt
+      && publishedAt.getTime() === existingPublishedAt.getTime(),
+    )
+    if (!publishedAt || Number.isNaN(publishedAt.getTime()) || (!isExistingScheduledAt && publishedAt <= new Date())) {
       throw new WriterChapterError('กรุณาระบุเวลาเผยแพร่ในอนาคต', 400, 'published_at')
     }
   } else if (input.status === CHAPTER_STATUS.PUBLISHED && !publishedAt) {
@@ -307,17 +312,12 @@ function normalizeChapterInput(
   }
 }
 
-function parseRetainedPageIds(value?: string): string[] {
+function parseRetainedPageIds(value?: string[]): string[] {
   if (!value) return []
-  try {
-    const ids: unknown = JSON.parse(value)
-    if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
-      throw new Error('Invalid page IDs')
-    }
-    return [...new Set(ids)]
-  } catch {
+  if (value.some((id) => typeof id !== 'string')) {
     throw new WriterChapterError('ข้อมูลรูปภาพเดิมไม่ถูกต้อง', 400, 'images')
   }
+  return [...new Set(value)]
 }
 
 async function cleanupUploadedPages(pages: UploadedChapterPage[]) {

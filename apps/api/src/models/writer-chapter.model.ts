@@ -11,7 +11,7 @@ export interface CreateWriterChapterInput {
 }
 
 export interface UpdateWriterChapterInput extends CreateWriterChapterInput {
-  retained_page_ids?: string
+  retained_page_ids?: string[]
 }
 
 export interface CreatedWriterChapter {

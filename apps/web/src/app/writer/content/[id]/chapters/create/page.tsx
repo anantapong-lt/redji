@@ -12,6 +12,9 @@ import {
 import Link from 'next/link'
 import { ChapterImport } from './chapter-import'
 import { useRouter } from 'next/navigation'
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   ArrowLeftIcon,
   ImagePlusIcon,
@@ -23,6 +26,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { RichTextEditor } from '@/components/common/rich-text-editor'
 import { Button } from '@/components/ui/button'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -70,6 +74,53 @@ function toLocalDateTime(value: string | null): string {
   return localDate.toISOString().slice(0, 16)
 }
 
+function SortableChapterImage({
+  image,
+  index,
+  onRemove,
+  disabled,
+}: {
+  image: ChapterImage
+  index: number
+  onRemove: (imageId: string) => void
+  disabled: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: image.id,
+    disabled,
+  })
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`group relative rounded-xl border border-border p-2 transition-[border-color,box-shadow,transform] ${disabled ? '' : 'cursor-grab touch-none hover:-translate-y-0.5 hover:border-primary hover:shadow-md active:cursor-grabbing'} ${isDragging ? 'z-20 opacity-50 shadow-lg' : ''}`}
+      {...(!disabled ? attributes : {})}
+      {...(!disabled ? listeners : {})}
+    >
+      <span className="absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 text-xs font-bold shadow-sm">
+        {index + 1}
+      </span>
+      <button
+        type="button"
+        onClick={() => onRemove(image.id)}
+        onPointerDown={(event) => event.stopPropagation()}
+        aria-label={`ลบรูปที่ ${index + 1}`}
+        className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-lg bg-destructive text-destructive-foreground shadow-sm transition-opacity hover:opacity-90"
+      >
+        <XIcon className="size-4" />
+      </button>
+      <div className="aspect-[3/4] overflow-hidden rounded-lg bg-muted">
+        <img
+          src={image.previewUrl}
+          alt={`ตัวอย่างรูปที่ ${index + 1}: ${image.file?.name ?? 'รูปเดิม'}`}
+          className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+        />
+      </div>
+    </article>
+  )
+}
+
 export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const { id, chapterId } = use(params)
   const router = useRouter()
@@ -80,6 +131,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [chapter, setChapter] = useState<WriterChapterDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [chapterStatus, setChapterStatus] = useState<ChapterStatus>('draft')
+  const [scheduledAt, setScheduledAt] = useState('')
   const [images, setImages] = useState<ChapterImage[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -87,6 +139,9 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [isImportBusy, setIsImportBusy] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const chaptersHref = `/writer/content/${id}/chapters`
+  const imageSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
 
   useEffect(() => {
     if (!accessToken) {
@@ -109,6 +164,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
           if (chapterResponse) {
             setChapter(chapterResponse.chapter)
             setChapterStatus(chapterResponse.chapter.status)
+            setScheduledAt(toLocalDateTime(chapterResponse.chapter.published_at))
             setImages(chapterResponse.chapter.pages.map((page) => ({
               id: page.id,
               pageId: page.id,
@@ -176,6 +232,15 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
       if (image.file) URL.revokeObjectURL(image.previewUrl)
     }
     setImages([])
+  }
+
+  const handleImageDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+    setImages((current) => {
+      const oldIndex = current.findIndex((image) => image.id === active.id)
+      const newIndex = current.findIndex((image) => image.id === over.id)
+      return oldIndex === -1 || newIndex === -1 ? current : arrayMove(current, oldIndex, newIndex)
+    })
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -370,13 +435,18 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               <Label htmlFor="chapter-published-at" className="text-sm font-semibold">
                 วันและเวลาเผยแพร่ <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <input
                 id="chapter-published-at"
                 name="published_at"
-                type="datetime-local"
-                defaultValue={toLocalDateTime(chapter?.published_at ?? null)}
+                type="hidden"
+                value={scheduledAt}
                 required
-                className="h-11 rounded-xl px-3"
+              />
+              <DateTimePicker
+                value={scheduledAt}
+                onChange={setScheduledAt}
+                disabled={isSubmitting}
+                label="วันและเวลาเผยแพร่"
               />
             </div>
           )}
@@ -426,30 +496,21 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
 
             {images.length > 0 && (
               <div className="mt-4 max-h-[26rem] overflow-y-auto rounded-xl border border-border p-3">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {images.map((image, index) => (
-                    <article key={image.id} className="relative rounded-xl border border-border p-2">
-                      <span className="absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 text-xs font-bold shadow-sm">
-                        {index + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(image.id)}
-                        aria-label={`ลบรูปที่ ${index + 1}`}
-                        className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-lg bg-destructive text-destructive-foreground shadow-sm transition-opacity hover:opacity-90"
-                      >
-                        <XIcon className="size-4" />
-                      </button>
-                      <div className="aspect-[3/4] overflow-hidden rounded-lg bg-muted">
-                        <img
-                          src={image.previewUrl}
-                          alt={`ตัวอย่างรูปที่ ${index + 1}: ${image.file?.name ?? 'รูปเดิม'}`}
-                          className="size-full object-cover"
+                <DndContext sensors={imageSensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
+                  <SortableContext items={images.map((image) => image.id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                      {images.map((image, index) => (
+                        <SortableChapterImage
+                          key={image.id}
+                          image={image}
+                          index={index}
+                          onRemove={removeImage}
+                          disabled={!chapterId}
                         />
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
           </section>

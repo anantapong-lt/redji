@@ -53,7 +53,7 @@ export const createWriterChapterBodySchema = t.Object({
 
 export const updateWriterChapterBodySchema = t.Object({
   ...createWriterChapterBodySchema.properties,
-  retained_page_ids: t.Optional(t.String()),
+  retained_page_ids: t.Optional(t.Array(t.String({ format: 'uuid' }), { maxItems: 200 })),
 })
 
 export const writerChaptersQuerySchema = t.Object({
