@@ -2,6 +2,7 @@
 
 import {
   use,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -26,6 +27,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { RichTextEditor } from '@/components/common/rich-text-editor'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -121,6 +123,61 @@ function SortableChapterImage({
   )
 }
 
+function SelectableChapterImage({
+  image,
+  index,
+  selected,
+  onSelectionChange,
+}: {
+  image: ChapterImage
+  index: number
+  selected: boolean
+  onSelectionChange: (imageId: string, selected: boolean) => void
+}) {
+  return (
+    <article
+      role="checkbox"
+      aria-checked={selected}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.currentTarget !== event.target) return
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault()
+          onSelectionChange(image.id, !selected)
+        }
+      }}
+      className={`group relative rounded-xl border p-2 text-left transition-[border-color,box-shadow,transform] ${selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border hover:border-primary/60 hover:bg-primary/5'}`}
+    >
+      <span className="absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-full bg-background/90 text-xs font-bold shadow-sm">
+        {index + 1}
+      </span>
+      <span className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-lg bg-background/90 shadow-sm">
+        <Checkbox
+          checked={selected}
+          aria-label={`เลือกรูปที่ ${index + 1}`}
+          onClick={(event) => event.stopPropagation()}
+          onCheckedChange={(checked) => onSelectionChange(image.id, checked === true)}
+        />
+      </span>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          onSelectionChange(image.id, !selected)
+        }}
+        className="block aspect-[3/4] w-full cursor-pointer overflow-hidden rounded-lg bg-muted text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`เลือกรูปที่ ${index + 1}`}
+      >
+        <img
+          src={image.previewUrl}
+          alt={`ตัวอย่างรูปที่ ${index + 1}: ${image.file?.name ?? 'รูปเดิม'}`}
+          className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+        />
+      </button>
+    </article>
+  )
+}
+
 export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const { id, chapterId } = use(params)
   const router = useRouter()
@@ -133,6 +190,8 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [chapterStatus, setChapterStatus] = useState<ChapterStatus>('draft')
   const [scheduledAt, setScheduledAt] = useState('')
   const [images, setImages] = useState<ChapterImage[]>([])
+  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set())
+  const [isSelectingImages, setIsSelectingImages] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -142,6 +201,10 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const imageSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
+  const handleChapterStatusChange = useCallback((value: string) => {
+    const nextStatus = value as ChapterStatus
+    setChapterStatus((current) => current === nextStatus ? current : nextStatus)
+  }, [])
 
   useEffect(() => {
     if (!accessToken) {
@@ -225,13 +288,31 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
       if (removedImage?.file) URL.revokeObjectURL(removedImage.previewUrl)
       return current.filter((image) => image.id !== imageId)
     })
+    setSelectedImageIds((current) => {
+      const next = new Set(current)
+      next.delete(imageId)
+      return next
+    })
   }
 
-  const clearImages = () => {
-    for (const image of images) {
-      if (image.file) URL.revokeObjectURL(image.previewUrl)
-    }
-    setImages([])
+  const setImageSelection = (imageId: string, selected: boolean) => {
+    setSelectedImageIds((current) => {
+      const next = new Set(current)
+      if (selected) next.add(imageId)
+      else next.delete(imageId)
+      return next
+    })
+  }
+
+  const removeSelectedImages = () => {
+    setImages((current) => {
+      for (const image of current) {
+        if (selectedImageIds.has(image.id) && image.file) URL.revokeObjectURL(image.previewUrl)
+      }
+      return current.filter((image) => !selectedImageIds.has(image.id))
+    })
+    setSelectedImageIds(new Set())
+    setIsSelectingImages(false)
   }
 
   const handleImageDragEnd = ({ active, over }: DragEndEvent) => {
@@ -415,7 +496,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
             <Select
               name="status"
               value={chapterStatus}
-              onValueChange={(value) => setChapterStatus(value as ChapterStatus)}
+              onValueChange={handleChapterStatusChange}
             >
               <SelectTrigger id="chapter-status" className="h-11! w-full rounded-xl px-3">
                 <SelectValue placeholder="เลือกสถานะ" />
@@ -459,10 +540,26 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
                 รูปภาพ ({images.length} รูป) <span className="text-destructive">*</span>
               </Label>
               {images.length > 0 && (
-                <Button type="button" variant="outline" size="sm" onClick={clearImages}>
-                  <Trash2Icon />
-                  เลือกลบ
-                </Button>
+                isSelectingImages ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">เลือกแล้ว {selectedImageIds.size} รูป</span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => {
+                      setSelectedImageIds(new Set())
+                      setIsSelectingImages(false)
+                    }}>
+                      ยกเลิก
+                    </Button>
+                    <Button type="button" variant="destructive" size="sm" disabled={selectedImageIds.size === 0} onClick={removeSelectedImages}>
+                      <Trash2Icon />
+                      ลบที่เลือก
+                    </Button>
+                  </div>
+                ) : (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsSelectingImages(true)}>
+                    <Trash2Icon />
+                    เลือกลบ
+                  </Button>
+                )
               )}
             </div>
 
@@ -496,21 +593,35 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
 
             {images.length > 0 && (
               <div className="mt-4 max-h-[26rem] overflow-y-auto rounded-xl border border-border p-3">
-                <DndContext sensors={imageSensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
-                  <SortableContext items={images.map((image) => image.id)} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                      {images.map((image, index) => (
-                        <SortableChapterImage
-                          key={image.id}
-                          image={image}
-                          index={index}
-                          onRemove={removeImage}
-                          disabled={!chapterId}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                {isSelectingImages ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                    {images.map((image, index) => (
+                      <SelectableChapterImage
+                        key={image.id}
+                        image={image}
+                        index={index}
+                        selected={selectedImageIds.has(image.id)}
+                        onSelectionChange={setImageSelection}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <DndContext sensors={imageSensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
+                    <SortableContext items={images.map((image) => image.id)} strategy={rectSortingStrategy}>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {images.map((image, index) => (
+                          <SortableChapterImage
+                            key={image.id}
+                            image={image}
+                            index={index}
+                            onRemove={removeImage}
+                            disabled={!chapterId}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                )}
               </div>
             )}
           </section>

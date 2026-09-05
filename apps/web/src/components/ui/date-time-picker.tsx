@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { CalendarIcon } from 'lucide-react'
 import { th } from 'react-day-picker/locale'
 import { Calendar } from '@/components/ui/calendar'
@@ -15,8 +16,10 @@ export function DateTimePicker({ id, value, onChange, disabled, label = 'เล�
   disabled?: boolean
   label?: string
 }) {
-  const parsed = value ? new Date(value) : undefined
-  const selected = parsed && Number.isFinite(parsed.getTime()) ? parsed : undefined
+  const selected = useMemo(() => {
+    const parsed = value ? new Date(value) : undefined
+    return parsed && Number.isFinite(parsed.getTime()) ? parsed : undefined
+  }, [value])
   const hours = value.slice(11, 13) || '00'
   const minutes = value.slice(14, 16) || '00'
 
