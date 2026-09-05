@@ -64,6 +64,12 @@ function formatNumber(value: string): string {
   return new Intl.NumberFormat('th-TH').format(Number(value))
 }
 
+function formatChapterNumber(value: string): string {
+  const [integerPart, decimalPart] = value.split('.')
+  const significantDecimal = decimalPart?.replace(/0+$/, '')
+  return significantDecimal ? `${integerPart}.${significantDecimal}` : integerPart
+}
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('th-TH', {
     day: 'numeric',
@@ -77,7 +83,7 @@ function LatestChapter({ content }: { content: WriterContent }) {
 
   return (
     <span>
-      ตอนที่ {content.latest_chapter.chapter_number}: {content.latest_chapter.title}
+      ตอนที่ {formatChapterNumber(content.latest_chapter.chapter_number)}
     </span>
   )
 }
@@ -342,7 +348,6 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </span>
                 </TableHead>
                 <TableHead className="px-3 py-2">ตอนล่าสุด</TableHead>
-                <TableHead className="px-3 py-2">ประเภท</TableHead>
                 <TableHead className="px-3 py-2">สถานะ</TableHead>
                 <TableHead className="px-3 py-2">วันที่สร้าง</TableHead>
                 <TableHead className="px-3 py-2 text-right">จัดการ</TableHead>
@@ -355,7 +360,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
                 >
-                  <TableCell colSpan={10} className="h-24 text-center text-destructive">
+                  <TableCell colSpan={9} className="h-24 text-center text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </TableCell>
                 </TableRow>
@@ -365,7 +370,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
                 >
-                  <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </TableCell>
                 </TableRow>
@@ -415,7 +420,6 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   <TableCell className="max-w-64 px-3 py-2 whitespace-normal">
                     <LatestChapter content={content} />
                   </TableCell>
-                  <TableCell className="px-3 py-2">{typeLabels[content.type]}</TableCell>
                   <TableCell className="px-3 py-2">
                     <Badge variant={statusVariant(content.status)}>
                       {statusLabels[content.status]}
