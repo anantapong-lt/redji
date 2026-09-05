@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api-client'
+import type { OverviewPeriod, WriterOverview } from '@/interface/writer-overview.interface'
 import type { StoryType } from '@/constants/story.constant'
 import type {
   WriterContentDetail,
@@ -12,6 +13,19 @@ import type {
   WriterChapterDetail,
   WriterChaptersResponse,
 } from '@/interface/writer-chapter.interface'
+
+export function getWriterOverview(
+  contentId: string,
+  period: OverviewPeriod,
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<WriterOverview> {
+  return apiRequest(`/writer/contents/${contentId}/overview?period=${period}`, {
+    accessToken,
+    signal,
+    cache: 'no-store',
+  })
+}
 
 export function getWriterStats(accessToken: string): Promise<{ stats: WriterStats }> {
   return apiRequest<{ stats: WriterStats }>('/writer/stats', {
