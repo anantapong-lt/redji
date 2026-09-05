@@ -18,9 +18,11 @@ const THEME_IDS = Object.keys(READING_THEMES) as ReadingTheme[]
 export function ReadingSettingsMenu({
   settings,
   onChange,
+  triggerClassName,
 }: {
   settings: ReadingSettings
   onChange: (settings: ReadingSettings) => void
+  triggerClassName?: string
 }) {
   return (
     <DropdownMenu modal={false}>
@@ -28,7 +30,7 @@ export function ReadingSettingsMenu({
         <button
           type="button"
           aria-label="ตั้งค่าการอ่าน"
-          className="readji-icon-button flex size-9 cursor-pointer items-center justify-center"
+          className={cn('readji-icon-button flex size-9 cursor-pointer items-center justify-center', triggerClassName)}
         >
           <Type className="size-5" aria-hidden="true" />
         </button>

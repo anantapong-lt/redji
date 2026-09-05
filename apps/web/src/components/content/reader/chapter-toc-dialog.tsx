@@ -18,10 +18,12 @@ export function ChapterTocDialog({
   chapters,
   currentChapterNumber,
   onNavigate,
+  triggerClassName,
 }: {
   chapters: PublicReaderChapter[]
   currentChapterNumber: string
   onNavigate: (chapter: PublicReaderChapter) => void
+  triggerClassName?: string
 }) {
   const [open, setOpen] = useState(false)
 
@@ -31,7 +33,7 @@ export function ChapterTocDialog({
         <button
           type="button"
           aria-label="เปิดสารบัญ"
-          className="readji-icon-button flex size-9 cursor-pointer items-center justify-center"
+          className={cn('readji-icon-button flex size-9 cursor-pointer items-center justify-center', triggerClassName)}
         >
           <ListOrdered className="size-5" aria-hidden="true" />
         </button>

@@ -1,3 +1,6 @@
+'use client'
+
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Coins, History, Home, PenLine, Rss, Search, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { SITE_CONFIG } from '@/site.config'
@@ -36,6 +39,9 @@ function FooterItem({ label, icon: Icon, href }: { label: string; icon: typeof H
 }
 
 export function Footer() {
+  const pathname = usePathname()
+  if (/^\/content\/[^/]+\/[^/]+$/.test(pathname)) return null
+
   return (
     <footer className="mt-16 bg-[linear-gradient(135deg,#34181d_0%,#54252b_56%,#713b44_100%)] shadow-[0_-18px_44px_-40px_rgb(45_29_32_/_0.8)]">
       <div className="mx-auto max-w-[1280px] px-4 py-14 md:px-8">

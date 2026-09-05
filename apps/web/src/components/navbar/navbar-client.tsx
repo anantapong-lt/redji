@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, ChevronDown, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
@@ -77,8 +77,30 @@ function formatBalance(balance: string) {
 
 export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
+  const pathname = usePathname()
   const { logout, status, user: clientUser } = useAuth()
   const user = status === 'loading' ? initialUser : clientUser
+  const isReaderPage = /^\/content\/[^/]+\/[^/]+$/.test(pathname)
+
+  useEffect(() => {
+    if (!isReaderPage) {
+      setReaderNavbarVisible(true)
+      return
+    }
+
+    let previousScrollY = window.scrollY
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      if (currentScrollY <= 0) setReaderNavbarVisible(true)
+      else if (currentScrollY > previousScrollY + 8) setReaderNavbarVisible(false)
+      previousScrollY = currentScrollY
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isReaderPage])
 
   async function handleLogout() {
     await logout()
@@ -91,7 +113,9 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/78 shadow-[0_8px_28px_-24px_rgb(45_29_32_/_0.72)] backdrop-blur-xl">
+      <header className={`sticky top-0 z-50 border-b border-border/70 bg-background/78 shadow-[0_8px_28px_-24px_rgb(45_29_32_/_0.72)] backdrop-blur-xl transition-transform duration-200 ${
+        isReaderPage && !readerNavbarVisible ? '-translate-y-full' : 'translate-y-0'
+      }`}>
         <div className="mx-auto w-full max-w-7xl px-4 md:px-8">
           <div className="flex h-[4.35rem] items-center justify-between">
           <div className="flex min-w-0 items-center gap-5 md:gap-7">

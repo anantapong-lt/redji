@@ -1,4 +1,4 @@
-export type ReadingTheme = 'light' | 'sepia' | 'dark'
+export type ReadingTheme = 'light' | 'sepia' | 'gray' | 'sage' | 'dark'
 
 export interface ReadingSettings {
   fontSize: number
@@ -7,7 +7,7 @@ export interface ReadingSettings {
 }
 
 export const DEFAULT_READING_SETTINGS: ReadingSettings = {
-  fontSize: 20,
+  fontSize: 18,
   fontFamily: 'sans',
   theme: 'light',
 }
@@ -27,10 +27,20 @@ export const READING_THEMES: Record<ReadingTheme, {
     background: 'var(--secondary)',
     text: 'var(--secondary-foreground)',
   },
+  gray: {
+    label: 'เทาอ่อน',
+    background: '#e7e5e4',
+    text: '#292524',
+  },
+  sage: {
+    label: 'เขียวใบไม้',
+    background: '#e5efe6',
+    text: '#21352a',
+  },
   dark: {
     label: 'มืด',
-    background: 'var(--foreground)',
-    text: 'var(--background)',
+    background: '#000000',
+    text: '#d1d5db',
   },
 }
 

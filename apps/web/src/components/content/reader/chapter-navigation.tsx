@@ -7,10 +7,14 @@ export function ChapterNavigation({
   chapters,
   currentChapterNumber,
   onNavigate,
+  floating = false,
+  visible = true,
 }: {
   chapters: PublicReaderChapter[]
   currentChapterNumber: string
   onNavigate: (chapter: PublicReaderChapter) => void
+  floating?: boolean
+  visible?: boolean
 }) {
   const currentIndex = chapters.findIndex((chapter) => (
     chapter.chapter_number === currentChapterNumber
@@ -21,7 +25,14 @@ export function ChapterNavigation({
     : null
 
   return (
-    <nav aria-label="เปลี่ยนตอน" className="grid grid-cols-2 border-t border-border/70">
+    <nav
+      aria-label="เปลี่ยนตอน"
+      className={floating
+        ? `fixed inset-x-3 bottom-3 z-50 mx-auto grid max-w-xl grid-cols-2 overflow-hidden rounded-2xl border border-border/70 shadow-xl transition-all duration-200 sm:bottom-5 ${
+          visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-24 opacity-0'
+        }`
+        : 'grid grid-cols-2 border-t border-border/70'}
+    >
       <NavigationButton
         label="ตอนก่อนหน้า"
         chapter={previousChapter}

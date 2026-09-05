@@ -111,9 +111,9 @@ export function ChapterPurchaseDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={!isPurchasing}
-        className="gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg"
+        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg"
       >
-        <DialogHeader className="border-b border-border/70 px-5 py-5 sm:px-6">
+        <DialogHeader className="shrink-0 border-b border-border/70 px-5 py-5 sm:px-6">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <ShoppingCart className="size-5" aria-hidden="true" />
@@ -128,7 +128,7 @@ export function ChapterPurchaseDialog({
         </DialogHeader>
 
         {chapters.length > 0 ? (
-          <div className="space-y-4 px-5 py-5 sm:px-6">
+          <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
             <div className="flex gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-3">
               {coverUrl ? (
                 <div className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -214,7 +214,7 @@ export function ChapterPurchaseDialog({
           </div>
         ) : null}
 
-        <DialogFooter className="m-0 rounded-none px-5 py-4 sm:px-6">
+        <DialogFooter className="m-0 shrink-0 rounded-none px-5 py-4 sm:px-6">
           <DialogClose asChild>
             <button
               type="button"

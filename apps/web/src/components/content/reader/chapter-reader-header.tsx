@@ -4,7 +4,7 @@ import { Home } from 'lucide-react'
 import Link from 'next/link'
 import { ShareButtons } from '@/components/common/share-buttons'
 import type { PublicReaderChapter } from '@/interface/content.interface'
-import type { ReadingSettings } from '@/lib/reading-settings'
+import { READING_THEMES, type ReadingSettings } from '@/lib/reading-settings'
 import { formatChapterNumber } from '@/utils/chapter-number.util'
 import { ChapterTocDialog } from './chapter-toc-dialog'
 import { ReadingSettingsMenu } from './reading-settings-menu'
@@ -16,6 +16,7 @@ export function ChapterReaderHeader({
   chapters,
   showReadingSettings,
   settings,
+  navbarVisible,
   onSettingsChange,
   onNavigate,
 }: {
@@ -25,11 +26,19 @@ export function ChapterReaderHeader({
   chapters: PublicReaderChapter[]
   showReadingSettings: boolean
   settings: ReadingSettings
+  navbarVisible: boolean
   onSettingsChange: (settings: ReadingSettings) => void
   onNavigate: (chapter: PublicReaderChapter) => void
 }) {
+  const theme = READING_THEMES[settings.theme]
+
   return (
-    <header className="sticky top-[4.35rem] z-40 flex items-center justify-between gap-3 border-b border-border/70 bg-card/95 px-3 py-3 shadow-sm backdrop-blur-xl sm:px-6 sm:py-4">
+    <header
+      className={`sticky z-40 flex items-center justify-between gap-3 border-b border-border/70 px-3 py-3 shadow-sm transition-[top,background-color,color] duration-200 sm:px-6 sm:py-4 ${
+        navbarVisible ? 'top-[4.35rem]' : 'top-0'
+      }`}
+      style={{ backgroundColor: theme.background, color: theme.text }}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <Link
           href={`/content/${encodeURIComponent(slug)}`}
@@ -39,10 +48,10 @@ export function ChapterReaderHeader({
           <Home className="size-4" aria-hidden="true" />
         </Link>
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-muted-foreground">
+          <p className="text-xs font-semibold" style={{ color: theme.text, opacity: 0.7 }}>
             ตอนที่ {formatChapterNumber(chapterNumber)}
           </p>
-          <h1 className="truncate text-sm font-extrabold text-foreground sm:text-lg">
+          <h1 className="truncate text-sm font-extrabold sm:text-lg" style={{ color: theme.text }}>
             {chapterTitle}
           </h1>
         </div>
@@ -53,11 +62,16 @@ export function ChapterReaderHeader({
           chapters={chapters}
           currentChapterNumber={chapterNumber}
           onNavigate={onNavigate}
+          triggerClassName="!text-current"
         />
         {showReadingSettings ? (
-          <ReadingSettingsMenu settings={settings} onChange={onSettingsChange} />
+          <ReadingSettingsMenu
+            settings={settings}
+            onChange={onSettingsChange}
+            triggerClassName="!text-current"
+          />
         ) : null}
-        <ShareButtons title={chapterTitle} iconOnly />
+        <ShareButtons title={chapterTitle} iconOnly className="!text-current" />
       </div>
     </header>
   )

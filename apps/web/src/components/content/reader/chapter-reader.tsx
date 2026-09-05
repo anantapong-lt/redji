@@ -31,9 +31,33 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
   const [settings, setSettings] = useState<ReadingSettings>(DEFAULT_READING_SETTINGS)
   const [chapters, setChapters] = useState(data.chapters)
   const [pendingChapter, setPendingChapter] = useState<PublicReaderChapter | null>(null)
+  const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
+  const [navigationVisible, setNavigationVisible] = useState(false)
 
   useEffect(() => {
     setSettings(loadReadingSettings())
+  }, [])
+
+  useEffect(() => {
+    let previousScrollY = window.scrollY
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      if (currentScrollY <= 0) {
+        setReaderNavbarVisible(true)
+        setNavigationVisible(false)
+      } else if (currentScrollY > previousScrollY + 8) {
+        setReaderNavbarVisible(false)
+        setNavigationVisible(false)
+      } else if (currentScrollY < previousScrollY - 8) {
+        setReaderNavbarVisible(false)
+        setNavigationVisible(true)
+      }
+      previousScrollY = currentScrollY
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   function updateSettings(nextSettings: ReadingSettings) {
@@ -69,7 +93,7 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-7xl py-4 sm:px-6 sm:py-8">
       <section className="readji-surface overflow-visible rounded-2xl sm:rounded-[1.75rem]">
         <ChapterReaderHeader
           slug={data.story.slug}
@@ -78,6 +102,7 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
           chapters={chapters}
           showReadingSettings={data.story.type === 'novel'}
           settings={settings}
+          navbarVisible={readerNavbarVisible}
           onSettingsChange={updateSettings}
           onNavigate={navigateToChapter}
         />
@@ -98,6 +123,14 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
           />
         </div>
       </section>
+
+      <ChapterNavigation
+        chapters={chapters}
+        currentChapterNumber={data.chapter.chapter_number}
+        onNavigate={navigateToChapter}
+        floating
+        visible={navigationVisible}
+      />
 
       {pendingChapter ? (
         <ChapterPurchaseDialog
