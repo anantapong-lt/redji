@@ -319,7 +319,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               defaultValue={chapter?.chapter_number ?? ''}
               type="number"
               min={0}
-              step="0.01"
+              step="0.1"
               placeholder="กรอกเลขตอน"
               required
               className="h-11 rounded-xl px-3"

@@ -73,7 +73,7 @@ export function chapterImportErrors(rows: ImportedChapter[]): Record<string, str
     const errors: string[] = []
     if (row.readError) errors.push(row.readError)
     if (!row.title.trim() || row.title.length > 255) errors.push('ชื่อตอนต้องมี 1–255 ตัวอักษร')
-    if (!/^\d+(\.\d{1,2})?$/.test(row.chapter_number) || Number(row.chapter_number) > 99_999_999.99) errors.push('กรุณาระบุเลขตอน 0–99,999,999.99 ทศนิยมไม่เกิน 2 ตำแหน่ง')
+    if (!/^\d+(\.\d)?$/.test(row.chapter_number) || Number(row.chapter_number) > 99_999_999.9) errors.push('กรุณาระบุเลขตอน 0–99,999,999.9 ทศนิยมไม่เกิน 1 ตำแหน่ง')
     else if ((counts.get(Number(row.chapter_number)) ?? 0) > 1) errors.push('เลขตอนซ้ำกับรายการอื่นที่นำเข้า')
     if (!/^\d+(\.\d{1,2})?$/.test(row.price) || Number(row.price) > 9_999_999_999.99) errors.push('ราคาไม่ถูกต้อง ต้องเป็น 0–9,999,999,999.99')
     if (!row.content.trim() && !row.readError) errors.push('เนื้อหาตอนว่างเปล่า')

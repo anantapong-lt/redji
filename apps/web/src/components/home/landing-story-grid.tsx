@@ -10,7 +10,7 @@ import type {
 } from '@/interface/landing.interface'
 
 function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
+  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function formatUpdatedAt(value: string, renderedAt: number) {

@@ -20,7 +20,7 @@ interface ContentPageProps {
 }
 
 function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
+  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function formatDate(value: string) {

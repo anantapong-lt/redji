@@ -24,7 +24,7 @@ import type {
 import { SITE_CONFIG } from '@/site.config'
 
 function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
+  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function formatRelativeDate(value: string, referenceTime: number) {

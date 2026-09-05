@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: ChapterPageProps): Promise<Me
       Number(item.chapter_number) === Number(chapterNumber)
     ))
     const title = chapter
-      ? `ตอนที่ ${Number(chapter.chapter_number).toLocaleString('th-TH', { maximumFractionDigits: 2 })}: ${chapter.title} - ${story.title}`
+      ? `ตอนที่ ${Number(chapter.chapter_number).toLocaleString('th-TH', { maximumFractionDigits: 1 })}: ${chapter.title} - ${story.title}`
       : story.title
 
     return {

@@ -66,9 +66,7 @@ function formatPrice(value: string): string {
 }
 
 function formatChapterNumber(value: string): string {
-  const [integerPart, decimalPart] = value.split('.')
-  const significantDecimal = decimalPart?.replace(/0+$/, '')
-  return significantDecimal ? `${integerPart}.${significantDecimal}` : integerPart
+  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 function statusVariant(status: ChapterStatus): 'default' | 'secondary' | 'outline' | 'destructive' {

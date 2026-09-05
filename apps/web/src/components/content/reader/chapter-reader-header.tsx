@@ -9,7 +9,7 @@ import { ChapterTocDialog } from './chapter-toc-dialog'
 import { ReadingSettingsMenu } from './reading-settings-menu'
 
 function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
+  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 export function ChapterReaderHeader({

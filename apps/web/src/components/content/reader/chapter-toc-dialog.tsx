@@ -14,7 +14,7 @@ import type { PublicReaderChapter } from '@/interface/content.interface'
 import { cn } from '@/lib/utils'
 
 function formatChapterNumber(value: string) {
-  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })
+  return Number(value).toLocaleString('th-TH', { maximumFractionDigits: 1 })
 }
 
 export function ChapterTocDialog({
