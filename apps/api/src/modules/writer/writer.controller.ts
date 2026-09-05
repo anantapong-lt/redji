@@ -15,7 +15,7 @@ import {
   getWriterContent,
   updateWriterContent,
 } from './content/writer-content.controller'
-import { getWriterStats } from './writer.service'
+import { getWriterDashboardActivity, getWriterDashboardTopStories, getWriterStats, type WriterDashboardPeriod } from './writer.service'
 import type {
   writerContentsQuerySchema,
   createWriterContentBodySchema,
@@ -31,8 +31,14 @@ import type {
 
 export async function getWriterStatsResponse(
   userId: string,
+  period: WriterDashboardPeriod = 'today',
 ) {
-  return { stats: await getWriterStats(userId) }
+  const [stats, activity, topStories] = await Promise.all([
+    getWriterStats(userId),
+    getWriterDashboardActivity(userId, period),
+    getWriterDashboardTopStories(userId, period),
+  ])
+  return { stats, period, activity, top_stories: topStories }
 }
 
 export async function getWriterContentsResponse(

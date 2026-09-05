@@ -20,7 +20,7 @@ import type {
   WriterContentTab,
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
-import type { WriterStats } from '@/interface/writer-stats.interface'
+import type { WriterDashboardData, WriterDashboardPeriod } from '@/interface/writer-stats.interface'
 import type {
   ChapterStatus,
   CreatedWriterChapter,
@@ -57,8 +57,11 @@ export function getWriterPurchases(
   })
 }
 
-export function getWriterStats(accessToken: string): Promise<{ stats: WriterStats }> {
-  return apiRequest<{ stats: WriterStats }>('/writer/stats', {
+export function getWriterStats(
+  period: WriterDashboardPeriod,
+  accessToken: string,
+): Promise<WriterDashboardData> {
+  return apiRequest<WriterDashboardData>(`/writer/stats?period=${period}`, {
     accessToken,
   })
 }

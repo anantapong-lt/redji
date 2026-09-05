@@ -24,7 +24,7 @@ export function WriterStatsSection({ stats, hasError }: WriterStatsSectionProps)
   }
 
   return (
-    <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6" aria-label="สถิตินักเขียน">
+    <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="สถิตินักเขียน">
       {statCards.map(({ key, label, icon: Icon }) => (
         <article key={key} className="readji-surface rounded-2xl p-5">
           <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export function WriterStatsSection({ stats, hasError }: WriterStatsSectionProps)
           )}
         </article>
       ))}
-      <article className="readji-surface rounded-2xl p-5">
+      <article className="hidden readji-surface rounded-2xl p-5">
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
             <ListOrdered className="size-5" strokeWidth={1.8} />
