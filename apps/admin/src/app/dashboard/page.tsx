@@ -45,7 +45,12 @@ const monthLabels = [
 ]
 const numberFormatter = new Intl.NumberFormat('th-TH')
 const moneyFormatter = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const topupStatusLabels: Record<TopupStatus, string> = { [TopupStatus.PENDING]: 'รอดำเนินการ', [TopupStatus.PAID]: 'สำเร็จ', [TopupStatus.EXPIRED]: 'หมดอายุ', [TopupStatus.FAILED]: 'ไม่สำเร็จ' }
+const topupStatusLabels: Record<TopupStatus, string> = {
+  [TopupStatus.PENDING]: 'รอดำเนินการ',
+  [TopupStatus.PAID]: 'สำเร็จ',
+  [TopupStatus.EXPIRED]: 'หมดอายุ',
+  [TopupStatus.FAILED]: 'ไม่สำเร็จ',
+}
 
 function formatNumber(value: string) {
   return numberFormatter.format(Number(value))
@@ -152,7 +157,17 @@ function RecentTopups({ topups }: { topups: DashboardData['recent_topups'] }) {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-sm">@{transaction.username}</p>
-                  <Badge variant={transaction.status === TopupStatus.PAID ? 'secondary' : transaction.status === TopupStatus.FAILED || transaction.status === TopupStatus.EXPIRED ? 'destructive' : 'outline'}>{topupStatusLabels[transaction.status]}</Badge>
+                  <Badge
+                    variant={
+                      transaction.status === TopupStatus.PAID
+                        ? 'secondary'
+                        : transaction.status === TopupStatus.FAILED || transaction.status === TopupStatus.EXPIRED
+                          ? 'destructive'
+                          : 'outline'
+                    }
+                  >
+                    {topupStatusLabels[transaction.status]}
+                  </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{formatDate(transaction.created_at)}</p>
               </div>
@@ -264,7 +279,7 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>รายการล่าสุด</CardTitle>
+                <CardTitle>รายการซื้อตอนล่าสุด</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {loading ? (
@@ -282,9 +297,7 @@ export default function DashboardPage() {
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <Badge variant={transaction.type === 'topup' ? 'secondary' : 'outline'}>
-                              {transaction.type === 'topup' ? 'เติมเงิน' : 'ซื้อบท'}
-                            </Badge>
+                            <Badge variant="outline">ซื้อตอน</Badge>
                             <span className="truncate text-sm">{transaction.description}</span>
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -296,7 +309,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="p-6 text-sm text-muted-foreground">ยังไม่มีรายการ</p>
+                  <p className="p-6 text-sm text-muted-foreground">ยังไม่มีรายการซื้อตอน</p>
                 )}
               </CardContent>
             </Card>

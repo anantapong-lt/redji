@@ -70,13 +70,6 @@ export async function getAdminDashboard(year: number, month: number): Promise<Ad
     db<AdminDashboardData['recent_transactions']>`
       SELECT id, type, description, username, amount::NUMERIC(12, 2)::TEXT, created_at
       FROM (
-        SELECT topup_transactions.id, 'topup'::TEXT AS type,
-          'เติมเงิน'::TEXT AS description, users.username,
-          topup_transactions.requested_amount AS amount, topup_transactions.paid_at AS created_at
-        FROM topup_transactions
-        INNER JOIN users ON users.id = topup_transactions.user_id
-        WHERE topup_transactions.status = ${TopupStatus.PAID}
-        UNION ALL
         SELECT chapter_purchases.id, 'purchase'::TEXT AS type,
           chapters.title AS description, users.username,
           chapter_purchases.price AS amount, chapter_purchases.purchased_at AS created_at
