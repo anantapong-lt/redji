@@ -17,7 +17,6 @@ import {
   createAuthSession,
   findActiveUserById,
   revokeAuthSession,
-  rotateAuthSession,
   validateAuthSession,
 } from './auth.service'
 
@@ -132,16 +131,14 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       return { message: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' }
     }
 
-    const nextRefreshTokenId = crypto.randomUUID()
-    const rotated = await rotateAuthSession(
+    const sessionIsValid = await validateAuthSession(
       payload.sid,
       payload.sub,
       payload.jti,
-      nextRefreshTokenId,
     )
-    if (!rotated) {
+    if (!sessionIsValid) {
       set.status = 401
-      return { message: 'ไม่สามารถต่ออายุเซสชันได้ กรุณาลองใหม่อีกครั้ง' }
+      return { message: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' }
     }
 
     const user = await findActiveUserById(payload.sub)
@@ -162,19 +159,6 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       ...claims,
       token_type: 'access',
     })
-    const nextRefreshToken = await refreshJwt.sign({
-      ...claims,
-      jti: nextRefreshTokenId,
-      sid: payload.sid,
-      token_type: 'refresh',
-    })
-
-    refreshCookie.set({
-      value: nextRefreshToken,
-      ...REFRESH_COOKIE_OPTIONS,
-      maxAge: REFRESH_TOKEN_TTL_SECONDS,
-    })
-
     return {
       access_token: accessToken,
       token_type: 'Bearer',

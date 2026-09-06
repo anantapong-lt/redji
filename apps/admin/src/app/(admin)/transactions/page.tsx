@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Banknote, CheckCircle2, ExternalLink, Eye, FileText, MoreHorizontal, Search, UploadCloud, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { useAdminAuth } from '@/components/admin-auth-provider'
+import { WITHDRAWAL_STATUS, type WithdrawalStatus } from '@/constants/withdrawal.constant'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -17,12 +19,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 
-type WithdrawalStatus = 'pending' | 'approved' | 'paid' | 'rejected'
 type PaymentMethod = 'bank' | 'promptpay'
 type DateRange = 'all' | 'today' | '7d' | '30d'
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 
 interface WithdrawalRequest {
   id: string
@@ -40,112 +43,26 @@ interface WithdrawalRequest {
   transferProofUrl: string | null
 }
 
-const mockProofUrl = (requestId: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="960" viewBox="0 0 720 960"><rect width="720" height="960" fill="#fffdfa"/><rect x="48" y="48" width="624" height="864" rx="24" fill="#f7ece8" stroke="#e5dfd9" stroke-width="2"/><text x="360" y="160" text-anchor="middle" fill="#2d1d20" font-family="Arial, sans-serif" font-size="30" font-weight="700">Readji Transfer Proof</text><text x="360" y="230" text-anchor="middle" fill="#74676a" font-family="Arial, sans-serif" font-size="22">${requestId}</text><path d="M260 390h200v120H260z" fill="#ff6f63" opacity=".18"/><path d="M290 450l45 45 95-110" fill="none" stroke="#ff6f63" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><text x="360" y="650" text-anchor="middle" fill="#2d1d20" font-family="Arial, sans-serif" font-size="26">ตัวอย่างหลักฐานการโอน</text></svg>`)}`
-
-const mockRequests: WithdrawalRequest[] = [
-  {
-    id: 'WD-000128',
-    user: { displayName: 'Narin P.', username: 'narin_writer' },
-    requestedAmount: 2500,
-    fee: 250,
-    netAmount: 2250,
-    paymentMethod: 'bank',
-    account: 'Kasikorn Bank •••• 4821',
-    submittedAt: '2026-09-06T09:42:00+07:00',
-    status: 'pending',
-    processedBy: null,
-    note: null,
-    transferProofName: null,
-    transferProofUrl: null,
-  },
-  {
-    id: 'WD-000127',
-    user: { displayName: 'Mali S.', username: 'maliscript' },
-    requestedAmount: 1800,
-    fee: 180,
-    netAmount: 1620,
-    paymentMethod: 'promptpay',
-    account: 'PromptPay •••• 7190',
-    submittedAt: '2026-09-06T08:15:00+07:00',
-    status: 'approved',
-    processedBy: 'admin@readji.com',
-    note: 'อนุมัติแล้วและอยู่ระหว่างรอจ่ายเงิน',
-    transferProofName: 'slip-WD-000127.pdf',
-    transferProofUrl: mockProofUrl('WD-000127'),
-  },
-  {
-    id: 'WD-000126',
-    user: { displayName: 'Krit T.', username: 'krit_works' },
-    requestedAmount: 4200,
-    fee: 420,
-    netAmount: 3780,
-    paymentMethod: 'bank',
-    account: 'SCB •••• 1038',
-    submittedAt: '2026-09-05T16:30:00+07:00',
-    status: 'paid',
-    processedBy: 'finance@readji.com',
-    note: 'โอนเงินเรียบร้อยแล้ว',
-    transferProofName: 'slip-WD-000126.png',
-    transferProofUrl: mockProofUrl('WD-000126'),
-  },
-  {
-    id: 'WD-000125',
-    user: { displayName: 'Ploy N.', username: 'ploy_novel' },
-    requestedAmount: 950,
-    fee: 95,
-    netAmount: 855,
-    paymentMethod: 'promptpay',
-    account: 'PromptPay •••• 2246',
-    submittedAt: '2026-09-04T14:05:00+07:00',
-    status: 'rejected',
-    processedBy: 'admin@readji.com',
-    note: 'ชื่อเจ้าของบัญชีไม่ตรงกับชื่อผู้ใช้งานที่ลงทะเบียนไว้',
-    transferProofName: null,
-    transferProofUrl: null,
-  },
-  {
-    id: 'WD-000124',
-    user: { displayName: 'Thanawat K.', username: 'thanawat_k' },
-    requestedAmount: 3200,
-    fee: 320,
-    netAmount: 2880,
-    paymentMethod: 'bank',
-    account: 'KTB •••• 6672',
-    submittedAt: '2026-09-02T11:20:00+07:00',
-    status: 'paid',
-    processedBy: 'finance@readji.com',
-    note: 'โอนเงินเรียบร้อยแล้ว',
-    transferProofName: 'slip-WD-000124.jpg',
-    transferProofUrl: mockProofUrl('WD-000124'),
-  },
-]
-
 const statusLabels: Record<WithdrawalStatus, string> = {
-  pending: 'รอตรวจสอบ',
-  approved: 'อนุมัติแล้ว',
-  paid: 'จ่ายเงินแล้ว',
-  rejected: 'ปฏิเสธ',
+  [WITHDRAWAL_STATUS.PENDING]: 'รอตรวจสอบ', [WITHDRAWAL_STATUS.APPROVED]: 'อนุมัติแล้ว', [WITHDRAWAL_STATUS.PAID]: 'จ่ายเงินแล้ว', [WITHDRAWAL_STATUS.REJECTED]: 'ปฏิเสธ',
 }
 
 const statusClasses: Record<WithdrawalStatus, string> = {
-  pending: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  approved: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  paid: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-  rejected: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
+  [WITHDRAWAL_STATUS.PENDING]: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300', [WITHDRAWAL_STATUS.APPROVED]: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300', [WITHDRAWAL_STATUS.PAID]: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300', [WITHDRAWAL_STATUS.REJECTED]: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
 }
 
 const methodLabels: Record<PaymentMethod, string> = { bank: 'โอนผ่านธนาคาร', promptpay: 'พร้อมเพย์' }
-const statusNotes: Record<Exclude<WithdrawalStatus, 'pending'>, string> = {
-  approved: 'อนุมัติแล้วและอยู่ระหว่างรอจ่ายเงิน',
-  paid: 'โอนเงินเรียบร้อยแล้ว',
-  rejected: 'ปฏิเสธคำขอโดยผู้ดูแลระบบ',
+const statusNotes: Record<Exclude<WithdrawalStatus, typeof WITHDRAWAL_STATUS.PENDING>, string> = {
+  [WITHDRAWAL_STATUS.APPROVED]: 'อนุมัติแล้วและอยู่ระหว่างรอจ่ายเงิน', [WITHDRAWAL_STATUS.PAID]: 'โอนเงินเรียบร้อยแล้ว', [WITHDRAWAL_STATUS.REJECTED]: 'ปฏิเสธคำขอโดยผู้ดูแลระบบ',
 }
 
 const money = (amount: number) => amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const dateTime = (value: string) => new Date(value).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
 
 export default function TransactionsPage() {
-  const [requests, setRequests] = useState(mockRequests)
+  const { accessToken } = useAdminAuth()
+  const [requests, setRequests] = useState<WithdrawalRequest[]>([])
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'all' | WithdrawalStatus>('all')
   const [method, setMethod] = useState<'all' | PaymentMethod>('all')
@@ -159,6 +76,30 @@ export default function TransactionsPage() {
   const [approvalNote, setApprovalNote] = useState('')
   const [rejectionRequest, setRejectionRequest] = useState<WithdrawalRequest | null>(null)
   const [rejectionNote, setRejectionNote] = useState('')
+  const [transferProofFile, setTransferProofFile] = useState<File | null>(null)
+
+  useEffect(() => {
+    if (!accessToken) return
+    let isCurrentRequest = true
+
+    setIsLoadingRequests(true)
+    void fetch(`${apiUrl}/admin/withdrawals`, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('ไม่สามารถโหลดคำขอถอนเงินได้')
+        const body = await response.json() as { requests: Array<{ id: string; user: { display_name: string; username: string }; requested_amount: string; commission_amount: string; net_amount: string; bank_code: string; account_number: string; requested_at: string; status: WithdrawalStatus; note: string | null; processed_by: string | null; has_proof: boolean }> }
+        if (isCurrentRequest) setRequests(body.requests.map((request) => ({ id: request.id, user: { displayName: request.user.display_name, username: request.user.username }, requestedAmount: Number(request.requested_amount), fee: Number(request.commission_amount), netAmount: Number(request.net_amount), paymentMethod: 'bank', account: `${request.bank_code} •••• ${request.account_number.slice(-4)}`, submittedAt: request.requested_at, status: request.status, processedBy: request.processed_by, note: request.note, transferProofName: request.has_proof ? 'หลักฐานการโอน' : null, transferProofUrl: null })))
+      })
+      .catch(() => {
+        if (isCurrentRequest) setRequests([])
+      })
+      .finally(() => {
+        if (isCurrentRequest) setIsLoadingRequests(false)
+      })
+
+    return () => {
+      isCurrentRequest = false
+    }
+  }, [accessToken])
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -183,11 +124,19 @@ export default function TransactionsPage() {
     })
   }, [dateRange, method, requests, search, status])
 
-  function updateStatus(
+  async function updateStatus(
     requestId: string,
-    nextStatus: Exclude<WithdrawalStatus, 'pending'>,
-    options: { proofName?: string; proofUrl?: string; note?: string } = {},
+    nextStatus: Exclude<WithdrawalStatus, typeof WITHDRAWAL_STATUS.PENDING>,
+    options: { proofName?: string; proofUrl?: string; proofFile?: File; note?: string } = {},
   ) {
+    if (!accessToken) return
+    const action = nextStatus === WITHDRAWAL_STATUS.APPROVED ? 'approve' : nextStatus === WITHDRAWAL_STATUS.REJECTED ? 'reject' : 'pay'
+    const form = new FormData()
+    form.set('action', action)
+    if (options.note?.trim()) form.set('note', options.note.trim())
+    if (options.proofFile) form.set('proof', options.proofFile)
+    const response = await fetch(`${apiUrl}/admin/withdrawals/${requestId}`, { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include', body: form })
+    if (!response.ok) throw new Error('ไม่สามารถอัปเดตสถานะคำขอได้')
     const updateRequest = (request: WithdrawalRequest): WithdrawalRequest =>
       request.id === requestId
         ? {
@@ -196,9 +145,9 @@ export default function TransactionsPage() {
             processedBy: 'admin@readji.com',
             note: options.note?.trim() || statusNotes[nextStatus],
             transferProofName:
-              nextStatus === 'approved' ? (options.proofName ?? request.transferProofName) : request.transferProofName,
+              nextStatus === WITHDRAWAL_STATUS.APPROVED ? (options.proofName ?? request.transferProofName) : request.transferProofName,
             transferProofUrl:
-              nextStatus === 'approved' ? (options.proofUrl ?? request.transferProofUrl) : request.transferProofUrl,
+              nextStatus === WITHDRAWAL_STATUS.APPROVED ? (options.proofUrl ?? request.transferProofUrl) : request.transferProofUrl,
           }
         : request
 
@@ -208,13 +157,13 @@ export default function TransactionsPage() {
 
   function approveRequest() {
     if (!approvalRequest || !transferProofName) return
-    updateStatus(approvalRequest.id, 'approved', { proofName: transferProofName, proofUrl: transferProofUrl, note: approvalNote })
+    void updateStatus(approvalRequest.id, WITHDRAWAL_STATUS.APPROVED, { proofName: transferProofName, proofUrl: transferProofUrl, proofFile: transferProofFile ?? undefined, note: approvalNote })
     closeApprovalDialog()
   }
 
   function rejectRequest() {
     if (!rejectionRequest || !rejectionNote.trim()) return
-    updateStatus(rejectionRequest.id, 'rejected', { note: rejectionNote })
+    void updateStatus(rejectionRequest.id, WITHDRAWAL_STATUS.REJECTED, { note: rejectionNote })
     setRejectionRequest(null)
     setRejectionNote('')
   }
@@ -229,6 +178,7 @@ export default function TransactionsPage() {
 
     setTransferProofName(file.name)
     setTransferProofUrl(URL.createObjectURL(file))
+    setTransferProofFile(file)
     setTransferProofError(null)
   }
 
@@ -236,9 +186,18 @@ export default function TransactionsPage() {
     setApprovalRequest(null)
     setTransferProofName('')
     setTransferProofUrl('')
+    setTransferProofFile(null)
     setTransferProofError(null)
     setIsDraggingProof(false)
     setApprovalNote('')
+  }
+
+  async function openTransferProof(requestId: string) {
+    if (!accessToken) return
+    const response = await fetch(`${apiUrl}/admin/withdrawals/${requestId}/proof`, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
+    if (!response.ok) return
+    const body = await response.json() as { url: string }
+    window.open(body.url, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -338,7 +297,22 @@ export default function TransactionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRequests.length ? (
+                {isLoadingRequests && requests.length === 0 ? (
+                  Array.from({ length: 6 }, (_, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="py-3"><Skeleton className="h-4 w-36" /><Skeleton className="mt-2 h-3 w-24" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="h-4 w-28" /><Skeleton className="mt-2 h-3 w-32" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="h-4 w-28" /><Skeleton className="mt-2 h-3 w-20" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="ml-auto h-4 w-20" /><Skeleton className="mt-2 ml-auto h-3 w-16" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell className="py-3"><Skeleton className="ml-auto size-8" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredRequests.length ? (
                   filteredRequests.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="py-3">
@@ -391,7 +365,7 @@ export default function TransactionsPage() {
                               <Eye />
                               ดูรายละเอียด
                             </DropdownMenuItem>
-                            {request.status === 'pending' && (
+                            {request.status === WITHDRAWAL_STATUS.PENDING && (
                               <>
                                 <DropdownMenuItem onClick={() => setApprovalRequest(request)}>
                                   <CheckCircle2 />
@@ -406,8 +380,8 @@ export default function TransactionsPage() {
                                 </DropdownMenuItem>
                               </>
                             )}
-                            {request.status === 'approved' && (
-                              <DropdownMenuItem onClick={() => updateStatus(request.id, 'paid')}>
+                            {request.status === WITHDRAWAL_STATUS.APPROVED && (
+                              <DropdownMenuItem onClick={() => void updateStatus(request.id, WITHDRAWAL_STATUS.PAID)}>
                                 <CheckCircle2 />
                                 ยืนยันการจ่ายเงิน
                               </DropdownMenuItem>
@@ -481,16 +455,11 @@ export default function TransactionsPage() {
                       <Detail label="ผู้ดำเนินการ" value={selectedRequest.processedBy ?? 'ยังไม่มีผู้ดำเนินการ'} />
                       <div className="space-y-1">
                         <p className="text-xs font-medium tracking-wide text-muted-foreground">หลักฐานการโอน</p>
-                        {selectedRequest.transferProofUrl && selectedRequest.transferProofName ? (
-                          <a
-                            href={selectedRequest.transferProofUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
-                          >
+                        {selectedRequest.transferProofName ? (
+                          <button onClick={() => void openTransferProof(selectedRequest.id)} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline">
                             <ExternalLink className="size-4" />
                             ดูหลักฐานการโอน
-                          </a>
+                          </button>
                         ) : <p className="text-sm font-medium text-muted-foreground">ยังไม่มีไฟล์แนบ</p>}
                       </div>
                     </div>

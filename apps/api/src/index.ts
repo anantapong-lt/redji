@@ -5,6 +5,7 @@ import { adminUsersRoutes } from './modules/admin-users/admin-users.routes'
 import { adminContentsRoutes } from './modules/admin-contents/admin-contents.routes'
 import { adminDashboardRoutes } from './modules/admin-dashboard/admin-dashboard.routes'
 import { adminSiteRoutes } from './modules/admin-site/admin-site.routes'
+import { adminWithdrawalRoutes } from './modules/admin-withdrawals/admin-withdrawals.routes'
 import { authRoutes } from './modules/auth/auth.routes'
 import { chapterPurchaseRoutes } from './modules/chapter-purchase/chapter-purchase.routes'
 import { contentRoutes } from './modules/content/content.routes'
@@ -36,6 +37,7 @@ const app = new Elysia()
   .use(adminContentsRoutes)
   .use(adminDashboardRoutes)
   .use(adminSiteRoutes)
+  .use(adminWithdrawalRoutes)
   .use(authRoutes)
   .use(chapterPurchaseRoutes)
   .use(contentRoutes)

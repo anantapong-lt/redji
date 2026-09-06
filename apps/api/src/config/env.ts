@@ -81,6 +81,7 @@ export const env = {
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY?.trim() ?? '',
   R2_BUCKET_NAME: process.env.R2_BUCKET_NAME?.trim() ?? '',
   R2_MANGA_BUCKET_NAME: process.env.R2_MANGA_BUCKET_NAME?.trim() ?? '',
+  R2_TRANSFER_PROOF_BUCKET_NAME: process.env.R2_TRANSFER_PROOF_BUCKET_NAME?.trim() ?? '',
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL?.trim() ?? '',
   TMWEASY_API_URL: requiredTmweasyApiUrl(),
   TMWEASY_USERNAME: required('TMWEASY_USERNAME'),
