@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Banknote, BarChart3, BookOpen, Flag, History, LayoutTemplate, LogOut, MessageSquare, PenSquare, ShieldCheck, Swords, UserCog, Users, Volume2 } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, Flag, History, LayoutTemplate, LogOut, MessageSquare, PenSquare, ShieldCheck, UserCog, Users, Volume2 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Button } from '@/components/ui/button'
@@ -9,8 +9,8 @@ import { Sidebar as SidebarPrimitive, SidebarContent, SidebarFooter, SidebarGrou
 
 const navigation = [
   { label: 'ภาพรวม', items: [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }, { href: '/reports', label: 'รายงาน', icon: Flag }] },
-  { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงาน', icon: BookOpen }, { href: '/tts-requests', label: 'คำขอ TTS', icon: Volume2 }, { href: '/messages', label: 'ข้อความติดต่อ', icon: MessageSquare }] },
-  { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/squad', label: 'หน่วยรบ', icon: Swords }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }] },
+  { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงานทั้งหมด', icon: BookOpen }, { href: '/tts-requests', label: 'คำขอ TTS', icon: Volume2 }, { href: '/messages', label: 'ข้อความติดต่อ', icon: MessageSquare }] },
+  { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }] },
   { label: 'การเงิน', items: [{ href: '/transactions', label: 'ธุรกรรม', icon: Banknote }, { href: '/history', label: 'ประวัติ', icon: History }] },
   { label: 'ระบบ', items: [{ href: '/site', label: 'ตั้งค่าเว็บไซต์', icon: LayoutTemplate }] },
 ] as const

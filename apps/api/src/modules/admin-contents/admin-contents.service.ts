@@ -1,0 +1,78 @@
+import { db } from '../../db'
+import type { StoryStatus, StoryType } from '../../models/story.model'
+
+export interface AdminContent {
+  id: string
+  title: string
+  slug: string
+  type: StoryType
+  status: StoryStatus
+  cover_url: string | null
+  total_views: string
+  chapter_count: string
+  author: { username: string; display_name: string }
+  primary_genre: { id: string; name: string }
+  secondary_genre: { id: string; name: string } | null
+  created_at: Date
+  updated_at: Date
+}
+
+function contentFilters(search: string, type: StoryType | null, status: StoryStatus | null, genreId: string | null) {
+  return db`
+    AND (${type}::TEXT IS NULL OR stories.type = ${type})
+    AND (${status}::TEXT IS NULL OR stories.status = ${status})
+    AND (${genreId}::UUID IS NULL OR stories.primary_genre_id = ${genreId} OR stories.secondary_genre_id = ${genreId})
+    AND (
+      ${search} = ''
+      OR STRPOS(LOWER(stories.title), LOWER(${search})) > 0
+      OR STRPOS(LOWER(stories.slug), LOWER(${search})) > 0
+      OR STRPOS(LOWER(users.username), LOWER(${search})) > 0
+      OR STRPOS(LOWER(users.display_name), LOWER(${search})) > 0
+    )
+  `
+}
+
+export async function findAdminContents(
+  page: number,
+  limit: number,
+  search: string,
+  type: StoryType | null,
+  status: StoryStatus | null,
+  genreId: string | null,
+) {
+  const filters = contentFilters(search, type, status, genreId)
+  const offset = (page - 1) * limit
+  const [contents, [count]] = await Promise.all([
+    db<AdminContent[]>`
+      SELECT
+        stories.id, stories.title, stories.slug, stories.type, stories.status,
+        stories.cover_url, stories.total_views::TEXT,
+        (SELECT COUNT(*)::TEXT FROM chapters WHERE chapters.story_id = stories.id) AS chapter_count,
+        json_build_object('username', users.username, 'display_name', users.display_name) AS author,
+        json_build_object('id', primary_genre.id, 'name', primary_genre.name) AS primary_genre,
+        CASE WHEN secondary_genre.id IS NULL THEN NULL
+          ELSE json_build_object('id', secondary_genre.id, 'name', secondary_genre.name)
+        END AS secondary_genre,
+        stories.created_at, stories.updated_at
+      FROM stories
+      INNER JOIN users ON users.id = stories.creator_user_id
+      INNER JOIN genres AS primary_genre ON primary_genre.id = stories.primary_genre_id
+      LEFT JOIN genres AS secondary_genre ON secondary_genre.id = stories.secondary_genre_id
+      WHERE stories.deleted_at IS NULL
+        AND users.deleted_at IS NULL
+        ${filters}
+      ORDER BY stories.updated_at DESC, stories.id DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db<{ total: string }[]>`
+      SELECT COUNT(*)::TEXT AS total
+      FROM stories
+      INNER JOIN users ON users.id = stories.creator_user_id
+      WHERE stories.deleted_at IS NULL
+        AND users.deleted_at IS NULL
+        ${filters}
+    `,
+  ])
+  const total = Number(count?.total ?? 0)
+  return { contents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }
+}
