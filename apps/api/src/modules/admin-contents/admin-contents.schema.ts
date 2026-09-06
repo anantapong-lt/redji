@@ -5,7 +5,11 @@ export const adminContentsQuerySchema = t.Object({
   page: t.Optional(t.Numeric({ minimum: 1 })),
   limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
   search: t.Optional(t.String({ maxLength: 255 })),
-  type: t.Optional(t.UnionEnum(STORY_TYPES)),
-  status: t.Optional(t.UnionEnum(STORY_STATUSES)),
+  type: t.Optional(t.Union([t.Literal('all'), t.UnionEnum(STORY_TYPES)])),
+  status: t.Optional(t.Union([t.Literal('all'), t.UnionEnum(STORY_STATUSES)])),
   genre_id: t.Optional(t.String({ format: 'uuid' })),
+})
+
+export const adminContentParamsSchema = t.Object({
+  id: t.String({ format: 'uuid' }),
 })

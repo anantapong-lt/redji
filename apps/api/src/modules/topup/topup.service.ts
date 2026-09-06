@@ -2,8 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { db } from '../../db'
 import { env, isDev } from '../../config/env'
 import { publishTopupEvent } from './topup.events'
-
-type TopupStatus = 'pending' | 'paid' | 'expired' | 'failed'
+import { TopupStatus } from '../../models/topup.model'
 
 export interface TopupTransaction {
   id: string
@@ -222,14 +221,14 @@ async function markTopupFailed(
   await db`
     UPDATE topup_transactions
     SET
-      status = 'failed',
+      status = ${TopupStatus.FAILED},
       provider_payload = ${JSON.stringify({
         error: reason,
         provider: providerDetails ?? null,
       })}::JSONB,
       updated_at = NOW()
     WHERE id = ${id}::UUID
-      AND status = 'pending'
+      AND status = ${TopupStatus.PENDING}
   `
 }
 
@@ -285,7 +284,7 @@ export async function createTopup(
       UPDATE topup_transactions
       SET provider_payment_id = ${providerPaymentId}, updated_at = NOW()
       WHERE id = ${pendingTopup.id}::UUID
-        AND status = 'pending'
+        AND status = ${TopupStatus.PENDING}
     `
 
     const detailResponse = await requestTmweasy({
@@ -335,7 +334,7 @@ export async function createTopup(
         expires_at = ${expiresAt},
         updated_at = NOW()
       WHERE id = ${pendingTopup.id}::UUID
-        AND status = 'pending'
+        AND status = ${TopupStatus.PENDING}
       RETURNING
         id,
         requested_amount::TEXT,
@@ -388,8 +387,8 @@ export async function findTopupById(
       bonus_coins::TEXT,
       credited_coins::TEXT,
       CASE
-        WHEN status = 'pending' AND expires_at IS NOT NULL AND expires_at <= NOW()
-          THEN 'expired'::topup_transaction_status
+        WHEN status = ${TopupStatus.PENDING} AND expires_at IS NOT NULL AND expires_at <= NOW()
+          THEN ${TopupStatus.EXPIRED}::topup_transaction_status
         ELSE status
       END AS status,
       expires_at,
@@ -444,8 +443,8 @@ export async function processTmweasyWebhook(
       throw new TopupError('ข้อมูลการชำระเงินไม่ตรงกับรายการ', 409)
     }
 
-    if (topup.status === 'paid') return null
-    if (topup.status !== 'pending') {
+    if (topup.status === TopupStatus.PAID) return null
+    if (topup.status !== TopupStatus.PENDING) {
       throw new TopupError('รายการเติมเงินไม่อยู่ในสถานะรอชำระเงิน', 409)
     }
 
@@ -458,7 +457,7 @@ export async function processTmweasyWebhook(
     const [paidTopup] = await transaction<TopupTransaction[]>`
       UPDATE topup_transactions
       SET
-        status = 'paid',
+        status = ${TopupStatus.PAID},
         paid_at = NOW(),
         provider_payload = provider_payload || jsonb_build_object(
           'webhook',
@@ -466,7 +465,7 @@ export async function processTmweasyWebhook(
         ),
         updated_at = NOW()
       WHERE id = ${payload.ref1}::UUID
-        AND status = 'pending'
+        AND status = ${TopupStatus.PENDING}
       RETURNING
         id,
         requested_amount::TEXT,

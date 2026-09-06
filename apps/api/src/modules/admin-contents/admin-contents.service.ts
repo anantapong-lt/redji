@@ -1,6 +1,9 @@
 import { db } from '../../db'
 import type { StoryStatus, StoryType } from '../../models/story.model'
 
+type AdminContentTypeFilter = StoryType | 'all'
+type AdminContentStatusFilter = StoryStatus | 'all'
+
 export interface AdminContent {
   id: string
   title: string
@@ -17,30 +20,14 @@ export interface AdminContent {
   updated_at: Date
 }
 
-function contentFilters(search: string, type: StoryType | null, status: StoryStatus | null, genreId: string | null) {
-  return db`
-    AND (${type}::TEXT IS NULL OR stories.type = ${type})
-    AND (${status}::TEXT IS NULL OR stories.status = ${status})
-    AND (${genreId}::UUID IS NULL OR stories.primary_genre_id = ${genreId} OR stories.secondary_genre_id = ${genreId})
-    AND (
-      ${search} = ''
-      OR STRPOS(LOWER(stories.title), LOWER(${search})) > 0
-      OR STRPOS(LOWER(stories.slug), LOWER(${search})) > 0
-      OR STRPOS(LOWER(users.username), LOWER(${search})) > 0
-      OR STRPOS(LOWER(users.display_name), LOWER(${search})) > 0
-    )
-  `
-}
-
 export async function findAdminContents(
   page: number,
   limit: number,
   search: string,
-  type: StoryType | null,
-  status: StoryStatus | null,
+  type: AdminContentTypeFilter,
+  status: AdminContentStatusFilter,
   genreId: string | null,
 ) {
-  const filters = contentFilters(search, type, status, genreId)
   const offset = (page - 1) * limit
   const [contents, [count]] = await Promise.all([
     db<AdminContent[]>`
@@ -60,7 +47,16 @@ export async function findAdminContents(
       LEFT JOIN genres AS secondary_genre ON secondary_genre.id = stories.secondary_genre_id
       WHERE stories.deleted_at IS NULL
         AND users.deleted_at IS NULL
-        ${filters}
+        AND (${type}::TEXT = 'all' OR stories.type::TEXT = ${type}::TEXT)
+        AND (${status}::TEXT = 'all' OR stories.status::TEXT = ${status}::TEXT)
+        AND (${genreId}::UUID IS NULL OR stories.primary_genre_id = ${genreId} OR stories.secondary_genre_id = ${genreId})
+        AND (
+          ${search} = ''
+          OR STRPOS(LOWER(stories.title), LOWER(${search})) > 0
+          OR STRPOS(LOWER(stories.slug), LOWER(${search})) > 0
+          OR STRPOS(LOWER(users.username), LOWER(${search})) > 0
+          OR STRPOS(LOWER(users.display_name), LOWER(${search})) > 0
+        )
       ORDER BY stories.updated_at DESC, stories.id DESC
       LIMIT ${limit} OFFSET ${offset}
     `,
@@ -70,9 +66,29 @@ export async function findAdminContents(
       INNER JOIN users ON users.id = stories.creator_user_id
       WHERE stories.deleted_at IS NULL
         AND users.deleted_at IS NULL
-        ${filters}
+        AND (${type}::TEXT = 'all' OR stories.type::TEXT = ${type}::TEXT)
+        AND (${status}::TEXT = 'all' OR stories.status::TEXT = ${status}::TEXT)
+        AND (${genreId}::UUID IS NULL OR stories.primary_genre_id = ${genreId} OR stories.secondary_genre_id = ${genreId})
+        AND (
+          ${search} = ''
+          OR STRPOS(LOWER(stories.title), LOWER(${search})) > 0
+          OR STRPOS(LOWER(stories.slug), LOWER(${search})) > 0
+          OR STRPOS(LOWER(users.username), LOWER(${search})) > 0
+          OR STRPOS(LOWER(users.display_name), LOWER(${search})) > 0
+        )
     `,
   ])
   const total = Number(count?.total ?? 0)
   return { contents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }
+}
+
+export async function softDeleteAdminContent(contentId: string): Promise<boolean> {
+  const [content] = await db<{ id: string }[]>`
+    UPDATE stories
+    SET deleted_at = NOW(), updated_at = NOW()
+    WHERE id = ${contentId}
+      AND deleted_at IS NULL
+    RETURNING id
+  `
+  return Boolean(content)
 }
