@@ -140,15 +140,8 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       nextRefreshTokenId,
     )
     if (!rotated) {
-      await revokeAuthSession(payload.sid, payload.sub)
-      refreshCookie.set({
-        value: '',
-        ...REFRESH_COOKIE_OPTIONS,
-        expires: new Date(0),
-        maxAge: 0,
-      })
       set.status = 401
-      return { message: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' }
+      return { message: 'ไม่สามารถต่ออายุเซสชันได้ กรุณาลองใหม่อีกครั้ง' }
     }
 
     const user = await findActiveUserById(payload.sub)

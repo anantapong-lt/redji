@@ -116,8 +116,10 @@ export function AdminAuthProvider({
   }, [])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    // Avoid overlapping refresh-token rotations when the browser is reloaded repeatedly.
+    const timer = window.setTimeout(() => void refresh(), initiallyAuthenticated ? 250 : 0)
+    return () => window.clearTimeout(timer)
+  }, [initiallyAuthenticated, refresh])
 
   useEffect(() => {
     const timer = window.setInterval(() => void refresh(), 14 * 60 * 1000)

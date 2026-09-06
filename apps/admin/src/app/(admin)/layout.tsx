@@ -1,8 +1,8 @@
-import { ServerAdminGuard } from '@/components/server-admin-guard'
 import { AdminAuthProvider } from '@/components/admin-auth-provider'
 import { AdminShell } from '@/components/admin-shell'
+import { ServerAdminGuard } from '@/components/server-admin-guard'
 
-export default function WorksLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <ServerAdminGuard>
       <AdminAuthProvider initiallyAuthenticated>
