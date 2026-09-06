@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 
 type WithdrawalStatus = 'pending' | 'approved' | 'paid' | 'rejected'
 type PaymentMethod = 'bank' | 'promptpay'
@@ -155,6 +156,9 @@ export default function TransactionsPage() {
   const [transferProofUrl, setTransferProofUrl] = useState('')
   const [isDraggingProof, setIsDraggingProof] = useState(false)
   const [transferProofError, setTransferProofError] = useState<string | null>(null)
+  const [approvalNote, setApprovalNote] = useState('')
+  const [rejectionRequest, setRejectionRequest] = useState<WithdrawalRequest | null>(null)
+  const [rejectionNote, setRejectionNote] = useState('')
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -182,8 +186,7 @@ export default function TransactionsPage() {
   function updateStatus(
     requestId: string,
     nextStatus: Exclude<WithdrawalStatus, 'pending'>,
-    proofName?: string,
-    proofUrl?: string,
+    options: { proofName?: string; proofUrl?: string; note?: string } = {},
   ) {
     const updateRequest = (request: WithdrawalRequest): WithdrawalRequest =>
       request.id === requestId
@@ -191,11 +194,11 @@ export default function TransactionsPage() {
             ...request,
             status: nextStatus,
             processedBy: 'admin@readji.com',
-            note: statusNotes[nextStatus],
+            note: options.note?.trim() || statusNotes[nextStatus],
             transferProofName:
-              nextStatus === 'approved' ? (proofName ?? request.transferProofName) : request.transferProofName,
+              nextStatus === 'approved' ? (options.proofName ?? request.transferProofName) : request.transferProofName,
             transferProofUrl:
-              nextStatus === 'approved' ? (proofUrl ?? request.transferProofUrl) : request.transferProofUrl,
+              nextStatus === 'approved' ? (options.proofUrl ?? request.transferProofUrl) : request.transferProofUrl,
           }
         : request
 
@@ -205,8 +208,15 @@ export default function TransactionsPage() {
 
   function approveRequest() {
     if (!approvalRequest || !transferProofName) return
-    updateStatus(approvalRequest.id, 'approved', transferProofName, transferProofUrl)
+    updateStatus(approvalRequest.id, 'approved', { proofName: transferProofName, proofUrl: transferProofUrl, note: approvalNote })
     closeApprovalDialog()
+  }
+
+  function rejectRequest() {
+    if (!rejectionRequest || !rejectionNote.trim()) return
+    updateStatus(rejectionRequest.id, 'rejected', { note: rejectionNote })
+    setRejectionRequest(null)
+    setRejectionNote('')
   }
 
   function selectTransferProof(file: File | undefined) {
@@ -228,6 +238,7 @@ export default function TransactionsPage() {
     setTransferProofUrl('')
     setTransferProofError(null)
     setIsDraggingProof(false)
+    setApprovalNote('')
   }
 
   return (
@@ -388,7 +399,7 @@ export default function TransactionsPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   variant="destructive"
-                                  onClick={() => updateStatus(request.id, 'rejected')}
+                                  onClick={() => setRejectionRequest(request)}
                                 >
                                   <XCircle />
                                   ปฏิเสธ
@@ -549,6 +560,16 @@ export default function TransactionsPage() {
               <p className="text-xs text-muted-foreground">รองรับไฟล์ PNG, JPG และ PDF</p>
               {transferProofError && <p className="text-xs text-destructive">{transferProofError}</p>}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="approval-note">หมายเหตุสำหรับการอนุมัติ <span className="text-muted-foreground">(ไม่บังคับ)</span></Label>
+              <Textarea
+                id="approval-note"
+                value={approvalNote}
+                onChange={(event) => setApprovalNote(event.target.value)}
+                placeholder="เช่น ตรวจสอบหลักฐานและข้อมูลบัญชีเรียบร้อยแล้ว"
+                className="min-h-24 resize-none"
+              />
+            </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeApprovalDialog}>
                 ยกเลิก
@@ -556,6 +577,38 @@ export default function TransactionsPage() {
               <Button onClick={approveRequest} disabled={!transferProofName}>
                 ยืนยันการอนุมัติ
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={rejectionRequest !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRejectionRequest(null)
+              setRejectionNote('')
+            }
+          }}
+        >
+          <DialogContent className="max-w-md gap-5 sm:max-w-md">
+            <DialogHeader className="pr-8">
+              <DialogTitle className="text-lg">ปฏิเสธคำขอถอนเงิน</DialogTitle>
+              <DialogDescription>ระบุเหตุผลที่ปฏิเสธสำหรับคำขอ {rejectionRequest?.id}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="rejection-note">เหตุผลที่ปฏิเสธ</Label>
+              <Textarea
+                id="rejection-note"
+                value={rejectionNote}
+                onChange={(event) => setRejectionNote(event.target.value)}
+                placeholder="เช่น ชื่อเจ้าของบัญชีไม่ตรงกับข้อมูลที่ลงทะเบียนไว้"
+                className="min-h-28 resize-none"
+              />
+              <p className="text-xs text-muted-foreground">หมายเหตุนี้จะแสดงในรายละเอียดคำขอ</p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setRejectionRequest(null); setRejectionNote('') }}>ยกเลิก</Button>
+              <Button variant="destructive" onClick={rejectRequest} disabled={!rejectionNote.trim()}>ยืนยันการปฏิเสธ</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
