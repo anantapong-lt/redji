@@ -4,6 +4,7 @@ import type { UserStatus } from '../../models/user.model'
 interface AdminUserRow {
   id: string
   email: string
+  phone_number: string | null
   username: string
   display_name: string
   balance: string
@@ -33,7 +34,7 @@ export async function countAdminUsers(search: string, status: UserStatus | null)
 
 export function findAdminUsers(page: number, limit: number, search: string, status: UserStatus | null) {
   return db<AdminUserRow[]>`
-    SELECT id, email, username, display_name, balance::TEXT, role, status,
+    SELECT id, email, phone_number, username, display_name, balance::TEXT, role, status,
       email_verified_at, last_login_at, created_at
     FROM users
     WHERE deleted_at IS NULL
@@ -52,20 +53,21 @@ export function findAdminUsers(page: number, limit: number, search: string, stat
 
 export async function updateAdminUser(
   id: string,
-  input: { displayName: string; username: string; email: string; status: UserStatus; balance: string },
+  input: { displayName: string; username: string; email: string; phoneNumber: string | null; status: UserStatus; balance: string },
 ) {
   const [user] = await db<AdminUserRow[]>`
     UPDATE users
     SET display_name = ${input.displayName},
         username = ${input.username},
         email = ${input.email},
+        phone_number = ${input.phoneNumber},
         status = ${input.status},
         balance = ROUND(${input.balance}::NUMERIC, 2),
         updated_at = NOW()
     WHERE id = ${id}
       AND role = 'user'
       AND deleted_at IS NULL
-    RETURNING id, email, username, display_name, balance::TEXT, role, status,
+    RETURNING id, email, phone_number, username, display_name, balance::TEXT, role, status,
       email_verified_at, last_login_at, created_at
   `
   return user ?? null

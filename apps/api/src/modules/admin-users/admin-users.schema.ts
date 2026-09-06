@@ -18,6 +18,7 @@ export const updateAdminUserBodySchema = t.Object({
   display_name: t.String({ minLength: 1, maxLength: 100 }),
   username: t.String({ minLength: 3, maxLength: 30 }),
   email: t.String({ format: 'email', maxLength: 320 }),
+  phone_number: t.Optional(t.Union([t.String({ pattern: '^(?:0[0-9]{9}|\\+[1-9][0-9]{7,14})$', maxLength: 16 }), t.Null()])),
   status: t.Union([t.Literal('active'), t.Literal('banned')]),
   balance: t.String({ pattern: '^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$', maxLength: 20 }),
 }, { additionalProperties: false })

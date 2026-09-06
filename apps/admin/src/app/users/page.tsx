@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Pencil, Search, Users } from 'lucide-react'
 import { useAdminAuth } from '@/components/admin-auth-provider'
+import { formatPhoneNumber } from '@/utils/phone-number'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +26,7 @@ type UserStatus = 'active' | 'banned'
 interface AdminUser {
   id: string
   email: string
+  phone_number: string | null
   username: string
   display_name: string
   balance: string
@@ -43,6 +45,7 @@ interface UserForm {
   display_name: string
   username: string
   email: string
+  phone_number: string
   status: UserStatus
   balance: string
 }
@@ -59,6 +62,7 @@ function getForm(user: AdminUser): UserForm {
     display_name: user.display_name,
     username: user.username,
     email: user.email,
+    phone_number: formatPhoneNumber(user.phone_number),
     status: user.status,
     balance: Number(user.balance).toFixed(2),
   }
@@ -154,6 +158,7 @@ export default function UsersPage() {
           display_name: form.display_name.trim(),
           username: form.username.trim(),
           email: form.email.trim(),
+          phone_number: form.phone_number.trim() || null,
         }),
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
@@ -363,6 +368,20 @@ export default function UsersPage() {
                   disabled
                   required
                   maxLength={320}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone_number">เบอร์โทรศัพท์</Label>
+                <Input
+                  id="phone_number"
+                  type="tel"
+                  value={form.phone_number}
+                  onChange={(event) => updateForm('phone_number', event.target.value)}
+                  placeholder="0812345678"
+                  pattern="^(?:0[0-9]{9}|\\+[1-9][0-9]{7,14})$"
+                  title="กรุณากรอกเบอร์โทรศัพท์ 10 หลัก เช่น 0812345678"
+                  inputMode="tel"
+                  maxLength={16}
                 />
               </div>
               <div className="grid gap-2">
