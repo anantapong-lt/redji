@@ -34,13 +34,17 @@ import type {
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
 import type { WriterDashboardData, WriterDashboardPeriod } from '@/interface/writer-stats.interface'
-import type { WriterBankAccount, WriterBankAccountInput } from '@/interface/writer-bank-account.interface'
+import type { BankConfig, WriterBankAccount, WriterBankAccountInput } from '@/interface/writer-bank-account.interface'
 import type {
   ChapterStatus,
   CreatedWriterChapter,
   WriterChapterDetail,
   WriterChaptersResponse,
 } from '@/interface/writer-chapter.interface'
+
+export function getBankConfigs(accessToken: string): Promise<{ banks: BankConfig[] }> {
+  return apiRequest('/writer/banks', { accessToken, cache: 'no-store' })
+}
 
 export function getWriterBankAccount(accessToken: string): Promise<{ account: WriterBankAccount | null }> {
   return apiRequest('/writer/bank-account', { accessToken, cache: 'no-store' })

@@ -1,6 +1,15 @@
 import { status } from 'elysia'
 import type { createWriterBankAccountBodySchema } from './writer-bank-account.schema'
-import { findWriterBankAccount, upsertWriterBankAccount } from './writer-bank-account.service'
+import { findBankConfigs, findWriterBankAccount, upsertWriterBankAccount } from './writer-bank-account.service'
+
+export async function getBankConfigs() {
+  try {
+    return { banks: await findBankConfigs() }
+  } catch (error) {
+    console.error('Unable to load bank configs', error)
+    return status(500, { message: 'ไม่สามารถโหลดรายการธนาคารได้' })
+  }
+}
 
 export async function getWriterBankAccount(userId: string) {
   try {

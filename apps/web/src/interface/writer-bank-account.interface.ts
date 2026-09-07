@@ -5,6 +5,12 @@ export interface WriterBankAccountInput {
   account_number: string
 }
 
+export interface BankConfig {
+  code: string
+  name: string
+  logo: string
+}
+
 export interface WriterBankAccount extends WriterBankAccountInput {
   id: string
   application_status: 'pending' | 'approve' | 'reject'

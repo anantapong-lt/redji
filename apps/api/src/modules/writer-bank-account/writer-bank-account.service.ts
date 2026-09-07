@@ -10,6 +10,21 @@ export interface WriterBankAccount {
   status: 'active' | 'delete'
 }
 
+export interface BankConfig {
+  code: string
+  name: string
+  logo: string
+}
+
+export async function findBankConfigs(): Promise<BankConfig[]> {
+  const [row] = await db<{ value: BankConfig[] }[]>`
+    SELECT value
+    FROM website_configs
+    WHERE key = 'banks'
+  `
+  return Array.isArray(row?.value) ? row.value : []
+}
+
 export async function findWriterBankAccount(userId: string) {
   const [account] = await db<WriterBankAccount[]>`
     SELECT id, account_holder_first_name, account_holder_last_name, bank_code,
