@@ -34,12 +34,28 @@ import type {
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
 import type { WriterDashboardData, WriterDashboardPeriod } from '@/interface/writer-stats.interface'
+import type { WriterBankAccount, WriterBankAccountInput } from '@/interface/writer-bank-account.interface'
 import type {
   ChapterStatus,
   CreatedWriterChapter,
   WriterChapterDetail,
   WriterChaptersResponse,
 } from '@/interface/writer-chapter.interface'
+
+export function getWriterBankAccount(accessToken: string): Promise<{ account: WriterBankAccount | null }> {
+  return apiRequest('/writer/bank-account', { accessToken, cache: 'no-store' })
+}
+
+export function submitWriterBankAccount(
+  body: WriterBankAccountInput,
+  accessToken: string,
+): Promise<{ account: WriterBankAccount }> {
+  return apiRequest('/writer/bank-account', {
+    method: 'POST', accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
 
 export function getWriterOverview(
   contentId: string,

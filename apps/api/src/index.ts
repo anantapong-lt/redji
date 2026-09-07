@@ -14,6 +14,7 @@ import { landingRoutes } from './modules/landing/landing.routes'
 import { topupRoutes } from './modules/topup/topup.routes'
 import { publishScheduledChapters } from './modules/writer/chapter/writer-chapter.service'
 import { writerRoutes } from './modules/writer/writer.routes'
+import { writerBankAccountRoutes } from './modules/writer-bank-account/writer-bank-account.routes'
 
 const CHAPTER_PUBLISH_INTERVAL_MS = 60_000
 
@@ -44,6 +45,7 @@ const app = new Elysia()
   .use(genreOptionsRoutes)
   .use(landingRoutes)
   .use(topupRoutes)
+  .use(writerBankAccountRoutes)
   .use(writerRoutes)
 
 app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { userRole, type AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
+import { WriterApplicationDialog } from './writer-application-dialog'
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
@@ -78,6 +79,7 @@ function formatBalance(balance: string) {
 export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
+  const [writerApplicationOpen, setWriterApplicationOpen] = useState(false)
   const pathname = usePathname()
   const { logout, status, user: clientUser } = useAuth()
   const user = status === 'loading' ? initialUser : clientUser
@@ -140,6 +142,16 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
               >
                 <PenLine className="size-5" />
               </Link>
+            ) : user?.role === userRole.USER ? (
+              <button
+                type="button"
+                onClick={() => setWriterApplicationOpen(true)}
+                aria-label="สมัครนักเขียน"
+                title="สมัครนักเขียน"
+                className="readji-icon-button cursor-pointer"
+              >
+                <PenLine className="size-5" />
+              </button>
             ) : (
               <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
             )}
@@ -281,8 +293,18 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
                 { label: 'ฟีด', icon: Rss },
                 { label: 'ประวัติ', icon: History },
                 { label: 'ค้นหานิยาย', icon: Search },
-                { label: 'Writer Studio', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined },
-              ].map(({ label, icon: Icon, href }) => href ? (
+                { label: user?.role === userRole.WRITER ? 'Writer Studio' : 'สมัครนักเขียน', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined, canApply: user?.role === userRole.USER },
+              ].map(({ label, icon: Icon, href, canApply }) => canApply ? (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => { setMobileMenuOpen(false); setWriterApplicationOpen(true) }}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+                >
+                  <Icon className="size-5 text-primary" />
+                  {label}
+                </button>
+              ) : href ? (
                 <Link
                   key={label}
                   href={href}
@@ -353,6 +375,8 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
           </aside>
         </div>
       )}
+
+      <WriterApplicationDialog open={writerApplicationOpen} onOpenChange={setWriterApplicationOpen} />
     </>
   )
 }
