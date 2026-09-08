@@ -9,6 +9,12 @@ interface WriterApplicationRow {
   display_name: string
   username: string
   email: string
+  phone_number: string | null
+  balance: string
+  user_status: 'active' | 'banned'
+  email_verified_at: Date | null
+  last_login_at: Date | null
+  user_created_at: Date
   account_holder_first_name: string
   account_holder_last_name: string
   bank_code: string
@@ -21,7 +27,7 @@ interface WriterApplicationRow {
   user_role: string
 }
 
-const select = `wba.id, wba.writer_user_id, applicant.display_name, applicant.username, applicant.email, wba.account_holder_first_name, wba.account_holder_last_name, wba.bank_code, wba.account_number, wba.application_status, wba.created_at, wba.reviewed_at, wba.review_note, reviewer.email AS reviewed_by, applicant.role AS user_role`
+const select = `wba.id, wba.writer_user_id, applicant.display_name, applicant.username, applicant.email, applicant.phone_number, applicant.balance::TEXT, applicant.status AS user_status, applicant.email_verified_at, applicant.last_login_at, applicant.created_at AS user_created_at, wba.account_holder_first_name, wba.account_holder_last_name, wba.bank_code, wba.account_number, wba.application_status, wba.created_at, wba.reviewed_at, wba.review_note, reviewer.email AS reviewed_by, applicant.role AS user_role`
 
 export class WriterApplicationError extends Error {
   constructor(message: string, readonly statusCode: 400 | 404 | 409) {
