@@ -35,6 +35,7 @@ import type {
 } from '@/interface/writer-content.interface'
 import type { WriterDashboardData, WriterDashboardPeriod } from '@/interface/writer-stats.interface'
 import type { BankConfig, WriterBankAccount, WriterBankAccountInput } from '@/interface/writer-bank-account.interface'
+import type { CreateWriterWithdrawalResponse, WriterWithdrawalsResponse } from '@/interface/writer-withdrawal.interface'
 import type {
   ChapterStatus,
   CreatedWriterChapter,
@@ -58,6 +59,29 @@ export function submitWriterBankAccount(
     method: 'POST', accessToken,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  })
+}
+
+export function getWriterWithdrawals(
+  page: number,
+  limit: number,
+  accessToken: string,
+): Promise<WriterWithdrawalsResponse> {
+  return apiRequest(`/writer/withdrawals?page=${page}&limit=${limit}`, {
+    accessToken,
+    cache: 'no-store',
+  })
+}
+
+export function createWriterWithdrawal(
+  amount: string,
+  accessToken: string,
+): Promise<CreateWriterWithdrawalResponse> {
+  return apiRequest('/writer/withdrawals', {
+    method: 'POST',
+    accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount }),
   })
 }
 

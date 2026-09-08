@@ -2,6 +2,7 @@ import { cors } from '@elysiajs/cors'
 import { Elysia } from 'elysia'
 import { env } from './config/env'
 import { adminUsersRoutes } from './modules/admin-users/admin-users.routes'
+import { adminWriterApplicationRoutes } from './modules/admin-writer-applications/admin-writer-applications.routes'
 import { adminContentsRoutes } from './modules/admin-contents/admin-contents.routes'
 import { adminDashboardRoutes } from './modules/admin-dashboard/admin-dashboard.routes'
 import { adminSiteRoutes } from './modules/admin-site/admin-site.routes'
@@ -11,10 +12,12 @@ import { chapterPurchaseRoutes } from './modules/chapter-purchase/chapter-purcha
 import { contentRoutes } from './modules/content/content.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { landingRoutes } from './modules/landing/landing.routes'
+import { notificationRoutes } from './modules/notifications/notifications.routes'
 import { topupRoutes } from './modules/topup/topup.routes'
 import { publishScheduledChapters } from './modules/writer/chapter/writer-chapter.service'
 import { writerRoutes } from './modules/writer/writer.routes'
 import { writerBankAccountRoutes } from './modules/writer-bank-account/writer-bank-account.routes'
+import { writerWithdrawalRoutes } from './modules/writer-withdrawals/writer-withdrawals.routes'
 
 const CHAPTER_PUBLISH_INTERVAL_MS = 60_000
 
@@ -35,6 +38,7 @@ const app = new Elysia()
     }),
   )
   .use(adminUsersRoutes)
+  .use(adminWriterApplicationRoutes)
   .use(adminContentsRoutes)
   .use(adminDashboardRoutes)
   .use(adminSiteRoutes)
@@ -44,8 +48,10 @@ const app = new Elysia()
   .use(contentRoutes)
   .use(genreOptionsRoutes)
   .use(landingRoutes)
+  .use(notificationRoutes)
   .use(topupRoutes)
   .use(writerBankAccountRoutes)
+  .use(writerWithdrawalRoutes)
   .use(writerRoutes)
 
 app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })

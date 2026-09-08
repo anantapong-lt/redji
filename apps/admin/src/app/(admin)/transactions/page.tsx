@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Banknote, CheckCircle2, ExternalLink, Eye, FileText, MoreHorizontal, Search, UploadCloud, XCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { WITHDRAWAL_STATUS, type WithdrawalStatus } from '@/constants/withdrawal.constant'
@@ -136,7 +137,10 @@ export default function TransactionsPage() {
     if (options.note?.trim()) form.set('note', options.note.trim())
     if (options.proofFile) form.set('proof', options.proofFile)
     const response = await fetch(`${apiUrl}/admin/withdrawals/${requestId}`, { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include', body: form })
-    if (!response.ok) throw new Error('ไม่สามารถอัปเดตสถานะคำขอได้')
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { message?: string } | null
+      throw new Error(body?.message ?? 'ไม่สามารถอัปเดตสถานะคำขอได้')
+    }
     const updateRequest = (request: WithdrawalRequest): WithdrawalRequest =>
       request.id === requestId
         ? {
@@ -153,19 +157,28 @@ export default function TransactionsPage() {
 
     setRequests((current) => current.map(updateRequest))
     setSelectedRequest((current) => (current?.id === requestId ? updateRequest(current) : current))
+    toast.success(nextStatus === WITHDRAWAL_STATUS.APPROVED ? 'อนุมัติคำขอและส่งการแจ้งเตือนแล้ว' : nextStatus === WITHDRAWAL_STATUS.REJECTED ? 'ปฏิเสธคำขอและส่งการแจ้งเตือนแล้ว' : 'ยืนยันการจ่ายเงินแล้ว')
   }
 
-  function approveRequest() {
+  async function approveRequest() {
     if (!approvalRequest || !transferProofName) return
-    void updateStatus(approvalRequest.id, WITHDRAWAL_STATUS.APPROVED, { proofName: transferProofName, proofUrl: transferProofUrl, proofFile: transferProofFile ?? undefined, note: approvalNote })
-    closeApprovalDialog()
+    try {
+      await updateStatus(approvalRequest.id, WITHDRAWAL_STATUS.APPROVED, { proofName: transferProofName, proofUrl: transferProofUrl, proofFile: transferProofFile ?? undefined, note: approvalNote })
+      closeApprovalDialog()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ไม่สามารถอนุมัติคำขอได้')
+    }
   }
 
-  function rejectRequest() {
+  async function rejectRequest() {
     if (!rejectionRequest || !rejectionNote.trim()) return
-    void updateStatus(rejectionRequest.id, WITHDRAWAL_STATUS.REJECTED, { note: rejectionNote })
-    setRejectionRequest(null)
-    setRejectionNote('')
+    try {
+      await updateStatus(rejectionRequest.id, WITHDRAWAL_STATUS.REJECTED, { note: rejectionNote })
+      setRejectionRequest(null)
+      setRejectionNote('')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ไม่สามารถปฏิเสธคำขอได้')
+    }
   }
 
   function selectTransferProof(file: File | undefined) {
@@ -486,7 +499,7 @@ export default function TransactionsPage() {
         >
           <DialogContent className="max-w-md gap-5 sm:max-w-md">
             <DialogHeader className="pr-8">
-              <DialogTitle className="text-lg">แนบหลักฐานการโอน</DialogTitle>
+              <DialogTitle className="text-lg">อนุมัติคำขอถอนเงิน</DialogTitle>
               <DialogDescription>
                 แนบไฟล์หลักฐานการโอนสำหรับคำขอ {approvalRequest?.id} ก่อนอนุมัติคำขอ
               </DialogDescription>

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Bell, ChevronDown, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
+import { getUnreadNotificationCount } from '@/controllers/notification.controller'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -80,8 +81,9 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
   const [writerApplicationOpen, setWriterApplicationOpen] = useState(false)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const pathname = usePathname()
-  const { logout, status, user: clientUser } = useAuth()
+  const { accessToken, logout, status, user: clientUser } = useAuth()
   const user = status === 'loading' ? initialUser : clientUser
   const isReaderPage = /^\/content\/[^/]+\/[^/]+$/.test(pathname)
 
@@ -103,6 +105,18 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [isReaderPage])
+
+  useEffect(() => {
+    if (!accessToken) {
+      setUnreadNotificationCount(0)
+      return
+    }
+    let active = true
+    void getUnreadNotificationCount(accessToken)
+      .then(({ count }) => { if (active) setUnreadNotificationCount(count) })
+      .catch(() => { if (active) setUnreadNotificationCount(0) })
+    return () => { active = false }
+  }, [accessToken, pathname])
 
   async function handleLogout() {
     await logout()
@@ -155,7 +169,12 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
             ) : (
               <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
             )}
-            <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>
+            {user ? (
+              <Link href="/notifications" aria-label={unreadNotificationCount > 0 ? `การแจ้งเตือนใหม่ ${unreadNotificationCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
+                <Bell className="size-5" />
+                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
+              </Link>
+            ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end gap-2">
               {status === 'loading' && !user ? (
                 <div className="h-10 w-32 animate-pulse rounded-full bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
@@ -240,7 +259,12 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
 
           <div className="flex shrink-0 items-center gap-0.5 md:hidden">
             <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
-            <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>
+            {user ? (
+              <Link href="/notifications" aria-label={unreadNotificationCount > 0 ? `การแจ้งเตือนใหม่ ${unreadNotificationCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
+                <Bell className="size-5" />
+                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
+              </Link>
+            ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}

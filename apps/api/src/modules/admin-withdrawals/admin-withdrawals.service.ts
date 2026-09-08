@@ -1,6 +1,7 @@
 import { S3Client } from 'bun'
 import { db } from '../../db'
 import { env } from '../../config/env'
+import { NOTIFICATION_TYPE } from '../../models/notification.model'
 import { WITHDRAWAL_STATUS, type WithdrawalStatus } from '../../models/withdrawal.model'
 
 interface WithdrawalRow {
@@ -91,6 +92,31 @@ export async function processAdminWithdrawal(
     await tx`
       UPDATE withdrawal_requests SET status = ${nextStatus}, reviewed_by_user_id = ${adminId}, approval_note = ${action === 'approve' ? note || null : current.approval_note}, rejection_reason = ${action === 'reject' ? note : current.rejection_reason}, transfer_proof_key = COALESCE(${proofKey}, transfer_proof_key), approved_at = CASE WHEN ${action} = 'approve' THEN NOW() ELSE approved_at END, paid_at = CASE WHEN ${action} = 'pay' THEN NOW() ELSE paid_at END, rejected_at = CASE WHEN ${action} = 'reject' THEN NOW() ELSE rejected_at END, updated_at = NOW() WHERE id = ${id}
     `
+    if (action === 'reject') {
+      await tx`
+        UPDATE users
+        SET balance = ROUND(balance + ${current.requested_amount}::NUMERIC, 2), updated_at = NOW()
+        WHERE id = ${current.writer_user_id}
+      `
+    }
+    if (action === 'approve' || action === 'reject') {
+      const approved = action === 'approve'
+      const title = approved ? 'คำขอถอนเงินได้รับการอนุมัติ' : 'คำขอถอนเงินไม่ได้รับการอนุมัติ'
+      const message = approved
+        ? `คำขอถอนเงินจำนวน ${current.requested_amount} ได้รับการอนุมัติแล้ว${note ? `\nหมายเหตุ: ${note}` : ''}`
+        : `คำขอถอนเงินจำนวน ${current.requested_amount} ถูกปฏิเสธ และระบบได้คืนยอดเข้ายอดคงเหลือแล้ว\nเหตุผล: ${note}`
+      await tx`
+        INSERT INTO notifications (user_id, type, title, message, target_url, data)
+        VALUES (
+          ${current.writer_user_id},
+          ${approved ? NOTIFICATION_TYPE.WITHDRAWAL_APPROVED : NOTIFICATION_TYPE.WITHDRAWAL_REJECTED},
+          ${title},
+          ${message},
+          '/writer/withdrawals',
+          ${JSON.stringify({ withdrawal_request_id: id, status: nextStatus })}::JSONB
+        )
+      `
+    }
     await tx`INSERT INTO withdrawal_request_events (withdrawal_request_id, from_status, to_status, note, actor_user_id) VALUES (${id}, ${current.status}, ${nextStatus}, ${note || null}, ${adminId})`
     return tx<
       WithdrawalRow[]

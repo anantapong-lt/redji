@@ -22,7 +22,7 @@ import { SITE_CONFIG } from '@/site.config'
 const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
   { href: '/writer/contents/?tab=novel', label: 'ผลงาน', icon: BookOpen, enabled: true },
-  { href: '/writer/withdrawals', label: 'ถอนเงิน', icon: Banknote, enabled: false },
+  { href: '/writer/withdrawals', label: 'ถอนเงิน', icon: Banknote, enabled: true },
   { href: '/writer/reports', label: 'รายงานที่ได้รับ', icon: Flag, enabled: false },
 ] as const
 
