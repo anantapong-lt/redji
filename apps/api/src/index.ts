@@ -3,6 +3,7 @@ import { Elysia } from 'elysia'
 import { env } from './config/env'
 import { adminUsersRoutes } from './modules/admin-users/admin-users.routes'
 import { adminWriterApplicationRoutes } from './modules/admin-writer-applications/admin-writer-applications.routes'
+import { adminWritersRoutes } from './modules/admin-writers/admin-writers.routes'
 import { adminContentsRoutes } from './modules/admin-contents/admin-contents.routes'
 import { adminDashboardRoutes } from './modules/admin-dashboard/admin-dashboard.routes'
 import { adminSiteRoutes } from './modules/admin-site/admin-site.routes'
@@ -39,6 +40,7 @@ const app = new Elysia()
   )
   .use(adminUsersRoutes)
   .use(adminWriterApplicationRoutes)
+  .use(adminWritersRoutes)
   .use(adminContentsRoutes)
   .use(adminDashboardRoutes)
   .use(adminSiteRoutes)
