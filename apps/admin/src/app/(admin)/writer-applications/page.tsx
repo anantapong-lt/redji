@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, ChevronLeft, ChevronRight, CircleX, ClipboardCheck, Eye, Search } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, CircleX, ClipboardCheck, Eye, MoreHorizontal, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import {
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -58,6 +59,12 @@ interface ApplicationsResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number }
 }
 
+interface BankConfig {
+  code: string
+  name: string
+  logo: string
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
@@ -69,9 +76,15 @@ function statusClass(status: WriterApplicationStatus) {
   return 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400'
 }
 
+function BankLogo({ bank }: { bank: BankConfig | undefined }) {
+  if (!bank) return null
+  return <img src={`${apiUrl}/writer/${bank.logo}`} alt={bank.name} className="size-7 shrink-0 object-contain" />
+}
+
 export default function WriterApplicationsPage() {
   const { accessToken } = useAdminAuth()
   const [data, setData] = useState<ApplicationsResponse | null>(null)
+  const [banks, setBanks] = useState<BankConfig[]>([])
   const [search, setSearch] = useState('')
   const [submittedSearch, setSubmittedSearch] = useState('')
   const [status, setStatus] = useState<'all' | WriterApplicationStatus>('pending')
@@ -110,6 +123,21 @@ export default function WriterApplicationsPage() {
   useEffect(() => {
     void loadApplications()
   }, [loadApplications])
+
+  useEffect(() => {
+    if (!accessToken) return
+    void fetch(`${apiUrl}/writer/banks`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+      credentials: 'include',
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ banks: BankConfig[] }> : { banks: [] })
+      .then((result) => setBanks(result.banks))
+      .catch(() => setBanks([]))
+  }, [accessToken])
+
+  function findBank(code: string) {
+    return banks.find((bank) => bank.code === code)
+  }
 
   function openReview(application: WriterApplication, action: 'approve' | 'reject') {
     setReviewing({ application, action })
@@ -258,8 +286,11 @@ export default function WriterApplicationsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">
-                          {application.bank_code} •••• {application.account_number.slice(-4)}
+                        <div className="flex items-center gap-2 font-medium">
+                          <BankLogo bank={findBank(application.bank_code)} />
+                          <span>
+                            {findBank(application.bank_code)?.name ?? application.bank_code} •••• {application.account_number.slice(-4)}
+                          </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {application.account_holder_first_name} {application.account_holder_last_name}
@@ -278,24 +309,31 @@ export default function WriterApplicationsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openDetails(application)}>
-                            <Eye />
-                            ดูรายละเอียด
-                          </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button variant="ghost" size="icon" aria-label={`จัดการคำขอของ ${application.display_name}`} />}
+                          >
+                            <MoreHorizontal />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openDetails(application)}>
+                              <Eye />
+                              ดูรายละเอียด
+                            </DropdownMenuItem>
                           {application.application_status === WRITER_APPLICATION_STATUS.PENDING && (
                             <>
-                              <Button size="sm" onClick={() => openReview(application, 'approve')}>
+                              <DropdownMenuItem onClick={() => openReview(application, 'approve')}>
                                 <CheckCircle2 />
                                 อนุมัติ
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => openReview(application, 'reject')}>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem variant="destructive" onClick={() => openReview(application, 'reject')}>
                                 <CircleX />
                                 ปฏิเสธ
-                              </Button>
+                              </DropdownMenuItem>
                             </>
                           )}
-                        </div>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -409,7 +447,10 @@ export default function WriterApplicationsPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">ธนาคาร</p>
-                    <p>{detailsApplication.bank_code}</p>
+                    <div className="flex items-center gap-2">
+                      <BankLogo bank={findBank(detailsApplication.bank_code)} />
+                      <p>{findBank(detailsApplication.bank_code)?.name ?? detailsApplication.bank_code}</p>
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <p className="text-muted-foreground">เลขบัญชี</p>
