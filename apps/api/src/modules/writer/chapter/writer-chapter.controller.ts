@@ -280,19 +280,20 @@ function normalizeChapterInput(
     throw new WriterChapterError('ราคาต้องเป็นตัวเลขตั้งแต่ 0 ถึง 9,999,999,999.99', 400, 'price')
   }
 
-  let publishedAt = existingPublishedAt ?? null
+  let publishedAt = existingPublishedAt?.toISOString() ?? null
   if (input.status === CHAPTER_STATUS.SCHEDULED) {
-    publishedAt = input.published_at ? new Date(input.published_at) : null
+    const scheduledAt = input.published_at ? new Date(input.published_at) : null
     const isExistingScheduledAt = Boolean(
-      publishedAt
+      scheduledAt
       && existingPublishedAt
-      && publishedAt.getTime() === existingPublishedAt.getTime(),
+      && scheduledAt.getTime() === existingPublishedAt.getTime(),
     )
-    if (!publishedAt || Number.isNaN(publishedAt.getTime()) || (!isExistingScheduledAt && publishedAt <= new Date())) {
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || (!isExistingScheduledAt && scheduledAt <= new Date())) {
       throw new WriterChapterError('กรุณาระบุเวลาเผยแพร่ในอนาคต', 400, 'published_at')
     }
+    publishedAt = scheduledAt.toISOString()
   } else if (input.status === CHAPTER_STATUS.PUBLISHED && !publishedAt) {
-    publishedAt = new Date()
+    publishedAt = new Date().toISOString()
   }
 
   const plainContent = plainTextFromHtml(content)
@@ -475,12 +476,13 @@ export async function bulkUpdateChapterStatus(
   storyId: string,
   input: BulkUpdateChapterStatusInput,
 ): Promise<number> {
-  let scheduledAt: Date | null = null
+  let scheduledAt: string | null = null
   if (input.status === CHAPTER_STATUS.SCHEDULED) {
-    scheduledAt = input.published_at ? new Date(input.published_at) : null
-    if (!scheduledAt || Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+    const scheduledDate = input.published_at ? new Date(input.published_at) : null
+    if (!scheduledDate || Number.isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       throw new WriterChapterError('กรุณาระบุเวลาเผยแพร่ในอนาคต', 400)
     }
+    scheduledAt = scheduledDate.toISOString()
   }
   await assertSelectedChapters(creatorUserId, storyId, input.chapter_ids)
   return updateChapterStatuses(storyId, input.chapter_ids, input.status, scheduledAt)

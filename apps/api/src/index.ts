@@ -20,6 +20,7 @@ import { publishScheduledChapters } from './modules/writer/chapter/writer-chapte
 import { writerRoutes } from './modules/writer/writer.routes'
 import { writerBankAccountRoutes } from './modules/writer-bank-account/writer-bank-account.routes'
 import { writerWithdrawalRoutes } from './modules/writer-withdrawals/writer-withdrawals.routes'
+import { ttsAgentRoutes } from './modules/tts-agent/tts-agent.routes'
 
 const CHAPTER_PUBLISH_INTERVAL_MS = 60_000
 
@@ -56,6 +57,7 @@ const app = new Elysia()
   .use(topupRoutes)
   .use(writerBankAccountRoutes)
   .use(writerWithdrawalRoutes)
+  .use(ttsAgentRoutes)
   .use(writerRoutes)
 
 app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })

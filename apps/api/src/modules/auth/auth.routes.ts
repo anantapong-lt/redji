@@ -19,6 +19,8 @@ import {
   revokeAuthSession,
   validateAuthSession,
 } from './auth.service'
+import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
+import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
@@ -48,6 +50,25 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     '/verify-email',
     ({ body }) => confirmRegistrationEmail(body.token),
     { body: verifyEmailBodySchema },
+  )
+  .post(
+    '/agent/login',
+    ({ accessJwt, body, refreshJwt, request }) => agentLoginResponse(
+      body,
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown',
+      (claims) => accessJwt.sign(claims),
+      (claims) => refreshJwt.sign(claims),
+    ),
+    { body: agentLoginBodySchema },
+  )
+  .post(
+    '/agent/refresh',
+    ({ accessJwt, body, refreshJwt }) => agentRefreshResponse(
+      body.refresh_token,
+      (claims) => accessJwt.sign(claims),
+      (token) => refreshJwt.verify(token),
+    ),
+    { body: agentRefreshBodySchema },
   )
   .post(
     '/login',
