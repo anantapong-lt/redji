@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ChevronDown, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
+import { Bell, CheckCircle2, ChevronDown, CircleX, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
-import { getUnreadNotificationCount } from '@/controllers/notification.controller'
+import { getNotifications, getUnreadNotificationCount, markNotificationRead } from '@/controllers/notification.controller'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,6 +19,16 @@ import {
 import { userRole, type AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { WriterApplicationDialog } from './writer-application-dialog'
+import type { UserNotification } from '@/interface/notification.interface'
+import { NOTIFICATION_TYPE } from '@/constants/notification.constant'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
@@ -77,11 +87,138 @@ function formatBalance(balance: string) {
   return Number(balance).toLocaleString('th-TH')
 }
 
-export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) {
+function getNotificationIcon(type: UserNotification['type']) {
+  return type === NOTIFICATION_TYPE.WRITER_APPLICATION_APPROVED ? CheckCircle2 : type === NOTIFICATION_TYPE.WRITER_APPLICATION_REJECTED ? CircleX : Bell
+}
+
+function getNotificationIconClass(type: UserNotification['type']) {
+  return type === NOTIFICATION_TYPE.WRITER_APPLICATION_APPROVED
+    ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
+    : type === NOTIFICATION_TYPE.WRITER_APPLICATION_REJECTED
+      ? 'bg-destructive/10 text-destructive'
+      : 'bg-primary/10 text-primary'
+}
+
+function NotificationPopover({
+  accessToken,
+  unreadCount,
+  onUnreadCountChange,
+}: {
+  accessToken: string | null
+  unreadCount: number
+  onUnreadCountChange: (count: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [notifications, setNotifications] = useState<UserNotification[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState<UserNotification | null>(null)
+
+  useEffect(() => {
+    if (!open || !accessToken) return
+    setIsLoading(true)
+    void getNotifications(1, 5, accessToken)
+      .then(({ notifications: nextNotifications }) => setNotifications(nextNotifications))
+      .catch(() => setNotifications([]))
+      .finally(() => setIsLoading(false))
+  }, [accessToken, open])
+
+  async function handleNotificationClick(notification: UserNotification) {
+    if (accessToken && !notification.read_at) {
+      try {
+        const result = await markNotificationRead(notification.id, accessToken)
+        setNotifications((current) => current.map((item) => item.id === notification.id ? result.notification : item))
+        onUnreadCountChange(Math.max(0, unreadCount - 1))
+        notification = result.notification
+      } catch {
+        // The notification can still be viewed if marking it as read fails.
+      }
+    }
+    setOpen(false)
+    setSelectedNotification(notification)
+  }
+
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label={unreadCount > 0 ? `การแจ้งเตือนใหม่ ${unreadCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
+            <Bell className="size-5" />
+            {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" sideOffset={8} className="w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-border/70 p-0 shadow-[0_18px_45px_-24px_rgb(45_29_32_/_0.7)]">
+          <div className="flex items-center justify-between border-b border-border/70 bg-gradient-to-r from-primary/10 via-background to-background px-4 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                <Bell className="size-4" />
+              </span>
+              <div>
+                <p className="font-semibold leading-5">การแจ้งเตือน</p>
+                <p className="text-[11px] text-muted-foreground">อัปเดตล่าสุดของคุณ</p>
+              </div>
+            </div>
+            {unreadCount > 0 && <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-white">ใหม่ {unreadCount}</span>}
+          </div>
+          {isLoading ? (
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">กำลังโหลด...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">ยังไม่มีการแจ้งเตือน</p>
+          ) : (
+            <div className="max-h-80 space-y-1 overflow-y-auto p-2">
+              {notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => void handleNotificationClick(notification)}
+                  className={`group flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-all hover:-translate-y-px hover:border-primary/20 hover:bg-accent/70 hover:shadow-sm ${notification.read_at ? 'border-transparent' : 'border-primary/15 bg-primary/[0.04]'}`}
+                >
+                  {(() => { const Icon = getNotificationIcon(notification.type); return <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${getNotificationIconClass(notification.type)}`}><Icon className="size-4" /></span> })()}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start gap-2">
+                      <span className="block flex-1 truncate text-sm font-semibold">{notification.title}</span>
+                      {!notification.read_at && <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" aria-label="ยังไม่ได้อ่าน" />}
+                    </span>
+                    <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</span>
+                    <span className="mt-1.5 block text-[11px] text-muted-foreground/80">{new Date(notification.created_at).toLocaleString('th-TH')}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      <Dialog open={selectedNotification !== null} onOpenChange={(dialogOpen) => { if (!dialogOpen) setSelectedNotification(null) }}>
+        <DialogContent className="overflow-hidden rounded-2xl p-0 sm:max-w-md">
+          <div className="bg-gradient-to-br from-primary/15 via-background to-background px-6 pb-5 pt-6">
+            <DialogHeader className="gap-3">
+              {selectedNotification && (() => { const Icon = getNotificationIcon(selectedNotification.type); return <span className={`flex size-11 items-center justify-center rounded-xl ${getNotificationIconClass(selectedNotification.type)}`}><Icon className="size-5" /></span> })()}
+              <div>
+                <DialogTitle className="pr-8 text-lg leading-7">{selectedNotification?.title}</DialogTitle>
+                <p className="mt-1 text-xs text-muted-foreground">{selectedNotification && new Date(selectedNotification.created_at).toLocaleString('th-TH')}</p>
+              </div>
+            </DialogHeader>
+          </div>
+          <DialogDescription className="whitespace-pre-line px-6 py-5 text-sm leading-7 text-foreground/80">
+            {selectedNotification?.message}
+          </DialogDescription>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+export function NavbarClient({
+  initialUser,
+  initialUnreadNotificationCount,
+}: {
+  initialUser: AuthUser | null
+  initialUnreadNotificationCount: number
+}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
   const [writerApplicationOpen, setWriterApplicationOpen] = useState(false)
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(initialUnreadNotificationCount)
   const pathname = usePathname()
   const { accessToken, logout, status, user: clientUser } = useAuth()
   const user = status === 'loading' ? initialUser : clientUser
@@ -108,7 +245,7 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
 
   useEffect(() => {
     if (!accessToken) {
-      setUnreadNotificationCount(0)
+      if (status !== 'loading') setUnreadNotificationCount(0)
       return
     }
     let active = true
@@ -170,10 +307,11 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
               <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
             )}
             {user ? (
-              <Link href="/notifications" aria-label={unreadNotificationCount > 0 ? `การแจ้งเตือนใหม่ ${unreadNotificationCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
-                <Bell className="size-5" />
-                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
-              </Link>
+              <NotificationPopover
+                accessToken={accessToken}
+                unreadCount={unreadNotificationCount}
+                onUnreadCountChange={setUnreadNotificationCount}
+              />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end gap-2">
               {status === 'loading' && !user ? (
@@ -260,10 +398,11 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
           <div className="flex shrink-0 items-center gap-0.5 md:hidden">
             <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
             {user ? (
-              <Link href="/notifications" aria-label={unreadNotificationCount > 0 ? `การแจ้งเตือนใหม่ ${unreadNotificationCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
-                <Bell className="size-5" />
-                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
-              </Link>
+              <NotificationPopover
+                accessToken={accessToken}
+                unreadCount={unreadNotificationCount}
+                onUnreadCountChange={setUnreadNotificationCount}
+              />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <button
               type="button"

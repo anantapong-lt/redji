@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { getBankConfigs, submitWriterBankAccount } from '@/controllers/writer.controller'
+import { getBankConfigs, getWriterApplicationStatus, submitWriterBankAccount } from '@/controllers/writer.controller'
 import type { BankConfig } from '@/interface/writer-bank-account.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -35,12 +35,16 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [banks, setBanks] = useState<BankConfig[]>([])
   const [isLoadingBanks, setIsLoadingBanks] = useState(false)
+  const [isPending, setIsPending] = useState(false)
 
   useEffect(() => {
     if (!open || !accessToken) return
     setIsLoadingBanks(true)
-    void getBankConfigs(accessToken)
-      .then((result) => setBanks(result.banks))
+    void Promise.all([getBankConfigs(accessToken), getWriterApplicationStatus(accessToken)])
+      .then(([bankResult, statusResult]) => {
+        setBanks(bankResult.banks)
+        setIsPending(statusResult.status === 'pending')
+      })
       .catch(() => toast.error('ไม่สามารถโหลดรายการธนาคารได้'))
       .finally(() => setIsLoadingBanks(false))
   }, [accessToken, open])
@@ -52,6 +56,7 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isPending) return
     if (!accessToken) {
       toast.error('กรุณาเข้าสู่ระบบอีกครั้ง')
       return
@@ -78,7 +83,12 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
             1–3 วัน
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {isPending ? (
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-5 text-center">
+            <p className="font-semibold text-foreground">ใบสมัครของคุณอยู่ระหว่างตรวจสอบข้อมูล</p>
+            <p className="mt-1 text-sm text-muted-foreground">กรุณารอผลการพิจารณา 1–3 วัน ระบบจะแจ้งให้ทราบเมื่อมีผล</p>
+          </div>
+        ) : <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="writer-first-name">ชื่อ</Label>
@@ -147,7 +157,7 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
               {isSubmitting ? 'กำลังส่ง...' : 'ส่งใบสมัคร'}
             </Button>
           </DialogFooter>
-        </form>
+        </form>}
       </DialogContent>
     </Dialog>
   )
