@@ -43,6 +43,8 @@ python -m pip install ".[packaging]"
 The completed installer is written to
 `dist/installer/Readji-TTS-Agent-Setup-<version>.exe`. It installs only for the
 current Windows user under `%LOCALAPPDATA%`, adds Start Menu and desktop
-shortcuts, and does not require administrator permission. The packaged app
-keeps the current API default of `http://localhost:4000`; change it at launch
-with `READJI_TTS_API_URL` when a production endpoint is available.
+shortcuts, and does not require administrator permission. The package contains
+a windowed UI and a separate, hidden console worker so model-process IPC works
+reliably. The packaged app keeps the current API default of
+`http://localhost:4000`; change it at launch with `READJI_TTS_API_URL` when a
+production endpoint is available.

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QFrame, QGraphicsDropShadow
 from qfluentwidgets import BodyLabel, CheckBox, ComboBox, FluentIcon, FluentWindow, InfoBar, InfoBarPosition, LineEdit, MessageBox, NavigationItemPosition, PasswordLineEdit, PrimaryPushButton, ProgressBar, PushButton, SubtitleLabel, TableItemDelegate, TableView, Theme, setCustomStyleSheet, setTheme, setThemeColor
 
 from .api import ApiClient, ApiError
-from .renderer import RenderError, VoxCpmRenderer, _worker_main
+from .renderer import RenderError, VoxCpmRenderer
 from .ffmpeg_setup import FFmpegSetupCancelled, ffmpeg_path, install_ffmpeg, verify_ffmpeg
 from .secure_store import clear_login_credentials, clear_refresh_token, load_login_credentials, load_refresh_token, save_login_credentials, save_refresh_token
 
@@ -1469,11 +1469,6 @@ class MainWindow(FluentWindow):
 
 
 def main() -> None:
-    # A packaged PyInstaller executable cannot use ``python -m`` to launch the
-    # renderer.  The executable is therefore invoked again with this argument.
-    if len(sys.argv) == 4 and sys.argv[1] == "--worker":
-        _worker_main()
-        return
     if sys.stderr is not None:
         faulthandler.enable()
     app = QApplication(sys.argv)

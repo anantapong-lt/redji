@@ -9,6 +9,10 @@ $pythonVersion = & $PythonCommand $PythonArguments -c "import sys; print(f'{sys.
 if ($LASTEXITCODE -ne 0 -or $pythonVersion -notmatch '^3\.(10|11|12)$') {
     throw "Python 3.10, 3.11, or 3.12 is required. Pass -PythonCommand and -PythonArguments when Python is installed elsewhere."
 }
+$cudaAvailable = & $PythonCommand $PythonArguments -c "import torch; print(int(torch.cuda.is_available()))"
+if ($LASTEXITCODE -ne 0 -or $cudaAvailable -ne "1") {
+    throw "A CUDA-enabled PyTorch build is required before packaging. Install the NVIDIA CUDA wheel and verify torch.cuda.is_available() returns True."
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $assetsRoot = Join-Path $projectRoot "assets"
 $requiredVoices = @(
@@ -29,6 +33,7 @@ if ($pyproject -notmatch '(?m)^version\s*=\s*"([^"]+)"') {
 }
 $version = $Matches[1]
 $entrypoint = Join-Path $PSScriptRoot "entrypoint.py"
+$workerEntrypoint = Join-Path $PSScriptRoot "worker_entrypoint.py"
 $distPath = Join-Path $projectRoot "dist"
 $workPath = Join-Path $projectRoot "build"
 
@@ -44,11 +49,34 @@ try {
         --collect-submodules keyring `
         --distpath $distPath `
         --workpath $workPath `
+        --specpath $workPath `
         $entrypoint
 
     if ($LASTEXITCODE -ne 0) {
         throw "PyInstaller failed with exit code $LASTEXITCODE."
     }
+
+    & $PythonCommand $PythonArguments -m PyInstaller --noconfirm --clean --console `
+        --name "Readji TTS Agent Worker" `
+        --paths "src" `
+        --copy-metadata triton-windows `
+        --collect-all voxcpm `
+        --collect-all soundfile `
+        --distpath $distPath `
+        --workpath $workPath `
+        --specpath $workPath `
+        $workerEntrypoint
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "PyInstaller worker build failed with exit code $LASTEXITCODE."
+    }
+
+    # Keep the standalone dist output runnable too. The GUI resolves its
+    # console worker relative to its own executable, and Inno Setup copies this
+    # complete directory into the installed application folder.
+    $applicationOutput = Join-Path $distPath "Readji TTS Agent"
+    $workerOutput = Join-Path $distPath "Readji TTS Agent Worker"
+    Copy-Item -LiteralPath $workerOutput -Destination (Join-Path $applicationOutput "worker") -Recurse -Force
 
     $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     if ($null -eq $iscc) {

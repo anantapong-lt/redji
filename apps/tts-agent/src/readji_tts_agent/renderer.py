@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from pathlib import Path
 from enum import Enum
 import faulthandler
@@ -51,6 +52,8 @@ class VoxCpmRenderer:
         self._messages: Queue = Queue()
         self._lock = Lock()
         self._shutdown = Event()
+        self._stderr_lines: deque[str] = deque(maxlen=30)
+        self._stderr_reader: Thread | None = None
         self.ready = False
 
     @property
@@ -62,20 +65,28 @@ class VoxCpmRenderer:
             return
         self._dispose()
         self._messages = Queue()
+        self._stderr_lines.clear()
         worker_arguments = ["--worker", str(self.voices_root), "1" if self.compile_enabled else "0"]
-        command = (
-            [sys.executable, *worker_arguments]
-            if getattr(sys, "frozen", False)
-            else [sys.executable, "-u", "-m", "readji_tts_agent.renderer", *worker_arguments]
-        )
+        if getattr(sys, "frozen", False):
+            # The GUI binary is built with PyInstaller --windowed, which makes
+            # stdout unavailable.  Use the separately packaged console worker
+            # so its JSON IPC stream remains connected to this process.
+            worker = Path(sys.executable).parent / "worker" / "Readji TTS Agent Worker.exe"
+            if not worker.is_file():
+                raise RenderError("ไม่พบตัวประมวลผลเสียงของแอป กรุณาติดตั้ง TTS Agent ใหม่")
+            command = [str(worker), *worker_arguments]
+        else:
+            command = [sys.executable, "-u", "-m", "readji_tts_agent.renderer", *worker_arguments]
         self._process = subprocess.Popen(
             command,
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             encoding="utf-8", bufsize=1,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
         self._reader = Thread(target=self._read_messages, args=(self._process.stdout, self._messages), daemon=True)
         self._reader.start()
+        self._stderr_reader = Thread(target=self._read_stderr, args=(self._process.stderr, self._stderr_lines), daemon=True)
+        self._stderr_reader.start()
 
     @staticmethod
     def _read_messages(stream, messages: Queue) -> None:
@@ -86,6 +97,14 @@ class VoxCpmRenderer:
             messages.put({"type": WorkerMessage.ERROR, "message": f"Worker IPC: {error}"})
         finally:
             messages.put(None)
+
+    @staticmethod
+    def _read_stderr(stream, lines: deque[str]) -> None:
+        try:
+            for line in stream:
+                lines.append(line.rstrip())
+        except OSError:
+            pass
 
     def _request(self, command: dict, progress=None, check_cancel=None) -> dict:
         with self._lock:
@@ -135,6 +154,9 @@ class VoxCpmRenderer:
             except subprocess.TimeoutExpired:
                 pass
         detail = f"0x{code & 0xFFFFFFFF:08X}" if code is not None else "IPC disconnected"
+        worker_output = "\n".join(self._stderr_lines).strip()
+        if worker_output:
+            detail = f"{detail}\n{worker_output[-1600:]}"
         return RenderError(
             f"ตัวประมวลผลเสียงหยุดทำงาน ({detail}) แอปหลักยังทำงานอยู่ "
             "หากเกิดระหว่าง compile ให้เปิดแอปใหม่ด้วย READJI_TTS_COMPILE=0"
@@ -177,13 +199,17 @@ class VoxCpmRenderer:
             process.wait(timeout=5)
         if self._reader is not None:
             self._reader.join()
+        if self._stderr_reader is not None:
+            self._stderr_reader.join()
         try:
             process.stdin.close()
         except OSError:
             pass
         process.stdout.close()
+        process.stderr.close()
         self._process = None
         self._reader = None
+        self._stderr_reader = None
 
 
 class _LocalVoxCpmRenderer:
