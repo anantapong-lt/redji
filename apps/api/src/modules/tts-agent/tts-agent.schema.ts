@@ -1,8 +1,9 @@
 import { t } from 'elysia'
 
 export const ttsChapterListQuerySchema = t.Object({
-  page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
-  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 50 })),
+  story_id: t.String({ format: 'uuid' }),
+  page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
 })
 
 export const ttsJobParamsSchema = t.Object({ id: t.String({ format: 'uuid' }) })

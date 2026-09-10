@@ -33,7 +33,20 @@ function r2() {
   })
 }
 
-export async function listWriterTtsChapters(userId: string, page: number, limit: number) {
+export async function listWriterTtsStories(userId: string) {
+  return db<{ id: string; title: string }[]>`
+    SELECT s.id, s.title FROM stories s
+    WHERE s.creator_user_id = ${userId} AND s.deleted_at IS NULL
+      AND EXISTS (
+        SELECT 1 FROM chapters c
+        INNER JOIN novel_chapter_contents n ON n.chapter_id = c.id
+        WHERE c.story_id = s.id
+      )
+    ORDER BY s.updated_at DESC, s.id
+  `
+}
+
+export async function listWriterTtsChapters(userId: string, storyId: string, page: number, limit: number) {
   const offset = (page - 1) * limit
   const [items, [count]] = await Promise.all([
     db<{
@@ -56,7 +69,13 @@ export async function listWriterTtsChapters(userId: string, page: number, limit:
         ORDER BY created_at DESC LIMIT 1
       ) j ON TRUE
       WHERE s.creator_user_id = ${userId} AND s.deleted_at IS NULL
-      ORDER BY s.updated_at DESC, c.chapter_number DESC
+        AND s.id = ${storyId}::UUID
+        AND NOT EXISTS (
+          SELECT 1 FROM tts_jobs audio
+          WHERE audio.chapter_id = c.id AND audio.status = ${TTS_JOB_STATUS.DONE}
+            AND (NULLIF(audio.audio_key, '') IS NOT NULL OR NULLIF(audio.audio_url, '') IS NOT NULL)
+        )
+      ORDER BY c.chapter_number ASC, c.id
       LIMIT ${limit} OFFSET ${offset}
     `,
     db<{ total: string }[]>`
@@ -64,6 +83,12 @@ export async function listWriterTtsChapters(userId: string, page: number, limit:
       INNER JOIN stories s ON s.id = c.story_id
       INNER JOIN novel_chapter_contents n ON n.chapter_id = c.id
       WHERE s.creator_user_id = ${userId} AND s.deleted_at IS NULL
+        AND s.id = ${storyId}::UUID
+        AND NOT EXISTS (
+          SELECT 1 FROM tts_jobs audio
+          WHERE audio.chapter_id = c.id AND audio.status = ${TTS_JOB_STATUS.DONE}
+            AND (NULLIF(audio.audio_key, '') IS NOT NULL OR NULLIF(audio.audio_url, '') IS NOT NULL)
+        )
     `,
   ])
   const total = Number(count.total)
@@ -196,4 +221,35 @@ export async function failTtsJob(userId: string, jobId: string, workerId: string
     RETURNING id
   `
   if (!rows.length) throw new TtsAgentError('Job could not be marked as failed', 409)
+}
+
+export async function cancelTtsJob(userId: string, jobId: string, workerId: string) {
+  const rows = await db`
+    UPDATE tts_jobs SET status = ${TTS_JOB_STATUS.CANCELLED}, error_message = 'Rendering cancelled by writer or agent shutdown',
+      lease_expires_at = NULL, updated_at = NOW()
+    WHERE id = ${jobId} AND requested_by = ${userId} AND worker_id = ${workerId}::UUID
+      AND status IN (${TTS_JOB_STATUS.PROCESSING}, ${TTS_JOB_STATUS.CANCELLED})
+    RETURNING id
+  `
+  if (!rows.length) throw new TtsAgentError('Job could not be cancelled', 409)
+}
+
+export async function cancelAllWriterTtsJobs(userId: string) {
+  const rows = await db<{ id: string }[]>`
+    UPDATE tts_jobs SET status = ${TTS_JOB_STATUS.CANCELLED},
+      error_message = 'All active TTS jobs cancelled by writer',
+      lease_expires_at = NULL, updated_at = NOW()
+    WHERE requested_by = ${userId}
+      AND status IN (${TTS_JOB_STATUS.QUEUED}, ${TTS_JOB_STATUS.PROCESSING})
+    RETURNING id
+  `
+  return { cancelled_count: rows.length }
+}
+
+export async function getWriterTtsJobStatus(userId: string, jobId: string) {
+  const [job] = await db<{ id: string; status: TtsJobStatus }[]>`
+    SELECT id, status FROM tts_jobs WHERE id = ${jobId} AND requested_by = ${userId}
+  `
+  if (!job) throw new TtsAgentError('Job not found', 404)
+  return job
 }

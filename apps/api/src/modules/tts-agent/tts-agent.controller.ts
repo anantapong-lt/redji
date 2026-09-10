@@ -1,7 +1,8 @@
 import { status } from 'elysia'
 import {
-  TtsAgentError, claimNextWriterTtsJob, completeTtsJob, createTtsUploadUrl,
+  TtsAgentError, cancelTtsJob, claimNextWriterTtsJob, completeTtsJob, createTtsUploadUrl,
   failTtsJob, listWriterTtsChapters, queueWriterTtsJob, updateTtsProgress,
+  listWriterTtsStories, cancelAllWriterTtsJobs, getWriterTtsJobStatus,
 } from './tts-agent.service'
 
 function respond(error: unknown) {
@@ -10,8 +11,17 @@ function respond(error: unknown) {
   return status(500, { message: 'Unable to process TTS agent request' })
 }
 
-export async function listTtsChaptersResponse(userId: string, page: number, limit: number) {
-  try { return await listWriterTtsChapters(userId, page, limit) } catch (error) { return respond(error) }
+export async function listTtsChaptersResponse(userId: string, query: { story_id: string; page?: number; limit?: number }) {
+  try { return await listWriterTtsChapters(userId, query.story_id, query.page ?? 1, query.limit ?? 20) } catch (error) { return respond(error) }
+}
+export async function listTtsStoriesResponse(userId: string) {
+  try { return { items: await listWriterTtsStories(userId) } } catch (error) { return respond(error) }
+}
+export async function cancelAllTtsJobsResponse(userId: string) {
+  try { return await cancelAllWriterTtsJobs(userId) } catch (error) { return respond(error) }
+}
+export async function getTtsJobStatusResponse(userId: string, jobId: string) {
+  try { return await getWriterTtsJobStatus(userId, jobId) } catch (error) { return respond(error) }
 }
 export async function queueTtsJobResponse(userId: string, chapterId: string, voiceSlot: string) {
   try { return await queueWriterTtsJob(userId, chapterId, voiceSlot) } catch (error) { return respond(error) }
@@ -30,4 +40,7 @@ export async function completeTtsJobResponse(userId: string, jobId: string, work
 }
 export async function failTtsJobResponse(userId: string, jobId: string, workerId: string, message: string) {
   try { await failTtsJob(userId, jobId, workerId, message); return { success: true } } catch (error) { return respond(error) }
+}
+export async function cancelTtsJobResponse(userId: string, jobId: string, workerId: string) {
+  try { await cancelTtsJob(userId, jobId, workerId); return { success: true } } catch (error) { return respond(error) }
 }

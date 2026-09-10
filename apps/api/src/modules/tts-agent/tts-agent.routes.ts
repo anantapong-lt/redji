@@ -6,17 +6,23 @@ import {
   ttsChapterListQuerySchema, ttsJobParamsSchema, ttsWorkerParamsSchema,
 } from './tts-agent.schema'
 import {
-  claimTtsJobResponse, completeTtsJobResponse, failTtsJobResponse, listTtsChaptersResponse, progressTtsJobResponse,
+  cancelTtsJobResponse, claimTtsJobResponse, completeTtsJobResponse, failTtsJobResponse, listTtsChaptersResponse, progressTtsJobResponse,
   queueTtsJobResponse, uploadTtsJobResponse,
+  listTtsStoriesResponse, cancelAllTtsJobsResponse, getTtsJobStatusResponse,
 } from './tts-agent.controller'
 
 export const ttsAgentRoutes = new Elysia({ prefix: '/writer/tts' })
   .use(authMiddleware)
-  .get('/chapters', ({ currentUser, query }) => listTtsChaptersResponse(currentUser.id, query.page ?? 1, query.limit ?? 50), {
+  .get('/stories', ({ currentUser }) => listTtsStoriesResponse(currentUser.id), { auth: USER_ROLE.WRITER })
+  .get('/chapters', ({ currentUser, query }) => listTtsChaptersResponse(currentUser.id, query), {
     auth: USER_ROLE.WRITER, query: ttsChapterListQuerySchema,
   })
   .post('/jobs', ({ currentUser, body }) => queueTtsJobResponse(currentUser.id, body.chapter_id, body.voice_slot), {
     auth: USER_ROLE.WRITER, body: queueTtsJobBodySchema,
+  })
+  .post('/jobs/cancel-all', ({ currentUser }) => cancelAllTtsJobsResponse(currentUser.id), { auth: USER_ROLE.WRITER })
+  .get('/jobs/:id', ({ currentUser, params }) => getTtsJobStatusResponse(currentUser.id, params.id), {
+    auth: USER_ROLE.WRITER, params: ttsJobParamsSchema,
   })
   .post('/jobs/claim/:workerId', ({ currentUser, params }) => claimTtsJobResponse(currentUser.id, params.workerId), {
     auth: USER_ROLE.WRITER, params: ttsWorkerParamsSchema,
@@ -33,3 +39,6 @@ export const ttsAgentRoutes = new Elysia({ prefix: '/writer/tts' })
   .post('/jobs/:id/fail', ({ currentUser, params, body }) => failTtsJobResponse(
     currentUser.id, params.id, body.worker_id, body.error_message,
   ), { auth: USER_ROLE.WRITER, params: ttsJobParamsSchema, body: agentFailBodySchema })
+  .post('/jobs/:id/cancel', ({ currentUser, params, body }) => cancelTtsJobResponse(
+    currentUser.id, params.id, body.worker_id,
+  ), { auth: USER_ROLE.WRITER, params: ttsJobParamsSchema, body: agentWorkerBodySchema })
