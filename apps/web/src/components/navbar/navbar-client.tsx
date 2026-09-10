@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CheckCircle2, ChevronDown, CircleX, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
+import { Bell, CheckCircle2, ChevronDown, CircleX, Home, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
 import { getNotifications, getUnreadNotificationCount, markNotificationRead } from '@/controllers/notification.controller'
@@ -32,8 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
-  { label: 'ฟีด', icon: Rss },
-  { label: 'ประวัติ', icon: History },
+  { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
 ]
 
 function DisabledIconButton({ label, children }: { label: string; children: React.ReactNode }) {
@@ -453,8 +452,7 @@ export function NavbarClient({
                 หน้าแรก
               </Link>
               {[
-                { label: 'ฟีด', icon: Rss },
-                { label: 'ประวัติ', icon: History },
+                { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
                 { label: 'ค้นหานิยาย', icon: Search },
                 { label: user?.role === userRole.WRITER ? 'Writer Studio' : 'สมัครนักเขียน', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined, canApply: user?.role === userRole.USER },
               ].map(({ label, icon: Icon, href, canApply }) => canApply ? (
