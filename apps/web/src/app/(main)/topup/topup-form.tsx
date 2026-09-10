@@ -11,11 +11,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { createTopup } from '@/controllers/topup.controller'
-import type { CreateTopupResponse, TopupTransaction } from '@/interface/topup.interface'
+import type { CreateTopupResponse, TopupPackage, TopupTransaction } from '@/interface/topup.interface'
 import { ApiError } from '@/lib/api-client'
 import { SITE_CONFIG } from '@/site.config'
-
-const PRESET_AMOUNTS = [50, 100, 300, 500, 1_000, 3_000] as const
 
 function formatNumber(value: number) {
   return value.toLocaleString('th-TH')
@@ -61,10 +59,11 @@ interface TopupSocketMessage {
   transaction: TopupTransaction
 }
 
-export function TopupForm() {
+export function TopupForm({ packages }: { packages: TopupPackage[] }) {
   const { accessToken, refresh, status } = useAuth()
-  const [amount, setAmount] = useState(50)
-  const [customAmount, setCustomAmount] = useState('50')
+  const firstPackageAmount = packages[0]?.amount ?? '50'
+  const [amount, setAmount] = useState(Number(firstPackageAmount))
+  const [customAmount, setCustomAmount] = useState(firstPackageAmount)
   const [createdTopup, setCreatedTopup] = useState<CreateTopupResponse | null>(null)
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -79,6 +78,8 @@ export function TopupForm() {
   const paymentTimeout = createdTopup?.payment.time_out ?? 0
   const isPaid = topupStatus === 'paid'
   const isExpired = topupStatus === 'expired'
+  const selectedPackage = packages.find((item) => Number(item.amount) === amount && Number(customAmount) === Number(item.amount))
+  const bonus = selectedPackage ? Number(selectedPackage.bonus) : 0
 
   useEffect(() => {
     if (!topupId) return
@@ -228,8 +229,9 @@ export function TopupForm() {
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4 sm:gap-3">
-          {PRESET_AMOUNTS.map((value) => {
-            const selected = amount === value && customAmount === String(value)
+          {packages.map((topupPackage) => {
+            const value = Number(topupPackage.amount)
+            const selected = amount === value && Number(customAmount) === value
 
             return (
               <button
@@ -238,13 +240,14 @@ export function TopupForm() {
                 aria-pressed={selected}
                 onClick={() => selectAmount(value)}
                 disabled={isCreating || Boolean(createdTopup)}
-                className={`rounded-lg border px-2 py-2 text-xs font-semibold tabular-nums transition-colors sm:py-2.5 sm:text-sm ${
+                className={`flex min-h-14 flex-col items-center justify-center rounded-lg border px-2 py-2 text-xs font-semibold tabular-nums transition-colors sm:py-2.5 sm:text-sm ${
                   selected
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border bg-secondary text-secondary-foreground hover:border-primary/50 hover:bg-accent'
                 } disabled:cursor-not-allowed disabled:opacity-60`}
               >
-                {formatNumber(value)} ฿
+                <span>{formatNumber(value)} บาท</span>
+                {Number(topupPackage.bonus) > 0 && <span className="mt-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">โบนัส +{formatNumber(Number(topupPackage.bonus))}</span>}
               </button>
             )
           })}
@@ -272,13 +275,13 @@ export function TopupForm() {
             <span className="font-semibold tabular-nums text-foreground">{formatNumber(amount)} {SITE_CONFIG.coinName}</span>
           </div>
           <div className="flex items-center justify-between gap-4 py-1">
-            <span className="text-muted-foreground">โบนัส (+0%)</span>
-            <span className="font-semibold tabular-nums text-muted-foreground">0 {SITE_CONFIG.coinName}</span>
+            <span className="text-muted-foreground">โบนัส</span>
+            <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">+{formatNumber(bonus)} {SITE_CONFIG.coinName}</span>
           </div>
           <div className="mt-2 flex items-center justify-between gap-4 border-t border-border pt-3">
             <span className="font-bold text-foreground">รวมที่จะได้รับ</span>
             <span className="text-base font-bold tabular-nums text-primary sm:text-lg">
-              {formatNumber(amount)} {SITE_CONFIG.coinName}
+              {formatNumber(amount + bonus)} {SITE_CONFIG.coinName}
             </span>
           </div>
         </div>

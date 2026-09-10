@@ -14,6 +14,7 @@ import { contentRoutes } from './modules/content/content.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { landingRoutes } from './modules/landing/landing.routes'
 import { notificationRoutes } from './modules/notifications/notifications.routes'
+import { siteConfigRoutes } from './modules/site-config/site-config.routes'
 import { topupRoutes } from './modules/topup/topup.routes'
 import { publishScheduledChapters } from './modules/writer/chapter/writer-chapter.service'
 import { writerRoutes } from './modules/writer/writer.routes'
@@ -51,6 +52,7 @@ const app = new Elysia()
   .use(genreOptionsRoutes)
   .use(landingRoutes)
   .use(notificationRoutes)
+  .use(siteConfigRoutes)
   .use(topupRoutes)
   .use(writerBankAccountRoutes)
   .use(writerWithdrawalRoutes)

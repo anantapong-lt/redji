@@ -2,10 +2,8 @@ import { getServerAuthUser, getServerUnreadNotificationCount } from '@/lib/serve
 import { NavbarClient } from './navbar-client'
 
 export async function Navbar() {
-  const [user, unreadNotificationCount] = await Promise.all([
-    getServerAuthUser(),
-    getServerUnreadNotificationCount(),
-  ])
+  const user = await getServerAuthUser()
+  const unreadNotificationCount = user ? await getServerUnreadNotificationCount() : 0
 
   return <NavbarClient initialUser={user} initialUnreadNotificationCount={unreadNotificationCount} />
 }

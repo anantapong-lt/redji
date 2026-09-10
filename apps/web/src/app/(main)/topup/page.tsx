@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { getServerAuthUser } from '@/lib/server-auth'
+import { getServerAuthUser, getServerTopupConfig } from '@/lib/server-auth'
 import { SITE_CONFIG } from '@/site.config'
 import { TopupBalance } from './topup-balance'
 import { TopupForm } from './topup-form'
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
 }
 
 export default async function TopupPage() {
-  const user = await getServerAuthUser()
+  const [user, config] = await Promise.all([getServerAuthUser(), getServerTopupConfig()])
+  const topupConfig = config ?? { topup: { packages: [] }, enabled: false }
 
   return (
     <div className="mx-auto w-full max-w-7xl px-3 py-5 sm:px-4 sm:py-8 md:px-8 md:py-10">
@@ -25,7 +26,14 @@ export default async function TopupPage() {
         {user && <TopupBalance initialBalance={user.balance} />}
       </section>
 
-      <TopupForm />
+      {topupConfig.enabled ? (
+        <TopupForm packages={topupConfig.topup.packages} />
+      ) : (
+        <section className="readji-surface mt-5 rounded-2xl p-8 text-center sm:mt-7 sm:p-12">
+          <h2 className="text-lg font-bold text-foreground">ระบบเติมเงินปิดให้บริการชั่วคราว</h2>
+          <p className="mt-2 text-sm text-muted-foreground">กรุณากลับมาใช้บริการใหม่ภายหลัง</p>
+        </section>
+      )}
     </div>
   )
 }

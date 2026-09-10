@@ -6,7 +6,6 @@ export interface AdminSiteConfig {
     tagline: string
     description: string
     site_url: string
-    admin_url: string
     coin_name: string
   }
   topup: { packages: { amount: string; bonus: string }[] }
@@ -26,7 +25,6 @@ const initialAdminSiteConfig: AdminSiteConfig = {
     tagline: '',
     description: '',
     site_url: 'http://localhost:3000',
-    admin_url: 'http://localhost:3002',
     coin_name: 'เหรียญ',
   },
   topup: {
@@ -64,10 +62,22 @@ export async function getAdminSiteConfig(): Promise<AdminSiteConfig> {
   for (const row of rows) {
     if (row.value && typeof row.value === 'object') config[row.key] = row.value as never
   }
+  if (config.site) {
+    const { admin_url: _adminUrl, ...site } = config.site as AdminSiteConfig['site'] & { admin_url?: string }
+    config.site = site
+  }
   if (!config.site || !config.topup || !config.withdrawal || !config.features) {
     throw new Error('Website configuration is incomplete')
   }
   return config
+}
+
+export async function getPublicTopupConfig(): Promise<Pick<AdminSiteConfig, 'topup' | 'features'>> {
+  const config = await getAdminSiteConfig()
+  return {
+    topup: config.topup,
+    features: config.features,
+  }
 }
 
 export async function saveAdminSiteConfig(config: AdminSiteConfig): Promise<AdminSiteConfig> {

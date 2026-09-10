@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cookies } from 'next/headers'
 import type { AuthUser } from '@/interface/user.interface'
+import type { TopupPageConfig } from '@/interface/topup.interface'
 import { SITE_CONFIG } from '@/site.config'
 
 function serverApiUrl(): string {
@@ -50,5 +51,18 @@ export async function getServerUnreadNotificationCount(): Promise<number> {
     return typeof body.count === 'number' ? body.count : 0
   } catch {
     return 0
+  }
+}
+
+export async function getServerTopupConfig(): Promise<TopupPageConfig | null> {
+  try {
+    const response = await fetch(`${serverApiUrl()}/site-config/topup`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) return null
+    return await response.json() as TopupPageConfig
+  } catch {
+    return null
   }
 }
