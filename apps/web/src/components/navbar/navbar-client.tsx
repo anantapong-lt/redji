@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CheckCircle2, ChevronDown, CircleX, History, Home, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
+import { Bell, CheckCircle2, ChevronDown, CircleX, HistoryIcon, Home, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
 import { getNotifications, getUnreadNotificationCount, markNotificationRead } from '@/controllers/notification.controller'
@@ -370,7 +370,7 @@ export function NavbarClient({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled className="py-2.5">
-                      <History />
+                      <HistoryIcon />
                       ประวัติการทำรายการ
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
