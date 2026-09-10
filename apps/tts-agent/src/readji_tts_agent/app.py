@@ -11,20 +11,53 @@ import uuid
 
 import httpx
 from PySide6.QtCore import QAbstractTableModel, QEvent, QModelIndex, Qt, QSettings, QThread, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog, QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QHeaderView, QLabel, QProgressBar, QStyle, QStyleOptionViewItem, QVBoxLayout, QWidget
-from qfluentwidgets import BodyLabel, ComboBox, FluentIcon, FluentWindow, InfoBar, InfoBarPosition, LineEdit, MessageBox, NavigationItemPosition, PasswordLineEdit, PrimaryPushButton, ProgressBar, PushButton, SubtitleLabel, TableItemDelegate, TableView
+from qfluentwidgets import BodyLabel, CheckBox, ComboBox, FluentIcon, FluentWindow, InfoBar, InfoBarPosition, LineEdit, MessageBox, NavigationItemPosition, PasswordLineEdit, PrimaryPushButton, ProgressBar, PushButton, SubtitleLabel, TableItemDelegate, TableView, Theme, setCustomStyleSheet, setTheme, setThemeColor
 
 from .api import ApiClient, ApiError
-from .renderer import RenderError, VoxCpmRenderer
+from .renderer import RenderError, VoxCpmRenderer, _worker_main
 from .ffmpeg_setup import FFmpegSetupCancelled, ffmpeg_path, install_ffmpeg, verify_ffmpeg
-from .secure_store import clear_refresh_token, load_refresh_token, save_refresh_token
+from .secure_store import clear_login_credentials, clear_refresh_token, load_login_credentials, load_refresh_token, save_login_credentials, save_refresh_token
 
 DEFAULT_API_URL = os.environ.get("READJI_TTS_API_URL", "http://localhost:4000")
 VOXCPM_MODEL_ID = "openbmb/VoxCPM2"
 PROGRESS_REPORT_INTERVAL = 5
 JOB_STATUS_POLL_SECONDS = 3
 CHAPTER_PAGE_SIZE = 20
+# Shared palette from apps/web/src/app/globals.css.
+WEB_COLORS = {
+    "background": "#f1efeb",
+    "foreground": "#2d1d20",
+    "card": "#fffdfa",
+    "primary": "#ff6f63",
+    "primary_foreground": "#ffffff",
+    "secondary": "#f1e8e2",
+    "muted": "#f0efeb",
+    "muted_foreground": "#74676a",
+    "accent": "#f7ece8",
+    "border": "#e5dfd9",
+    "input": "#ddd5ce",
+}
+WEB_CONTROL_STYLE = """
+    PushButton, ComboBox {{
+        background: {card}; color: {foreground};
+        border: 1px solid {input}; border-radius: 8px;
+    }}
+    PushButton:hover, ComboBox:hover {{ background: {accent}; }}
+    PushButton:pressed, ComboBox:pressed {{ background: {secondary}; }}
+    PushButton:focus, ComboBox:focus {{ border-color: {primary}; }}
+    PushButton:disabled, ComboBox:disabled {{
+        background: {muted}; color: {muted_foreground}; border-color: {border};
+    }}
+    PrimaryPushButton {{
+        background: {primary}; color: {primary_foreground}; border-color: {primary};
+    }}
+    PrimaryPushButton:hover {{ background: #ff7d72; border-color: #ff7d72; }}
+    PrimaryPushButton:pressed {{ background: #eb665b; border-color: #eb665b; }}
+    PrimaryPushButton:focus {{ border-color: {foreground}; }}
+    PrimaryPushButton:disabled {{ background: #ffaaa2; color: {card}; border-color: #ffaaa2; }}
+""".format_map(WEB_COLORS)
 TTS_JOB_STATUS = {
     "QUEUED": "queued",
     "PROCESSING": "processing",
@@ -32,6 +65,13 @@ TTS_JOB_STATUS = {
     "FAILED": "failed",
     "CANCELLED": "cancelled",
 }
+
+
+def application_root() -> Path:
+    """Return the directory containing application-owned, bundled resources."""
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+    return Path(__file__).resolve().parents[2]
 
 VOICE_SLOT = {
     "FEMALE": "female",
@@ -161,6 +201,7 @@ class ChapterTableDelegate(TableItemDelegate):
         if index.column() != TABLE_COLUMN["VOICE"]:
             return super().createEditor(parent, option, index)
         editor = ComboBox(parent)
+        setCustomStyleSheet(editor, WEB_CONTROL_STYLE, WEB_CONTROL_STYLE)
         editor.setMinimumWidth(0)
         editor.setFixedHeight(32)
         for value, label in VOICE_LABELS.items():
@@ -209,7 +250,7 @@ class ChapterTableDelegate(TableItemDelegate):
             return
         super().paint(painter, option, index)
         if column == TABLE_COLUMN["STATUS"]:
-            label, background, color = STATUS_PRESENTATION.get(chapter.get("latest_job_status"), ("ยังไม่ได้สร้าง", "#f4f4f5", "#52525b"))
+            label, background, color = STATUS_PRESENTATION.get(chapter.get("latest_job_status"), ("ยังไม่ได้สร้าง", WEB_COLORS["muted"], WEB_COLORS["muted_foreground"]))
             if chapter.get("latest_job_status") == TTS_JOB_STATUS["PROCESSING"] and chapter.get("latest_progress") is not None:
                 label = f"{label} {chapter['latest_progress']}%"
             self._paint_pill(painter, self._content_rect(option.rect), label, background, color)
@@ -217,7 +258,7 @@ class ChapterTableDelegate(TableItemDelegate):
         job_status = chapter.get("latest_job_status")
         if job_status not in (TTS_JOB_STATUS["QUEUED"], TTS_JOB_STATUS["PROCESSING"]):
             label = "สร้างใหม่" if job_status == TTS_JOB_STATUS["DONE"] else "เข้าคิว"
-            self._paint_pill(painter, self._content_rect(option.rect), label, "#0f9fae", "#ffffff")
+            self._paint_pill(painter, self._content_rect(option.rect), label, WEB_COLORS["primary"], WEB_COLORS["primary_foreground"])
 
     @staticmethod
     def _paint_pill(painter: QPainter, rect, text: str, background: str, color: str) -> None:
@@ -346,6 +387,7 @@ class FFmpegSetupThread(QThread):
 
 class FFmpegSetupDialog(QDialog):
     ready = Signal()
+    setup_failed = Signal()
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -415,6 +457,7 @@ class FFmpegSetupDialog(QDialog):
         if self.thread.cancelled or self.thread.cancel_requested.is_set():
             super().reject()
         elif self.thread.error_message:
+            self.setup_failed.emit()
             self.progress.setRange(0, 100)
             self.progress.setValue(0)
             self.status.setText(f"เตรียม FFmpeg ไม่สำเร็จ: {self.thread.error_message}")
@@ -440,6 +483,67 @@ class FFmpegSetupDialog(QDialog):
         super().closeEvent(event)
 
 
+class ModelPreparingDialog(QDialog):
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setObjectName("modelPreparingDialog")
+        self.setWindowTitle("กำลังเตรียมโมเดลเสียง")
+        self.setModal(True)
+        self.setFixedWidth(480)
+        self.setStyleSheet("QDialog#modelPreparingDialog { background: #fafafa; } QLabel { color: #18181b; }")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.addWidget(SubtitleLabel("กำลังเตรียม VoxCPM2", self))
+        self.message = BodyLabel("กำลังโหลดโมเดลขึ้น GPU และเตรียมพร้อมใช้งาน\nเมื่อพร้อมแล้วจะเริ่มงานอัตโนมัติ ไม่ต้องกดซ้ำ", self)
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.progress = QProgressBar(self)
+        self.progress.setRange(0, 0)
+        layout.addWidget(self.progress)
+        hint = BodyLabel("การ compile ครั้งแรกอาจใช้เวลาหลายนาที\nยกเลิกได้เพื่อไม่ให้เริ่มงานต่อ โมเดลจะยังเตรียมอยู่เบื้องหลัง", self)
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        cancel = PushButton("ยกเลิกการเริ่มงาน", self)
+        cancel.clicked.connect(self.reject)
+        layout.addWidget(cancel)
+
+
+class ShutdownDialog(QDialog):
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setObjectName("shutdownDialog")
+        self.setWindowTitle("กำลังปิดโปรแกรม")
+        self.setModal(True)
+        self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
+        self.setFixedWidth(480)
+        self.setStyleSheet("QDialog#shutdownDialog { background: #fffdfa; } QLabel { color: #2d1d20; background: transparent; }")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(16)
+        heading = SubtitleLabel("กำลังปิดโปรแกรม", self)
+        heading.setAlignment(Qt.AlignCenter)
+        layout.addWidget(heading)
+        message = BodyLabel("กำลังรอให้งานเบื้องหลังหยุดก่อนปิดโปรแกรม\nโปรแกรมจะปิดอัตโนมัติเมื่อดำเนินการเสร็จ", self)
+        message.setAlignment(Qt.AlignCenter)
+        message.setWordWrap(True)
+        layout.addWidget(message)
+        progress = QProgressBar(self)
+        progress.setRange(0, 0)
+        progress.setTextVisible(False)
+        layout.addWidget(progress)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self.move(self.parentWidget().frameGeometry().center() - self.rect().center())
+
+    def reject(self) -> None:
+        # Escape must not dismiss the status while shutdown is still pending.
+        pass
+
+    def closeEvent(self, event) -> None:
+        event.ignore()
+
+
 class ModelPreloadThread(QThread):
     def __init__(self, renderer: VoxCpmRenderer) -> None:
         super().__init__()
@@ -459,28 +563,140 @@ class LoginPage(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.login_thread: LoginThread | None = None
-        self.setStyleSheet("background: #f7f7f5;")
+        # Match apps/web/src/app/globals.css and the Web AuthCard.
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("""
+            LoginPage { background: #f1efeb; }
+            QLabel { background: transparent; color: #2d1d20; }
+        """)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(24, 24, 24, 24)
         outer.addStretch(1)
         card = QFrame(self, objectName="loginCard")
-        card.setMaximumWidth(560)
-        card.setStyleSheet("QFrame#loginCard { background: white; border: 1px solid #e8e7e3; border-radius: 30px; } QLineEdit { min-height: 46px; padding: 0 14px; border: 1px solid #d9d7d1; border-radius: 12px; background: white; } QLineEdit:focus { border: 2px solid #7c3aed; }")
+        card.setMaximumWidth(600)
+        card.setStyleSheet("QFrame#loginCard { background: #fffdfa; border: 1px solid #e5dfd9; border-radius: 32px; }")
         shadow = QGraphicsDropShadowEffect(card)
-        shadow.setBlurRadius(36); shadow.setOffset(0, 10); shadow.setColor(QColor(20, 20, 20, 32)); card.setGraphicsEffect(shadow)
+        shadow.setBlurRadius(50)
+        shadow.setOffset(0, 16)
+        shadow.setColor(QColor(45, 29, 32, 26))
+        card.setGraphicsEffect(shadow)
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(42, 36, 42, 36); layout.setSpacing(14)
-        logo = QLabel("READJI", card); logo.setAlignment(Qt.AlignCenter); logo.setStyleSheet("color: #7c3aed; font-size: 34px; font-weight: 800; letter-spacing: 4px;")
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(0)
+        logo = QLabel(card)
+        logo.setAlignment(Qt.AlignCenter)
+        logo.setFixedHeight(128)
+        logo.setAccessibleName("Readji")
+        logo_path = application_root() / "assets" / "readji-logo-full.png"
+        logo_pixmap = QPixmap(str(logo_path))
+        if not logo_pixmap.isNull():
+            # The Web uses this image as an alpha mask filled with --primary.
+            painter = QPainter(logo_pixmap)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+            painter.fillRect(logo_pixmap.rect(), QColor("#ff6f63"))
+            painter.end()
+            logo_pixmap = logo_pixmap.scaledToHeight(
+                round(128 * self.devicePixelRatioF()), Qt.TransformationMode.SmoothTransformation,
+            )
+            logo_pixmap.setDevicePixelRatio(self.devicePixelRatioF())
+            logo.setPixmap(logo_pixmap)
+        else:
+            logo.setText("READJI")
+            logo.setStyleSheet("color: #ff6f63; font-size: 34px; font-weight: 800;")
         layout.addWidget(logo)
-        divider = QFrame(card); divider.setFrameShape(QFrame.HLine); divider.setStyleSheet("color: #e8e7e3;"); layout.addWidget(divider)
-        heading = SubtitleLabel("เข้าสู่ระบบ Readji TTS Agent", card); heading.setAlignment(Qt.AlignCenter); layout.addWidget(heading)
-        hint = BodyLabel("ใช้บัญชี writer เดียวกับเว็บไซต์\nรหัสผ่านจะไม่ถูกบันทึกในแอป", card); hint.setAlignment(Qt.AlignCenter); hint.setStyleSheet("color: #71717a;"); layout.addWidget(hint)
-        self.email = LineEdit(card); self.email.setPlaceholderText("อีเมล"); self.email.setClearButtonEnabled(True)
-        self.password = PasswordLineEdit(card); self.password.setPlaceholderText("รหัสผ่าน")
-        self.login_button = PrimaryPushButton("เข้าสู่ระบบ", card); self.login_button.setMinimumHeight(46)
-        self.login_button.clicked.connect(self._login); self.password.returnPressed.connect(self._login)
-        for widget in (self.email, self.password, self.login_button): layout.addWidget(widget)
-        outer.addWidget(card, 0, Qt.AlignHCenter); outer.addStretch(1)
+        layout.addSpacing(28)
+        divider = QFrame(card)
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background: #e5dfd9; border: none;")
+        layout.addWidget(divider)
+        layout.addSpacing(28)
+        heading = SubtitleLabel("เข้าสู่ระบบ Readji TTS Agent", card)
+        heading.setAlignment(Qt.AlignCenter)
+        heading.setStyleSheet("color: #2d1d20; font-size: 18px; font-weight: 700;")
+        layout.addWidget(heading)
+        layout.addSpacing(24)
+        self.email = LineEdit(card)
+        self.email.setPlaceholderText("อีเมล")
+        self.email.setAccessibleName("อีเมล")
+        self.email.setClearButtonEnabled(True)
+        self.password = PasswordLineEdit(card)
+        self.password.setPlaceholderText("รหัสผ่าน")
+        self.password.setAccessibleName("รหัสผ่าน")
+        for field in (self.email, self.password):
+            field.setFixedHeight(48)
+            field.setCustomFocusedBorderColor("#ff6f63", "#ff6f63")
+            field.setStyleSheet("""
+                QLineEdit {
+                    background: #fffdfa; color: #2d1d20;
+                    border: 1px solid #ddd5ce; border-radius: 12px;
+                    padding: 0 12px; font-size: 14px;
+                    selection-background-color: #ff6f63; selection-color: #ffffff;
+                }
+                QLineEdit:hover { border-color: #b6a8a1; }
+                QLineEdit:focus { border-color: #ff6f63; }
+                QLineEdit:disabled { background: #f0efeb; color: #74676a; }
+            """)
+            layout.addWidget(field)
+            layout.addSpacing(16)
+        self.remember_login = CheckBox("บันทึกอีเมลและรหัสผ่าน", card)
+        self.remember_login.setTextColor("#2d1d20", "#2d1d20")
+        self.remember_login.setCheckedColor("#ff6f63", "#ff6f63")
+        self.remember_login.toggled.connect(self._remember_login_changed)
+        layout.addWidget(self.remember_login)
+        layout.addSpacing(16)
+        self.login_button = PrimaryPushButton("เข้าสู่ระบบ", card)
+        self.login_button.setFixedHeight(44)
+        self.login_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.login_button.setStyleSheet("""
+            QPushButton {
+                background: #ff6f63; color: #ffffff; border: none;
+                border-radius: 8px; padding: 0 16px; font-size: 16px; font-weight: 500;
+            }
+            QPushButton:hover { background: #ff7d72; }
+            QPushButton:pressed { background: #eb665b; }
+            QPushButton:focus { border: 2px solid #2d1d20; }
+            QPushButton:disabled { background: #ffaaa2; color: #fffdfa; }
+        """)
+        self.login_button.clicked.connect(self._login)
+        self.password.returnPressed.connect(self._login)
+        layout.addWidget(self.login_button)
+        layout.addSpacing(20)
+        hint = BodyLabel("ใช้บัญชีนักเขียนเดียวกับเว็บไซต์\nเลือกบันทึกข้อมูลเพื่อเติมอีเมลและรหัสผ่านในครั้งถัดไป", card)
+        hint.setAlignment(Qt.AlignCenter)
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #74676a; font-size: 13px;")
+        layout.addWidget(hint)
+        card_row = QHBoxLayout()
+        card_row.addStretch()
+        card_row.addWidget(card, 1)
+        card_row.addStretch()
+        outer.addLayout(card_row)
+        outer.addStretch(1)
+        QTimer.singleShot(0, self.restore_saved_login)
+
+    def restore_saved_login(self) -> None:
+        try:
+            credentials = load_login_credentials(DEFAULT_API_URL)
+        except Exception:
+            InfoBar.warning("อ่านข้อมูลที่บันทึกไม่สำเร็จ", "กรุณากรอกอีเมลและรหัสผ่านเพื่อเข้าสู่ระบบ", parent=self, position=InfoBarPosition.TOP)
+            return
+        self.remember_login.blockSignals(True)
+        self.remember_login.setChecked(credentials is not None)
+        self.remember_login.blockSignals(False)
+        if credentials is not None:
+            self.email.setText(credentials[0])
+            self.password.setText(credentials[1])
+
+    def _remember_login_changed(self, checked: bool) -> None:
+        if checked:
+            return
+        try:
+            clear_login_credentials(DEFAULT_API_URL)
+        except Exception:
+            self.remember_login.blockSignals(True)
+            self.remember_login.setChecked(True)
+            self.remember_login.blockSignals(False)
+            InfoBar.error("ลบข้อมูลที่บันทึกไม่สำเร็จ", "กรุณาลองยกเลิกการบันทึกอีกครั้ง", parent=self, position=InfoBarPosition.TOP)
 
     def _login(self) -> None:
         if self.login_thread is not None:
@@ -491,6 +707,7 @@ class LoginPage(QWidget):
         self.login_button.setText("กำลังเข้าสู่ระบบ...")
         self.email.setEnabled(False)
         self.password.setEnabled(False)
+        self.remember_login.setEnabled(False)
         self.login_thread = LoginThread(self.email.text().strip(), self.password.text())
         self.login_thread.succeeded.connect(self._login_succeeded)
         self.login_thread.failed.connect(self._login_failed)
@@ -499,6 +716,13 @@ class LoginPage(QWidget):
 
     def _login_succeeded(self, client: ApiClient, refresh_token: str, display_name: str) -> None:
         save_refresh_token(refresh_token)
+        try:
+            if self.remember_login.isChecked():
+                save_login_credentials(DEFAULT_API_URL, self.email.text().strip(), self.password.text())
+            else:
+                clear_login_credentials(DEFAULT_API_URL)
+        except Exception:
+            InfoBar.warning("บันทึกข้อมูลเข้าสู่ระบบไม่สำเร็จ", "ครั้งถัดไปกรุณากรอกข้อมูลเข้าสู่ระบบอีกครั้ง", parent=self.window(), position=InfoBarPosition.TOP)
         self.password.clear()
         self.signed_in.emit(client, display_name)
 
@@ -511,6 +735,7 @@ class LoginPage(QWidget):
         self.login_thread = None
         self.email.setEnabled(True)
         self.password.setEnabled(True)
+        self.remember_login.setEnabled(True)
         self.login_button.setEnabled(True)
         self.login_button.setText("เข้าสู่ระบบ")
 
@@ -645,9 +870,16 @@ class JobsPage(QWidget):
         self.cancelling_all = False
         self.queue_threads: dict[str, QueueJobThread] = {}
         self.ffmpeg_ready = False
+        self.start_requested = False
+        self.model_preparing_dialog: ModelPreparingDialog | None = None
         self.ffmpeg_setup_dialog: FFmpegSetupDialog | None = None
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("""
+            JobsPage {{ background: {background}; }}
+            QLabel {{ color: {foreground}; background: transparent; }}
+        """.format_map(WEB_COLORS))
         layout = QVBoxLayout(self); layout.setContentsMargins(24, 24, 24, 24)
-        row = QHBoxLayout(); self.title = SubtitleLabel("ตอนของฉัน"); self.refresh_button = PushButton("รีเฟรช"); self.render_button = PrimaryPushButton("เริ่มประมวลผลงานถัดไป")
+        row = QHBoxLayout(); self.title = SubtitleLabel("ตอนของฉัน"); self.refresh_button = PushButton("รีเฟรช"); self.render_button = PrimaryPushButton("เริ่มประมวลผลคิวทั้งหมด")
         self.refresh_button.clicked.connect(self.refresh_catalog); self.render_button.clicked.connect(self.render_next)
         row.addWidget(self.title); row.addStretch(1)
         for button in (self.refresh_button, self.render_button): row.addWidget(button)
@@ -668,8 +900,22 @@ class JobsPage(QWidget):
         self.table.setShowGrid(False); self.table.setAlternatingRowColors(True); self.table.verticalHeader().setVisible(False); self.table.verticalHeader().setDefaultSectionSize(58)
         self.table.horizontalHeader().setDefaultAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         for column in range(self.chapters_model.columnCount()): self.table.horizontalHeader().setSectionResizeMode(column, QHeaderView.Fixed)
-        self.table.setCheckedColor("#f3e8ff", "#4c1d95")
-        self.table.setStyleSheet("QTableView { background: #ffffff; border: 1px solid #e8e7e3; border-radius: 16px; alternate-background-color: #fcfcfb; } QHeaderView::section { background: #f7f7f5; color: #71717a; border: none; border-bottom: 1px solid #e8e7e3; font-weight: 600; padding: 12px; }")
+        self.table.setCheckedColor(WEB_COLORS["accent"], WEB_COLORS["accent"])
+        self.table.setStyleSheet("""
+            QTableView {{
+                background: {card}; color: {foreground};
+                border: 1px solid {border}; border-radius: 16px;
+                alternate-background-color: {muted};
+                selection-background-color: {accent}; selection-color: {foreground};
+            }}
+            QTableView::item {{ border: none; }}
+            QHeaderView::section {{
+                background: {background}; color: {muted_foreground};
+                border: none; border-bottom: 1px solid {border};
+                font-weight: 600; padding: 12px;
+            }}
+            QTableCornerButton::section {{ background: {background}; border: none; }}
+        """.format_map(WEB_COLORS))
         layout.addWidget(self.table, 1)
         pagination = QHBoxLayout()
         self.page_label = BodyLabel("กรุณาเลือกเรื่อง", self)
@@ -684,6 +930,12 @@ class JobsPage(QWidget):
         layout.addLayout(pagination)
         self._update_pagination(0)
         self.progress = ProgressBar(self); self.status = BodyLabel("กำลังรอเตรียมโมเดลเสียง"); layout.addWidget(self.progress); layout.addWidget(self.status)
+        self.progress.setCustomBarColor(WEB_COLORS["primary"], WEB_COLORS["primary"])
+        for control in (self.refresh_button, self.render_button, self.story_filter,
+                        self.cancel_all_button, self.previous_button, self.next_button):
+            setCustomStyleSheet(control, WEB_CONTROL_STYLE, WEB_CONTROL_STYLE)
+        for label in (self.page_label, self.status):
+            label.setStyleSheet(f"color: {WEB_COLORS['muted_foreground']}; background: transparent;")
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -704,15 +956,20 @@ class JobsPage(QWidget):
         if self.shutdown_requested or not self.renderer or self.preload_thread is not None:
             return
         if not is_voxcpm_model_cached():
+            if self.model_download_dialog is not None and self.model_download_dialog.thread.isRunning():
+                self.model_download_dialog.show()
+                return
             self.render_button.setEnabled(False)
             self.status.setText("กำลังดาวน์โหลด VoxCPM2 เพื่อเตรียมใช้งานครั้งแรก...")
             self.model_download_dialog = ModelDownloadDialog(self)
             self.model_download_dialog.ready.connect(self.preload_model)
+            self.model_download_dialog.thread.failed.connect(self._model_preload_failed)
+            self.model_download_dialog.rejected.connect(self._cancel_pending_start)
             self.model_download_dialog.finished.connect(self._model_download_finished)
             self.model_download_dialog.start()
             return
         self.model_ready = False
-        self.render_button.setEnabled(False)
+        self.render_button.setEnabled(not self.start_requested and not self.cancelling_all)
         mode = " และ compile ครั้งแรกอาจใช้เวลาหลายนาที" if self.renderer.compile_enabled else ""
         self.status.setText(f"กำลังโหลด VoxCPM2 ใน process แยก{mode}...")
         self.preload_thread = ModelPreloadThread(self.renderer)
@@ -737,8 +994,14 @@ class JobsPage(QWidget):
         self.model_ready = True
         self.render_button.setEnabled(not self.cancelling_all)
         self.status.setText("VoxCPM2 พร้อมใช้งานบน GPU ใน process แยก")
+        if self.model_preparing_dialog is not None:
+            self.model_preparing_dialog.accept()
+        self._continue_start()
 
     def _model_preload_failed(self, message: str) -> None:
+        self._cancel_pending_start()
+        if self.model_preparing_dialog is not None:
+            self.model_preparing_dialog.accept()
         self.model_ready = False
         self.render_button.setEnabled(not self.cancelling_all)
         self.status.setText("เตรียมโมเดลเสียงไม่สำเร็จ")
@@ -859,6 +1122,7 @@ class JobsPage(QWidget):
         self.queue_threads.pop(chapter_id, None)
         chapter = next((item for item in self.chapters_model.chapters if item["chapter_id"] == chapter_id), None)
         if thread.error_message:
+            self._cancel_pending_start()
             if chapter and chapter.get("_queue_pending"):
                 row = self.chapters_model.update_chapter(chapter_id, {**thread.previous, "_queue_pending": False})
                 if row is not None:
@@ -878,10 +1142,21 @@ class JobsPage(QWidget):
         thread.deleteLater()
         if self.cancelling_all and not self.queue_threads and self.cancel_all_thread is None:
             self._start_cancel_all_request()
+        elif not self.queue_threads:
+            self._continue_start()
     def render_next(self) -> None:
-        if self.shutdown_requested or self.cancelling_all or not self.client or (self.thread and self.thread.isRunning()): return
+        if self.shutdown_requested or self.cancelling_all or self.logout_thread is not None or not self.client or self.thread is not None: return
+        self.start_requested = True
+        self._continue_start()
+
+    def _continue_start(self) -> None:
+        if not self.start_requested or self.shutdown_requested or self.cancelling_all or self.logout_thread is not None or not self.client:
+            return
+        if self.thread is not None:
+            return
+        self.render_button.setEnabled(False)
         if self.queue_threads:
-            self._notice("กำลังส่งคิว", "กรุณารอให้ API ยืนยันคิวก่อนเริ่มประมวลผล")
+            self.status.setText("กำลังรอ API ยืนยันคิว แล้วจะเริ่มงานอัตโนมัติ...")
             return
         if not self.ffmpeg_ready:
             if self.ffmpeg_setup_dialog is not None and self.ffmpeg_setup_dialog.isVisible():
@@ -892,21 +1167,31 @@ class JobsPage(QWidget):
                 self.ffmpeg_setup_dialog.deleteLater()
             self.ffmpeg_setup_dialog = FFmpegSetupDialog(self.window())
             self.ffmpeg_setup_dialog.ready.connect(self._ffmpeg_ready)
+            self.ffmpeg_setup_dialog.setup_failed.connect(self._cancel_pending_start)
             self.ffmpeg_setup_dialog.finished.connect(self._ffmpeg_setup_finished)
             self.ffmpeg_setup_dialog.start()
             return
         if not self.model_ready or not self.renderer or not self.renderer.is_ready:
+            if self.model_preparing_dialog is None:
+                self.model_preparing_dialog = ModelPreparingDialog(self.window())
+                self.model_preparing_dialog.rejected.connect(self._cancel_pending_start)
+            self.model_preparing_dialog.show()
             self.preload_model()
-            self._notice("กำลังเตรียมโมเดลเสียง", "กรุณารอให้โมเดลพร้อม แล้วกดเริ่มงานอีกครั้ง")
             return
+        # Keep the request active until the queue is empty or processing stops.
         self._begin_render()
+
+    def _cancel_pending_start(self) -> None:
+        self.start_requested = False
+        self.render_button.setEnabled(not self.shutdown_requested and not self.cancelling_all and not (self.thread and self.thread.isRunning()))
 
     def _ffmpeg_ready(self) -> None:
         self.ffmpeg_ready = True
-        self.render_next()
+        self._continue_start()
 
-    def _ffmpeg_setup_finished(self) -> None:
-        self.render_button.setEnabled(not self.shutdown_requested and not self.cancelling_all)
+    def _ffmpeg_setup_finished(self, result: int) -> None:
+        if result == QDialog.DialogCode.Rejected:
+            self._cancel_pending_start()
 
     def _model_download_finished(self) -> None:
         if not is_voxcpm_model_cached():
@@ -919,7 +1204,7 @@ class JobsPage(QWidget):
         self.rendering_progress = 0
         self.thread = RenderThread(self.client, self.worker_id, self.renderer)
         self.thread.started_job.connect(self._started_job); self.thread.progress.connect(self._set_progress)
-        self.thread.idle.connect(lambda: self._notice("ไม่มีงานในคิว", "เพิ่มตอนจากตารางก่อนเริ่มประมวลผล")); self.thread.succeeded.connect(lambda msg: self._finished(msg, True)); self.thread.failed.connect(lambda msg: self._finished(msg, False)); self.thread.cancelled.connect(self._render_cancelled)
+        self.thread.idle.connect(self._queue_empty); self.thread.succeeded.connect(lambda msg: self._finished(msg, True)); self.thread.failed.connect(lambda msg: self._finished(msg, False)); self.thread.cancelled.connect(self._render_cancelled)
         self.render_button.setEnabled(False); self.thread.finished.connect(self._render_thread_finished); self.thread.start()
     def _started_job(self, chapter_id: str, title: str, job_id: str, voice: str) -> None:
         self.rendering_chapter_id = chapter_id
@@ -972,6 +1257,7 @@ class JobsPage(QWidget):
         dialog.cancelButton.setText("กลับ")
         if not dialog.exec():
             return
+        self._cancel_pending_start()
         self.cancelling_all = True
         self.cancel_all_button.setEnabled(False)
         self.cancel_all_button.setText("กำลังยกเลิก...")
@@ -1019,6 +1305,7 @@ class JobsPage(QWidget):
 
     def request_shutdown(self) -> bool:
         self.shutdown_requested = True
+        self._cancel_pending_start()
         if self.ffmpeg_setup_dialog is not None and self.ffmpeg_setup_dialog.thread is not None:
             self.ffmpeg_setup_dialog.thread.cancel_requested.set()
         if self.thread and self.thread.isRunning():
@@ -1032,6 +1319,7 @@ class JobsPage(QWidget):
         return True
 
     def _render_cancelled(self) -> None:
+        self._cancel_pending_start()
         self.rendering_job_id = None
         self.rendering_chapter_id = None
         self.progress.setValue(0)
@@ -1040,21 +1328,36 @@ class JobsPage(QWidget):
             self.load_chapters()
 
     def _render_thread_finished(self) -> None:
+        thread = self.thread
+        self.thread = None
+        if thread is not None:
+            thread.deleteLater()
         self.model_ready = self.renderer is not None and self.renderer.is_ready
-        self.render_button.setEnabled(not self.shutdown_requested and not self.cancelling_all)
+        self.render_button.setEnabled(not self.shutdown_requested and not self.cancelling_all and not self.start_requested)
         if self.cancelling_all:
             self._finish_cancellation_controls()
         if self.shutdown_requested:
             self.shutdown_complete.emit()
+            return
+        self._continue_start()
+
+    def _queue_empty(self) -> None:
+        self._cancel_pending_start()
+        self.status.setText("ไม่มีงานเหลือในคิวแล้ว")
+        if not self.shutdown_requested:
+            self._notice("ประมวลผลคิวครบแล้ว", "ไม่มีงานที่รอประมวลผลในคิว")
+
     def _notice(self, title: str, message: str) -> None: InfoBar.info(title, message, parent=self, position=InfoBarPosition.TOP)
     def _finished(self, message: str, success: bool) -> None:
         self.rendering_job_id = None
         self.rendering_chapter_id = None
         if not success:
+            self._cancel_pending_start()
             self.ffmpeg_ready = False
         self.progress.setValue(0); self.status.setText("พร้อมทำงาน" if success else message); (InfoBar.success if success else InfoBar.error)("TTS Agent", message, parent=self, position=InfoBarPosition.TOP)
         if not self.shutdown_requested: self.load_chapters()
     def logout(self) -> None:
+        self._cancel_pending_start()
         if self.queue_threads:
             self._notice("กำลังส่งคิว", "กรุณารอให้คำขอเข้าคิวเสร็จก่อนออกจากระบบ")
             return
@@ -1079,7 +1382,15 @@ class JobsPage(QWidget):
 class MainWindow(FluentWindow):
     def __init__(self) -> None:
         super().__init__(); self.settings = QSettings("Readji", "TTS Agent"); self.login_page = LoginPage(); self.jobs_page = JobsPage(self.settings)
-        voices_root = Path(__file__).resolve().parents[2] / "assets" / "voices"
+        self.setMicaEffectEnabled(False)
+        self.setCustomBackgroundColor(WEB_COLORS["background"], WEB_COLORS["background"])
+        navigation_style = """
+            NavigationInterface, NavigationPanel {{ background: {card}; border: none; }}
+            NavigationPanel[menu=true] {{ border: 1px solid {border}; }}
+        """.format_map(WEB_COLORS)
+        setCustomStyleSheet(self.navigationInterface, navigation_style, navigation_style)
+        setCustomStyleSheet(self.navigationInterface.panel, navigation_style, navigation_style)
+        voices_root = application_root() / "assets" / "voices"
         self.jobs_page.set_renderer(VoxCpmRenderer(voices_root))
         self.login_page.setObjectName("login-page"); self.jobs_page.setObjectName("jobs-page"); self.addSubInterface(self.login_page, FluentIcon.PEOPLE, "เข้าสู่ระบบ")
         self.login_added = True; self.jobs_added = False; self.logout_navigation_item = None; self.closing_after_render = False; self.navigationInterface.hide(); self.login_page.signed_in.connect(self._signed_in); self.jobs_page.logout_started.connect(self._logout_started); self.jobs_page.signed_out.connect(self._signed_out); self.jobs_page.shutdown_complete.connect(self._finish_shutdown); self.resize(1080, 720); self.jobs_page.preload_model(); self._restore_session()
@@ -1101,6 +1412,7 @@ class MainWindow(FluentWindow):
             self.logout_navigation_item.setText("กำลังออกจากระบบ...")
 
     def _signed_out(self) -> None:
+        self.login_page.restore_saved_login()
         if not self.login_added:
             self.addSubInterface(self.login_page, FluentIcon.PEOPLE, "เข้าสู่ระบบ")
             self.login_added = True
@@ -1116,9 +1428,10 @@ class MainWindow(FluentWindow):
     def closeEvent(self, event) -> None:
         if not self.closing_after_render:
             self.closing_after_render = True
+            self.shutdown_dialog = ShutdownDialog(self)
+            self.shutdown_dialog.show()
+            self.shutdown_dialog.raise_()
             self.jobs_page.request_shutdown()
-            self.setEnabled(False)
-            self.setWindowTitle("กำลังรอให้งานเบื้องหลังหยุดก่อนปิดโปรแกรม...")
             self.shutdown_timer = QTimer(self)
             self.shutdown_timer.setInterval(250)
             self.shutdown_timer.timeout.connect(self._finish_shutdown)
@@ -1129,6 +1442,7 @@ class MainWindow(FluentWindow):
         self.shutdown_timer.stop()
         if self.jobs_page.renderer is not None:
             self.jobs_page.renderer.close()
+        self.shutdown_dialog.accept()
         event.accept()
 
     def _has_running_threads(self) -> bool:
@@ -1155,9 +1469,17 @@ class MainWindow(FluentWindow):
 
 
 def main() -> None:
+    # A packaged PyInstaller executable cannot use ``python -m`` to launch the
+    # renderer.  The executable is therefore invoked again with this argument.
+    if len(sys.argv) == 4 and sys.argv[1] == "--worker":
+        _worker_main()
+        return
     if sys.stderr is not None:
         faulthandler.enable()
-    app = QApplication(sys.argv); window = MainWindow(); window.show(); sys.exit(app.exec())
+    app = QApplication(sys.argv)
+    setTheme(Theme.LIGHT)
+    setThemeColor(WEB_COLORS["primary"])
+    window = MainWindow(); window.show(); sys.exit(app.exec())
 
 
 if __name__ == "__main__": main()

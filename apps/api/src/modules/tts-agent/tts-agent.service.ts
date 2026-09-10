@@ -170,14 +170,20 @@ export async function updateTtsProgress(userId: string, jobId: string, workerId:
 }
 
 export async function createTtsUploadUrl(userId: string, jobId: string, workerId: string) {
-  const [job] = await db<{ id: string; chapter_id: string; voice_slot: string; attempt_count: number }[]>`
-    SELECT id, chapter_id, voice_slot, attempt_count FROM tts_jobs
-    WHERE id = ${jobId} AND requested_by = ${userId} AND worker_id = ${workerId}::UUID
-      AND status = ${TTS_JOB_STATUS.PROCESSING} AND lease_expires_at > NOW()
+  const [job] = await db<{
+    id: string; story_id: string; chapter_number: string; attempt_count: number
+  }[]>`
+    SELECT j.id, c.story_id, c.chapter_number::TEXT, j.attempt_count
+    FROM tts_jobs j
+    INNER JOIN chapters c ON c.id = j.chapter_id
+    WHERE j.id = ${jobId} AND j.requested_by = ${userId} AND j.worker_id = ${workerId}::UUID
+      AND j.status = ${TTS_JOB_STATUS.PROCESSING} AND j.lease_expires_at > NOW()
     LIMIT 1
   `
   if (!job) throw new TtsAgentError('Job was not claimed by this agent or its lease expired', 409)
-  const key = `episode-audio/${job.chapter_id}/${job.voice_slot}/v1/job-${job.id}/attempt-${job.attempt_count}/full.mp3`
+  // Match manga chapter storage; use a stable, unique filename because both
+  // upload-url and completion resolve this key independently.
+  const key = `stories/chapters/${job.story_id}/${Number(job.chapter_number)}/${job.id}-${job.attempt_count}.mp3`
   return { audio_key: key, upload_url: r2().presign(key, { expiresIn: 15 * 60, method: 'PUT' }) }
 }
 

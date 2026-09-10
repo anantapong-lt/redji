@@ -62,9 +62,14 @@ class VoxCpmRenderer:
             return
         self._dispose()
         self._messages = Queue()
+        worker_arguments = ["--worker", str(self.voices_root), "1" if self.compile_enabled else "0"]
+        command = (
+            [sys.executable, *worker_arguments]
+            if getattr(sys, "frozen", False)
+            else [sys.executable, "-u", "-m", "readji_tts_agent.renderer", *worker_arguments]
+        )
         self._process = subprocess.Popen(
-            [sys.executable, "-u", "-m", "readji_tts_agent.renderer", "--worker",
-             str(self.voices_root), "1" if self.compile_enabled else "0"],
+            command,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             encoding="utf-8", bufsize=1,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,

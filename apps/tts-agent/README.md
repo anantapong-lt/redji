@@ -4,7 +4,7 @@ Windows application for writers to render their own novel chapters with their GP
 
 ## Install
 
-Use Python 3.12 with a CUDA-enabled PyTorch installation appropriate for the writer's NVIDIA driver, then install this app from this folder:
+Use Python 3.10, 3.11, or 3.12 with a CUDA-enabled PyTorch installation appropriate for the writer's NVIDIA driver, then install this app from this folder:
 
 ```powershell
 pip install -e .
@@ -27,3 +27,22 @@ Copy legally usable reference WAVs into `assets/voices/Basic/`:
 - `Basic_female.wav`
 
 The agent never stores the writer's password. It stores only the refresh token in Windows Credential Manager. Development builds connect to `http://localhost:4000`; packaged deployments set `READJI_TTS_API_URL` during launch or packaging.
+
+## Build the Windows installer
+
+Place the three licensed reference voice files in `assets/voices/Basic/` before
+building. The build stops if any of these files is missing, so an installer is
+never produced without its required voices.
+
+```powershell
+cd apps/tts-agent
+python -m pip install ".[packaging]"
+.\packaging\build-installer.ps1
+```
+
+The completed installer is written to
+`dist/installer/Readji-TTS-Agent-Setup-<version>.exe`. It installs only for the
+current Windows user under `%LOCALAPPDATA%`, adds Start Menu and desktop
+shortcuts, and does not require administrator permission. The packaged app
+keeps the current API default of `http://localhost:4000`; change it at launch
+with `READJI_TTS_API_URL` when a production endpoint is available.
