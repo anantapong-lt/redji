@@ -81,3 +81,15 @@ export function findAdminWriters(page: number, limit: number, search: string, st
     LIMIT ${limit} OFFSET ${(page - 1) * limit}
   `
 }
+
+export async function updateAdminWriterStatus(id: string, status: UserStatus): Promise<{ id: string; status: UserStatus } | null> {
+  const [writer] = await db<Array<{ id: string; status: UserStatus }>>`
+    UPDATE users
+    SET status = ${status}, updated_at = NOW()
+    WHERE id = ${id}
+      AND role = ${USER_ROLE.WRITER}
+      AND deleted_at IS NULL
+    RETURNING id, status
+  `
+  return writer ?? null
+}

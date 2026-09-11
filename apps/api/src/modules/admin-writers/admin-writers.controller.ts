@@ -1,6 +1,6 @@
 import { status } from 'elysia'
-import type { adminWritersQuerySchema } from './admin-writers.schema'
-import { countAdminWriters, findAdminWriters } from './admin-writers.service'
+import type { adminWriterStatusBodySchema, adminWritersQuerySchema } from './admin-writers.schema'
+import { countAdminWriters, findAdminWriters, updateAdminWriterStatus } from './admin-writers.service'
 
 export async function getAdminWriters(query: typeof adminWritersQuerySchema.static) {
   try {
@@ -15,5 +15,15 @@ export async function getAdminWriters(query: typeof adminWritersQuerySchema.stat
   } catch (error) {
     console.error('Unable to load admin writers', error)
     return status(500, { message: 'ไม่สามารถโหลดรายชื่อนักเขียนได้' })
+  }
+}
+
+export async function changeAdminWriterStatus(id: string, body: typeof adminWriterStatusBodySchema.static) {
+  try {
+    const writer = await updateAdminWriterStatus(id, body.status)
+    return writer ? { writer } : status(404, { message: 'ไม่พบนักเขียน' })
+  } catch (error) {
+    console.error('Unable to update admin writer status', error)
+    return status(500, { message: 'ไม่สามารถเปลี่ยนสถานะนักเขียนได้' })
   }
 }
