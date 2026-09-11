@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from collections import deque
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from pathlib import Path
 from enum import Enum
 import faulthandler
 import json
+import logging
+from logging.handlers import RotatingFileHandler
 import os
 from queue import Empty, Queue
 import re
@@ -25,7 +28,26 @@ VOICE_FILES = {
 }
 
 MAXIMUM_CHUNK_CHARACTERS = 480
-INFERENCE_TIMESTEPS = 6
+INFERENCE_TIMESTEPS = 4
+
+
+def performance_logger() -> logging.Logger:
+    logger = logging.getLogger("readji.tts.performance")
+    if not logger.handlers:
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        local_data = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+        try:
+            directory = local_data / "Readji" / "TTS Agent" / "logs"
+            directory.mkdir(parents=True, exist_ok=True)
+            # Only the GUI process writes this file; worker timings arrive via IPC stderr.
+            handler = RotatingFileHandler(directory / "performance.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8")
+            handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+            logger.addHandler(handler)
+        except OSError:
+            # Logging must not prevent processing on read-only/full disks.
+            logger.addHandler(logging.NullHandler())
+    return logger
 
 
 class RenderError(RuntimeError):
@@ -39,6 +61,95 @@ class WorkerMessage(str, Enum):
     RESULT = "result"
     ERROR = "error"
     STOP = "stop"
+
+
+class _Mp3Encoder:
+    """Feed CPU audio to one FFmpeg process while the GPU renders ahead."""
+
+    def __init__(self, ffmpeg: Path, output: Path, sample_rate: int) -> None:
+        self.output = output
+        self._errors = tempfile.TemporaryFile()
+        try:
+            self._process = subprocess.Popen(
+                [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y",
+                 "-f", "f32le", "-ar", str(sample_rate), "-ac", "1", "-i", "pipe:0",
+                 "-ac", "1", "-ar", "32000", "-b:a", "32k", str(output)],
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=self._errors,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            )
+        except BaseException:
+            self._errors.close()
+            raise
+        self._writer = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tts-encode")
+        self._pending: Future | None = None
+        self._finished = False
+
+    def _write(self, audio) -> None:
+        # Only CPU numpy arrays enter this thread; CUDA stays on the main thread.
+        self._process.stdin.write(audio.astype("<f4", copy=False).tobytes())
+        self._process.stdin.flush()
+
+    def _wait_for_write(self) -> None:
+        if self._pending is not None:
+            try:
+                self._pending.result(timeout=120)
+            except FutureTimeoutError as error:
+                raise RenderError("หมดเวลารอส่งเสียงให้ FFmpeg") from error
+            except OSError as error:
+                raise self._error() from error
+            self._pending = None
+
+    def submit(self, audio) -> None:
+        # At most one submitted chunk plus the chunk currently on the GPU.
+        # Backpressure bounds memory when encoding or storage is slower.
+        self._wait_for_write()
+        if self._process.poll() is not None:
+            raise self._error()
+        self._pending = self._writer.submit(self._write, audio)
+
+    def _error(self) -> RenderError:
+        self._errors.seek(0, os.SEEK_END)
+        self._errors.seek(max(0, self._errors.tell() - 1600))
+        detail = self._errors.read().decode("utf-8", errors="replace").strip()
+        return RenderError(detail or "FFmpeg ไม่สามารถสร้างไฟล์เสียงได้")
+
+    def finish(self) -> None:
+        self._wait_for_write()
+        try:
+            self._process.stdin.close()
+            self._process.wait(timeout=120)
+        except subprocess.TimeoutExpired as error:
+            raise RenderError("หมดเวลารอ FFmpeg ปิดไฟล์เสียง") from error
+        except OSError as error:
+            raise self._error() from error
+        if self._process.returncode != 0:
+            raise self._error()
+        if not self.output.is_file() or self.output.stat().st_size == 0:
+            raise RenderError("FFmpeg ส่งผลลัพธ์ไฟล์เสียงว่างกลับมา")
+        self._finished = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        # Stop FFmpeg before joining a writer that might be blocked on its pipe.
+        try:
+            if self._process.poll() is None:
+                self._process.terminate()
+                try:
+                    self._process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self._process.kill()
+                    self._process.wait(timeout=5)
+        finally:
+            self._writer.shutdown(wait=True, cancel_futures=True)
+            try:
+                self._process.stdin.close()
+            except OSError:
+                pass
+            self._errors.close()
+            if not self._finished:
+                self.output.unlink(missing_ok=True)
 
 
 class VoxCpmRenderer:
@@ -55,6 +166,7 @@ class VoxCpmRenderer:
         self._stderr_lines: deque[str] = deque(maxlen=30)
         self._stderr_reader: Thread | None = None
         self.ready = False
+        performance_logger()
 
     @property
     def is_ready(self) -> bool:
@@ -103,6 +215,10 @@ class VoxCpmRenderer:
         try:
             for line in stream:
                 lines.append(line.rstrip())
+                if line.startswith("[TTS]"):
+                    performance_logger().info(line.rstrip())
+                elif "Badcase detected, audio_text_ratio=" in line:
+                    performance_logger().info("model badcase retry detected")
         except OSError:
             pass
 
@@ -218,21 +334,61 @@ class _LocalVoxCpmRenderer:
         self.optimize = optimize
         self.model = None
         self.sample_rate = 48_000
+        self._prompt_caches: dict[str, tuple[tuple[Path, int, int], dict]] = {}
 
     def _load_model(self) -> None:
         if self.model is not None:
             return
+        load_started = time.monotonic()
+        self._prompt_caches.clear()
+        if self.optimize:
+            # Configure disk caches before importing torch/voxcpm. Keep them
+            # outside temporary and packaged application directories so they
+            # survive worker shutdowns and application updates. PyTorch checks
+            # graph/configuration compatibility before reusing compiled code.
+            local_data = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+            cache_root = local_data / "Readji" / "TTS Agent" / "cache"
+            for variable, directory in (
+                ("TORCHINDUCTOR_CACHE_DIR", "torchinductor"),
+                ("TRITON_CACHE_DIR", "triton"),
+            ):
+                cache_path = Path(os.environ.setdefault(variable, str(cache_root / directory)))
+                cache_path.mkdir(parents=True, exist_ok=True)
+            os.environ.setdefault("TORCHINDUCTOR_FX_GRAPH_CACHE", "1")
+            os.environ.setdefault("TORCHINDUCTOR_AUTOGRAD_CACHE", "1")
         import torch
         from voxcpm import VoxCPM
+        print(f"[TTS] model imports: {time.monotonic() - load_started:.2f}s", flush=True)
         if not torch.cuda.is_available():
             raise RenderError("ไม่พบ NVIDIA CUDA GPU ที่พร้อมใช้งาน")
-        self.model = VoxCPM.from_pretrained(
+        weights_started = time.monotonic()
+        model = VoxCPM.from_pretrained(
             "openbmb/VoxCPM2",
             device="cuda",
             load_denoiser=False,
-            optimize=self.optimize,
+            # The GUI downloads missing model files before starting the worker.
+            local_files_only=True,
+            # VoxCPM's constructor warms up with its default 10 diffusion steps.
+            # Prepare explicitly below using the same settings as real jobs.
+            optimize=False,
         )
-        self.sample_rate = int(self.model.tts_model.sample_rate)
+        torch.cuda.synchronize()
+        print(f"[TTS] model weights to GPU: {time.monotonic() - weights_started:.2f}s", flush=True)
+        if self.optimize:
+            warmup_started = time.monotonic()
+            model.tts_model.optimize()
+            model.tts_model.generate(
+                target_text="Hello, this is the first test sentence.",
+                max_len=10,
+                inference_timesteps=INFERENCE_TIMESTEPS,
+                cfg_value=2.0,
+            )
+            torch.cuda.synchronize()
+            print(f"[TTS] compile and warmup ({INFERENCE_TIMESTEPS} steps): {time.monotonic() - warmup_started:.2f}s", flush=True)
+        # Publish only after preparation succeeds; a failed warmup is not ready.
+        self.model = model
+        self.sample_rate = int(model.tts_model.sample_rate)
+        print(f"[TTS] model preload: {time.monotonic() - load_started:.2f}s", flush=True)
 
     def preload(self) -> None:
         """Download (when needed) and keep VoxCPM2 resident on the local GPU."""
@@ -244,6 +400,23 @@ class _LocalVoxCpmRenderer:
         if not filename or not path.is_file():
             raise RenderError(f"ไม่พบไฟล์เสียงอ้างอิงสำหรับ {voice_slot}: {path}")
         return path
+
+    def _prompt_cache(self, voice_slot: str) -> dict:
+        reference = self._reference_voice(voice_slot).resolve()
+        reference_stat = reference.stat()
+        fingerprint = (reference, reference_stat.st_mtime_ns, reference_stat.st_size)
+        cached = self._prompt_caches.get(voice_slot)
+        if cached is not None and cached[0] == fingerprint:
+            print(f"[TTS] reference {voice_slot}: using cached prompt", flush=True)
+            return cached[1]
+
+        # Keep one entry per voice slot, replacing it when the WAV changes.
+        self._prompt_caches.pop(voice_slot, None)
+        started = time.monotonic()
+        prompt_cache = self.model.tts_model.build_prompt_cache(reference_wav_path=str(reference))
+        self._prompt_caches[voice_slot] = (fingerprint, prompt_cache)
+        print(f"[TTS] reference {voice_slot}: prepared in {time.monotonic() - started:.2f}s", flush=True)
+        return prompt_cache
 
     @staticmethod
     def _chunks(text: str, maximum: int = MAXIMUM_CHUNK_CHARACTERS) -> list[str]:
@@ -270,52 +443,41 @@ class _LocalVoxCpmRenderer:
         return chunks
 
     def render(self, text: str, voice_slot: str, progress: Callable[[int, int], None]) -> tuple[Path, float]:
-        import soundfile as sf
-
         ffmpeg = verify_ffmpeg()
         self._load_model()
-        reference = self._reference_voice(voice_slot)
         chunks = self._chunks(text)
         if not chunks:
             raise RenderError("ตอนนี้ไม่มีข้อความสำหรับสร้างเสียง")
         workspace = Path(tempfile.mkdtemp(prefix="readji-tts-"))
-        wav_paths: list[Path] = []
         total_duration = 0.0
         render_started = time.monotonic()
-        prompt_cache = self.model.tts_model.build_prompt_cache(reference_wav_path=str(reference))
-        for index, chunk in enumerate(chunks, start=1):
-            chunk_started = time.monotonic()
-            audio, _, _ = self.model.tts_model.generate_with_prompt_cache(
-                target_text=chunk,
-                prompt_cache=prompt_cache,
-                cfg_value=2.0,
-                inference_timesteps=INFERENCE_TIMESTEPS,
-                retry_badcase=True,
-                retry_badcase_max_times=2,
-            )
-            audio = audio.squeeze(0).cpu().numpy()
-            if audio.size == 0:
-                raise RenderError("VoxCPM2 ส่งผลลัพธ์เสียงว่างกลับมา")
-            path = workspace / f"{index:05d}.wav"
-            sf.write(path, audio, self.sample_rate, subtype="PCM_16")
-            wav_paths.append(path)
-            total_duration += len(audio) / self.sample_rate
-            elapsed = time.monotonic() - chunk_started
-            print(f"[TTS] chunk {index}/{len(chunks)}: {elapsed:.2f}s, audio {len(audio) / self.sample_rate:.2f}s, RTF {elapsed / (len(audio) / self.sample_rate):.3f}", flush=True)
-            progress(index, len(chunks))
-        manifest = workspace / "inputs.txt"
-        manifest.write_text("\n".join(f"file '{path.as_posix()}'" for path in wav_paths), encoding="utf-8")
+        prompt_cache = self._prompt_cache(voice_slot)
         output = workspace / "full.mp3"
         try:
-            subprocess.run([
-                str(ffmpeg), "-y", "-f", "concat", "-safe", "0", "-i", str(manifest),
-                "-ac", "1", "-ar", "32000", "-b:a", "32k", str(output),
-            ], check=True, capture_output=True, text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+            with _Mp3Encoder(ffmpeg, output, self.sample_rate) as encoder:
+                for index, chunk in enumerate(chunks, start=1):
+                    chunk_started = time.monotonic()
+                    audio, _, _ = self.model.tts_model.generate_with_prompt_cache(
+                        target_text=chunk,
+                        prompt_cache=prompt_cache,
+                        cfg_value=2.0,
+                        inference_timesteps=INFERENCE_TIMESTEPS,
+                        retry_badcase=True,
+                        retry_badcase_max_times=2,
+                    )
+                    audio = audio.squeeze(0).cpu().numpy()
+                    if audio.size == 0:
+                        raise RenderError("VoxCPM2 ส่งผลลัพธ์เสียงว่างกลับมา")
+                    encoder.submit(audio)
+                    total_duration += len(audio) / self.sample_rate
+                    elapsed = time.monotonic() - chunk_started
+                    print(f"[TTS] chunk {index}/{len(chunks)}: {elapsed:.2f}s, audio {len(audio) / self.sample_rate:.2f}s, RTF {elapsed / (len(audio) / self.sample_rate):.3f} (CPU encoding overlaps GPU)", flush=True)
+                    progress(index, len(chunks))
+                encoding_started = time.monotonic()
+                encoder.finish()
+                print(f"[TTS] finish MP3: {time.monotonic() - encoding_started:.2f}s", flush=True)
         except FileNotFoundError as error:
             raise RenderError("ไม่พบ FFmpeg ของแอป กรุณากดเริ่มงานเพื่อติดตั้งใหม่") from error
-        except subprocess.CalledProcessError as error:
-            raise RenderError(error.stderr[-1000:] or "ffmpeg ไม่สามารถรวมไฟล์เสียงได้") from error
         elapsed = time.monotonic() - render_started
         print(f"[TTS] chapter: {elapsed:.2f}s, audio {total_duration:.2f}s, RTF {elapsed / total_duration:.3f} (excludes model preload)", flush=True)
         return output, total_duration

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import faulthandler
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import os
 from pathlib import Path
 import platform
 import sys
+import tempfile
 from threading import Event
 import time
 import uuid
@@ -16,7 +18,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QFrame, QGraphicsDropShadow
 from qfluentwidgets import BodyLabel, CheckBox, ComboBox, FluentIcon, FluentWindow, InfoBar, InfoBarPosition, LineEdit, MessageBox, NavigationItemPosition, PasswordLineEdit, PrimaryPushButton, ProgressBar, PushButton, SubtitleLabel, TableItemDelegate, TableView, Theme, setCustomStyleSheet, setTheme, setThemeColor
 
 from .api import ApiClient, ApiError
-from .renderer import RenderError, VoxCpmRenderer
+from .renderer import RenderError, VoxCpmRenderer, performance_logger
 from .ffmpeg_setup import FFmpegSetupCancelled, ffmpeg_path, install_ffmpeg, verify_ffmpeg
 from .secure_store import clear_login_credentials, clear_refresh_token, load_login_credentials, load_refresh_token, save_login_credentials, save_refresh_token
 
@@ -500,7 +502,7 @@ class ModelPreparingDialog(QDialog):
         self.progress = QProgressBar(self)
         self.progress.setRange(0, 0)
         layout.addWidget(self.progress)
-        hint = BodyLabel("การ compile ครั้งแรกอาจใช้เวลาหลายนาที\nยกเลิกได้เพื่อไม่ให้เริ่มงานต่อ โมเดลจะยังเตรียมอยู่เบื้องหลัง", self)
+        hint = BodyLabel("ผล compile จะเก็บบนดิสก์เพื่อใช้ซ้ำ ครั้งแรกอาจใช้เวลาหลายนาที\nเปิดแอพใหม่ยังต้องโหลดเข้า GPU และ warm-up\nยกเลิกได้เพื่อไม่ให้เริ่มงานต่อ โมเดลจะยังเตรียมอยู่เบื้องหลัง", self)
         hint.setWordWrap(True)
         layout.addWidget(hint)
         cancel = PushButton("ยกเลิกการเริ่มงาน", self)
@@ -742,6 +744,8 @@ class LoginPage(QWidget):
 
 class RenderThread(QThread):
     started_job = Signal(str, str, str, str); progress = Signal(int, int, float); succeeded = Signal(str); failed = Signal(str); cancelled = Signal(); idle = Signal()
+    job_completed = Signal(str)
+    pipeline_status = Signal(str)
     def __init__(self, client: ApiClient, worker_id: str, renderer: VoxCpmRenderer) -> None:
         super().__init__(); self.client = client; self.worker_id = worker_id; self.renderer = renderer; self.started_at = 0.0; self.cancel_requested = Event()
         self.job_id: str | None = None
@@ -756,57 +760,193 @@ class RenderThread(QThread):
         now = time.monotonic()
         if self.job_id and now - self.last_status_poll >= JOB_STATUS_POLL_SECONDS:
             self.last_status_poll = now
-            if self.client.job_status(self.job_id) == TTS_JOB_STATUS["CANCELLED"]:
+            status = self.client.job_status(self.job_id)
+            performance_logger().info("job=%s status_poll_seconds=%.3f", self.job_id, time.monotonic() - now)
+            if status == TTS_JOB_STATUS["CANCELLED"]:
                 self.cancel_requested.set()
                 raise RenderCancelled()
 
     def run(self) -> None:
-        job = None
+        # Own the pooled API session until both rendering and uploading stop.
+        original_client = self.client
         try:
-            # Fail before claiming a queued job or spending GPU time.
-            verify_ffmpeg()
-            job = self.client.claim_job(self.worker_id)
-            if job is None: self.idle.emit(); return
-            self.job_id = job["id"]
-            self._raise_if_cancelled()
-            self.started_at = time.monotonic()
-            self.started_job.emit(job["chapter_id"], f"{job['story_title']} — {job['chapter_title']}", job["id"], job["voice_slot"])
-            output, duration = self.renderer.render(
-                job["text"], job["voice_slot"],
-                lambda done, total: self._progress(job["id"], done, total),
-                check_cancel=self._raise_if_cancelled,
-            )
-            self._raise_if_cancelled()
-            upload = self.client.upload_url(job["id"], self.worker_id)
-            response = httpx.put(upload["upload_url"], content=output.read_bytes(), headers={"Content-Type": "audio/mpeg"}, timeout=120); response.raise_for_status()
-            self._raise_if_cancelled()
-            self.client.complete_job(job["id"], self.worker_id, duration); self.succeeded.emit("สร้างและอัปโหลดเสียงเรียบร้อย")
-        except RenderCancelled:
-            if job:
-                try: self.client.cancel_job(job["id"], self.worker_id)
-                except Exception as error:
-                    self.failed.emit(f"หยุดประมวลผลแล้ว แต่บันทึกสถานะยกเลิกไม่สำเร็จ: {error}")
-                    return
-            self.cancelled.emit()
+            with ApiClient(original_client.base_url, original_client.access_token) as client:
+                self.client = client
+                self._run_pipeline()
         except Exception as error:
-            message = f"{type(error).__name__}: {error}"
-            if job:
-                # Bulk cancellation can race with progress/upload/complete.
-                # Never try to turn a server-cancelled job into a failed job.
+            self.failed.emit(f"{type(error).__name__}: {error}")
+
+    def _settle_error(self, job: dict | None, error: Exception) -> str | None:
+        if job is not None:
+            try:
+                status = self.client.job_status(job["id"])
+                if status in (TTS_JOB_STATUS["CANCELLED"], TTS_JOB_STATUS["DONE"]):
+                    return None
+            except (ApiError, httpx.HTTPError):
+                pass
+        if isinstance(error, RenderCancelled):
+            if job is not None:
                 try:
-                    if self.client.job_status(job["id"]) == TTS_JOB_STATUS["CANCELLED"]:
-                        self.cancelled.emit()
-                        return
-                except (ApiError, httpx.HTTPError):
-                    pass
-                try: self.client.fail_job(job["id"], self.worker_id, message)
+                    self.client.cancel_job(job["id"], self.worker_id)
                 except Exception as status_error:
-                    message += f" | บันทึกสถานะงานไม่สำเร็จ: {status_error}"
-            self.failed.emit(message)
+                    return f"หยุดงานแล้ว แต่บันทึกสถานะยกเลิกไม่สำเร็จ: {status_error}"
+            return None
+        message = f"{type(error).__name__}: {error}"
+        if job is not None:
+            try:
+                self.client.fail_job(job["id"], self.worker_id, message)
+            except Exception as status_error:
+                message += f" | บันทึกสถานะงานไม่สำเร็จ: {status_error}"
+        return message
+
+    @staticmethod
+    def _remove_output(output: Path | None) -> None:
+        if output is None:
+            return
+        # Delete only the renderer's known output, never a recursive directory.
+        output = output.resolve()
+        if (output.name != "full.mp3" or not output.parent.name.startswith("readji-tts-")
+                or output.parent.parent != Path(tempfile.gettempdir()).resolve()):
+            return
+        try:
+            output.unlink(missing_ok=True)
+            output.parent.rmdir()
+        except OSError:
+            performance_logger().info("temporary output cleanup deferred")
+
+    def _upload_job(self, job: dict, output: Path, duration: float, http: httpx.Client) -> str | None:
+        last_poll = 0.0
+
+        def check_cancel() -> None:
+            nonlocal last_poll
+            if self.cancel_requested.is_set():
+                raise RenderCancelled()
+            now = time.monotonic()
+            if now - last_poll >= JOB_STATUS_POLL_SECONDS:
+                last_poll = now
+                if self.client.job_status(job["id"]) == TTS_JOB_STATUS["CANCELLED"]:
+                    raise RenderCancelled()
+
+        def data():
+            with output.open("rb") as stream:
+                while True:
+                    check_cancel()
+                    block = stream.read(256 * 1024)
+                    if not block:
+                        return
+                    yield block
+
+        try:
+            check_cancel()
+            started = time.monotonic()
+            upload = self.client.upload_url(job["id"], self.worker_id)
+            performance_logger().info("job=%s upload_url_seconds=%.3f", job["id"], time.monotonic() - started)
+            started = time.monotonic()
+            # Storage requests have no API Authorization header. Reuse their own pool.
+            response = http.put(upload["upload_url"], content=data(), headers={
+                "Content-Type": "audio/mpeg", "Content-Length": str(output.stat().st_size),
+            })
+            response.raise_for_status()
+            performance_logger().info("job=%s upload_seconds=%.3f", job["id"], time.monotonic() - started)
+            check_cancel()
+            started = time.monotonic()
+            self.client.complete_job(job["id"], self.worker_id, duration)
+            performance_logger().info("job=%s complete_seconds=%.3f", job["id"], time.monotonic() - started)
+            self.job_completed.emit(job["id"])
+            return None
+        except Exception as error:
+            self.cancel_requested.set()
+            performance_logger().info("job=%s upload_stopped error_type=%s", job["id"], type(error).__name__)
+            return self._settle_error(job, error)
+        finally:
+            self._remove_output(output)
+
+    def _run_pipeline(self) -> None:
+        job = None
+        output = None
+        pending = None
+        errors = []
+        exhausted = False
+        logger = performance_logger()
+        pipeline_started = time.monotonic()
+        try:
+            verify_ffmpeg()
+            with httpx.Client(timeout=120, limits=httpx.Limits(
+                max_connections=1, max_keepalive_connections=1, keepalive_expiry=120,
+            )) as http, ThreadPoolExecutor(max_workers=1, thread_name_prefix="tts-upload") as uploader:
+                try:
+                    while True:
+                        self._raise_if_cancelled()
+                        started = time.monotonic()
+                        job = self.client.claim_job(self.worker_id)
+                        logger.info("claim_seconds=%.3f", time.monotonic() - started)
+                        if job is None:
+                            exhausted = True
+                            break
+                        self.job_id = job["id"]
+                        self.last_status_poll = 0.0
+                        self._raise_if_cancelled()
+                        self.started_at = time.monotonic()
+                        self.started_job.emit(job["chapter_id"], f"{job['story_title']} — {job['chapter_title']}", job["id"], job["voice_slot"])
+                        logger.info("job=%s render_started", job["id"])
+                        output, duration = self.renderer.render(
+                            job["text"], job["voice_slot"],
+                            lambda done, total: self._progress(job["id"], done, total),
+                            check_cancel=self._raise_if_cancelled,
+                        )
+                        logger.info("job=%s render_seconds=%.3f audio_seconds=%.3f", job["id"], time.monotonic() - self.started_at, duration)
+                        self._raise_if_cancelled()
+                        # Do not claim another chapter while one upload and one
+                        # rendered output are outstanding. Poll cancellation while waiting.
+                        if pending is not None:
+                            if not pending.done():
+                                self.pipeline_status.emit("สร้างเสียงตอนนี้แล้ว กำลังรออัปโหลดตอนก่อนหน้า...")
+                            while True:
+                                self._raise_if_cancelled()
+                                try:
+                                    message = pending.result(timeout=0.2)
+                                    break
+                                except FutureTimeoutError:
+                                    continue
+                            pending = None
+                            if message:
+                                errors.append(message)
+                            self._raise_if_cancelled()
+                        pending = uploader.submit(self._upload_job, job, output, duration, http)
+                        job = None
+                        output = None
+                        self.job_id = None
+                except Exception as error:
+                    self.cancel_requested.set()
+                    message = self._settle_error(job, error)
+                    if message:
+                        errors.append(message)
+                    self._remove_output(output)
+                finally:
+                    # QThread stays alive until the upload has persisted its final
+                    # status, so shutdown/logout cannot abandon an owned job.
+                    if pending is not None:
+                        if exhausted and not self.cancel_requested.is_set():
+                            self.pipeline_status.emit("สร้างเสียงครบแล้ว กำลังรออัปโหลดตอนสุดท้าย...")
+                        message = pending.result()
+                        if message:
+                            errors.append(message)
+        except Exception as error:
+            self.cancel_requested.set()
+            errors.append(f"{type(error).__name__}: {error}")
+        logger.info("pipeline_seconds=%.3f errors=%d cancelled=%s", time.monotonic() - pipeline_started, len(errors), self.cancel_requested.is_set())
+        if errors:
+            self.failed.emit(" | ".join(errors))
+        elif self.cancel_requested.is_set():
+            self.cancelled.emit()
+        elif exhausted:
+            self.idle.emit()
     def _progress(self, job_id: str, done: int, total: int) -> None:
         self._raise_if_cancelled()
         if done % PROGRESS_REPORT_INTERVAL == 0 or done == total:
+            started = time.monotonic()
             self.client.update_progress(job_id, self.worker_id, done, total)
+            performance_logger().info("job=%s progress_api_seconds=%.3f done=%d total=%d", job_id, time.monotonic() - started, done, total)
         elapsed = time.monotonic() - self.started_at
         remaining = (elapsed / done) * (total - done) if done else 0.0
         self.progress.emit(done, total, remaining)
@@ -970,8 +1110,8 @@ class JobsPage(QWidget):
             return
         self.model_ready = False
         self.render_button.setEnabled(not self.start_requested and not self.cancelling_all)
-        mode = " และ compile ครั้งแรกอาจใช้เวลาหลายนาที" if self.renderer.compile_enabled else ""
-        self.status.setText(f"กำลังโหลด VoxCPM2 ใน process แยก{mode}...")
+        mode = " และ warm-up โดยใช้ cache บนดิสก์เมื่อมีผล compile ที่เข้ากันได้" if self.renderer.compile_enabled else ""
+        self.status.setText(f"กำลังโหลด VoxCPM2 จากดิสก์เข้า GPU{mode}...")
         self.preload_thread = ModelPreloadThread(self.renderer)
         self.preload_thread.finished.connect(self._model_preload_finished)
         self.preload_thread.start()
@@ -1203,9 +1343,17 @@ class JobsPage(QWidget):
         self.rendering_job_id = None
         self.rendering_progress = 0
         self.thread = RenderThread(self.client, self.worker_id, self.renderer)
+        self.thread.job_completed.connect(self._job_uploaded)
+        self.thread.pipeline_status.connect(self.status.setText)
         self.thread.started_job.connect(self._started_job); self.thread.progress.connect(self._set_progress)
         self.thread.idle.connect(self._queue_empty); self.thread.succeeded.connect(lambda msg: self._finished(msg, True)); self.thread.failed.connect(lambda msg: self._finished(msg, False)); self.thread.cancelled.connect(self._render_cancelled)
         self.render_button.setEnabled(False); self.thread.finished.connect(self._render_thread_finished); self.thread.start()
+    def _job_uploaded(self, job_id: str) -> None:
+        # An older chapter may finish uploading while the next is rendering.
+        # Refresh persisted rows without resetting the active chapter's progress.
+        if not self.shutdown_requested:
+            self.load_chapters()
+
     def _started_job(self, chapter_id: str, title: str, job_id: str, voice: str) -> None:
         self.rendering_chapter_id = chapter_id
         self.rendering_job_id = job_id
@@ -1339,10 +1487,17 @@ class JobsPage(QWidget):
         if self.shutdown_requested:
             self.shutdown_complete.emit()
             return
+        if getattr(self, "logout_after_pipeline", False):
+            self.logout_after_pipeline = False
+            self.logout()
+            return
         self._continue_start()
 
     def _queue_empty(self) -> None:
         self._cancel_pending_start()
+        self.rendering_job_id = None
+        self.rendering_chapter_id = None
+        self.progress.setValue(0)
         self.status.setText("ไม่มีงานเหลือในคิวแล้ว")
         if not self.shutdown_requested:
             self._notice("ประมวลผลคิวครบแล้ว", "ไม่มีงานที่รอประมวลผลในคิว")
@@ -1358,6 +1513,11 @@ class JobsPage(QWidget):
         if not self.shutdown_requested: self.load_chapters()
     def logout(self) -> None:
         self._cancel_pending_start()
+        if self.thread and self.thread.isRunning():
+            self.logout_after_pipeline = True
+            self.thread.request_cancel()
+            self.status.setText("กำลังหยุดสร้างและอัปโหลดเสียงก่อนออกจากระบบ...")
+            return
         if self.queue_threads:
             self._notice("กำลังส่งคิว", "กรุณารอให้คำขอเข้าคิวเสร็จก่อนออกจากระบบ")
             return

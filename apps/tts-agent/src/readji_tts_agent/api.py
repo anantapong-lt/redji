@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode
 
@@ -15,13 +15,26 @@ class ApiError(RuntimeError):
 class ApiClient:
     base_url: str
     access_token: str | None = None
+    _http: httpx.Client | None = field(default=None, init=False, repr=False)
+
+    def __enter__(self):
+        self._http = httpx.Client(timeout=30, limits=httpx.Limits(
+            max_connections=4, max_keepalive_connections=4, keepalive_expiry=60,
+        ))
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        if self._http is not None:
+            self._http.close()
+            self._http = None
 
     def _url(self, path: str) -> str:
         return f"{self.base_url.rstrip('/')}{path}"
 
     def _request(self, method: str, path: str, *, json: dict[str, Any] | None = None) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {self.access_token}"} if self.access_token else {}
-        response = httpx.request(method, self._url(path), json=json, headers=headers, timeout=30)
+        request = self._http.request if self._http is not None else httpx.request
+        response = request(method, self._url(path), json=json, headers=headers, timeout=30)
         if response.is_error:
             try:
                 message = response.json().get("message")
