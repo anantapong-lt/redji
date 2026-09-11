@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react'
 import { BookOpenText, Camera, Edit3, Globe2, ImageUp, Link2, Star, UserRound } from 'lucide-react'
 import { FaFacebookF, FaInstagram, FaTiktok, FaXTwitter, FaYoutube } from 'react-icons/fa6'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -126,9 +127,18 @@ export function ProfilePage({
     if (!accessToken) return
     setIsSaving(true)
     try {
-      const { profile: nextProfile } = await updateMyProfile({ bio, social_links: socialLinks }, accessToken)
+      const cleanedSocialLinks = Object.fromEntries(
+        Object.entries(socialLinks)
+          .map(([key, value]) => [key, value?.trim()])
+          .filter(([, value]) => Boolean(value)),
+      ) as ProfileSocialLinks
+      const { profile: nextProfile } = await updateMyProfile({ bio, social_links: cleanedSocialLinks }, accessToken)
       setProfile(nextProfile)
+      setSocialLinks(nextProfile.social_links)
       setEditorOpen(false)
+      toast.success('บันทึกโปรไฟล์เรียบร้อยแล้ว')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ไม่สามารถบันทึกโปรไฟล์ได้')
     } finally {
       setIsSaving(false)
     }
