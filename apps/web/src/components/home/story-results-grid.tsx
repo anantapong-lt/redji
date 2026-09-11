@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StoryGrid, type StoryGridItem } from '@/components/story-grid'
 import { getLandingStories } from '@/controllers/landing.controller'
 import type {
@@ -43,27 +43,48 @@ function toStoryGridItem(
     ratingAverage: Number(story.rating_average),
     meta: section === 'latest'
       ? `${formatUpdatedAt(story.latest_chapter.published_at, renderedAt)}`
+      : section === 'most-followed'
+        ? `${Number(story.favorite_count).toLocaleString('th-TH')} ติดตาม`
       : `${Number(story.total_views).toLocaleString('th-TH')} อ่าน`,
   }
 }
 
-export function LandingStoryGrid({
+export function StoryResultsGrid({
   initialData,
   renderedAt,
+  category,
+  search,
+  contentType,
+  mobileInfiniteScroll = false,
 }: {
   initialData: LandingResponse
   renderedAt: number
+  category?: string
+  search?: string
+  contentType?: import('@/constants/story.constant').StoryType
+  mobileInfiniteScroll?: boolean
 }) {
   const [stories, setStories] = useState(initialData.stories)
   const [pagination, setPagination] = useState(initialData.pagination)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const isLoadingRef = useRef(false)
+  const requestVersionRef = useRef(0)
+
+  useEffect(() => {
+    requestVersionRef.current += 1
+    isLoadingRef.current = false
+    setStories(initialData.stories)
+    setPagination(initialData.pagination)
+    setIsLoadingMore(false)
+    setLoadError(false)
+  }, [initialData])
 
   const loadMore = useCallback(async () => {
     if (isLoadingRef.current || !pagination.hasNextPage) return
 
     isLoadingRef.current = true
+    const requestVersion = requestVersionRef.current
     setIsLoadingMore(true)
     setLoadError(false)
 
@@ -72,7 +93,12 @@ export function LandingStoryGrid({
         initialData.section,
         pagination.page + 1,
         pagination.limit,
+        undefined,
+        category,
+        search,
+        contentType,
       )
+      if (requestVersion !== requestVersionRef.current) return
       setStories((current) => {
         const existingIds = new Set(current.map((story) => story.id))
         return [
@@ -82,12 +108,14 @@ export function LandingStoryGrid({
       })
       setPagination(nextData.pagination)
     } catch {
-      setLoadError(true)
+      if (requestVersion === requestVersionRef.current) setLoadError(true)
     } finally {
-      isLoadingRef.current = false
-      setIsLoadingMore(false)
+      if (requestVersion === requestVersionRef.current) {
+        isLoadingRef.current = false
+        setIsLoadingMore(false)
+      }
     }
-  }, [initialData.section, pagination.hasNextPage, pagination.limit, pagination.page])
+  }, [category, contentType, initialData.section, pagination.hasNextPage, pagination.limit, pagination.page, search])
 
   const gridStories = useMemo(
     () => stories.map((story) => toStoryGridItem(story, initialData.section, renderedAt)),
@@ -103,6 +131,7 @@ export function LandingStoryGrid({
         isLoadingMore={isLoadingMore}
         skeletonCount={isLoadingMore ? pagination.limit : 0}
         onLoadMore={loadMore}
+        mobileLayout={mobileInfiniteScroll ? 'grid' : 'carousel'}
       />
       {loadError ? (
         <p className="mt-3 text-center text-sm text-destructive">

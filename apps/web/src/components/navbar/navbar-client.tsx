@@ -282,7 +282,9 @@ export function NavbarClient({
           </div>
 
           <div className="hidden shrink-0 items-center gap-1 md:flex">
-            <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
+            <Link href="/search" aria-label="ค้นหา" title="ค้นหา" className="readji-icon-button">
+              <Search className="size-5" />
+            </Link>
             {user?.role === userRole.WRITER ? (
               <Link
                 href="/writer"
@@ -397,7 +399,9 @@ export function NavbarClient({
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5 md:hidden">
-            <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
+            <Link href="/search" aria-label="ค้นหา" title="ค้นหา" className="readji-icon-button">
+              <Search className="size-5" />
+            </Link>
             {user ? (
               <NotificationPopover
                 accessToken={accessToken}

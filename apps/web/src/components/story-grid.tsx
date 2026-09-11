@@ -1,6 +1,6 @@
 'use client'
 
-import type { UIEventHandler } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type UIEventHandler } from 'react'
 import { StoryCard, type StoryCardProps } from '@/components/common/story-card'
 import { StoryCardSkeleton } from '@/components/common/story-card-skeleton'
 
@@ -15,6 +15,7 @@ export function StoryGrid({
   isLoadingMore = false,
   skeletonCount = 0,
   onLoadMore,
+  mobileLayout = 'carousel',
 }: {
   stories: StoryGridItem[]
   eagerFirst?: boolean
@@ -22,7 +23,11 @@ export function StoryGrid({
   isLoadingMore?: boolean
   skeletonCount?: number
   onLoadMore?: () => Promise<void>
+  mobileLayout?: 'carousel' | 'grid'
 }) {
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
+  const resultGridRef = useRef<HTMLDivElement>(null)
+  const [resultGridColumns, setResultGridColumns] = useState(6)
   const items: Array<StoryGridItem | null> = [
     ...stories,
     ...Array.from({ length: skeletonCount }, () => null),
@@ -42,16 +47,67 @@ export function StoryGrid({
     if (hasMore && onLoadMore) await onLoadMore()
   }
 
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current
+    if (mobileLayout !== 'grid' || !sentinel || !hasMore || isLoadingMore || !onLoadMore) return
+    if (!window.matchMedia('(max-width: 1023px)').matches) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void onLoadMore()
+      },
+      { rootMargin: '200px 0px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, mobileLayout, onLoadMore])
+
+  useEffect(() => {
+    const grid = resultGridRef.current
+    if (mobileLayout !== 'grid' || !grid) return
+
+    const updateColumns = () => {
+      if (!window.matchMedia('(min-width: 1024px)').matches) {
+        setResultGridColumns(3)
+        return
+      }
+
+      const maximumColumns = Math.max(1, Math.floor((grid.clientWidth + 16) / 176))
+      const itemCount = stories.length
+      const fullRowColumns = Array.from(
+        { length: maximumColumns },
+        (_, index) => maximumColumns - index,
+      ).find((columns) => columns > 1 && itemCount % columns === 0)
+
+      setResultGridColumns(fullRowColumns ?? Math.min(maximumColumns, Math.max(1, itemCount)))
+    }
+
+    updateColumns()
+    const observer = new ResizeObserver(updateColumns)
+    observer.observe(grid)
+    return () => observer.disconnect()
+  }, [mobileLayout, stories.length])
+
+  const resultGridColumnsClass = stories.length === 1
+    ? 'lg:[grid-template-columns:minmax(10rem,11rem)]'
+    : 'lg:[grid-template-columns:repeat(var(--result-grid-columns),minmax(10rem,1fr))]'
+
   return (
     <>
       <div
-        onScroll={handleScroll}
-        className="mx-auto flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:max-w-7xl lg:grid-cols-5 lg:gap-x-4 lg:gap-y-7 lg:overflow-visible lg:pb-0 2xl:grid-cols-6"
+        ref={mobileLayout === 'grid' ? resultGridRef : undefined}
+        onScroll={mobileLayout === 'carousel' ? handleScroll : undefined}
+        className={mobileLayout === 'grid'
+          ? `mx-auto grid grid-cols-3 gap-x-2 gap-y-5 pb-2 lg:max-w-7xl lg:gap-x-4 lg:gap-y-7 lg:pb-0 ${resultGridColumnsClass}`
+          : 'mx-auto flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:max-w-7xl lg:grid-cols-5 lg:gap-x-4 lg:gap-y-7 lg:overflow-visible lg:pb-0 2xl:grid-cols-6'}
+        style={mobileLayout === 'grid' && stories.length !== 1
+          ? { '--result-grid-columns': resultGridColumns } as CSSProperties
+          : undefined}
       >
         {pages.map((page, pageIndex) => (
           <div
             key={pageIndex}
-            className={`grid w-full shrink-0 snap-start snap-always grid-cols-3 gap-x-2 gap-y-5 lg:contents ${
+            className={mobileLayout === 'grid' ? 'contents' : `grid w-full shrink-0 snap-start snap-always grid-cols-3 gap-x-2 gap-y-5 lg:contents ${
               page.length > 3 ? 'grid-rows-2' : 'grid-rows-1'
             }`}
           >
@@ -77,6 +133,8 @@ export function StoryGrid({
           </div>
         ))}
       </div>
+
+      {hasMore && mobileLayout === 'grid' ? <div ref={loadMoreSentinelRef} className="h-px lg:hidden" /> : null}
 
       {hasMore ? (
         <button

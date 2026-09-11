@@ -31,7 +31,7 @@ export function PopularTagsSection({ id = 'popular-tags', onNavigate }: { id?: s
             {tags.map((tag) => (
               <li key={tag.value}>
                 <Link
-                  href={`/?tag=${encodeURIComponent(tag.label)}`}
+                  href={`/search?category=${encodeURIComponent(tag.slug)}`}
                   onClick={onNavigate}
                   className="inline-flex rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 hover:text-primary hover:shadow-sm"
                 >
