@@ -1,5 +1,6 @@
 import { db } from '../../db'
-import type { StoryStatus, StoryType } from '../../models/story.model'
+import { CHAPTER_STATUS, STORY_STATUS, type StoryStatus, type StoryType } from '../../models/story.model'
+import { USER_STATUS } from '../../models/user.model'
 
 export interface PublicReaderChapter {
   id: string
@@ -73,11 +74,11 @@ export async function findPublicChapterForReading(
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND chapters.chapter_number = ${chapterNumber}
-      AND chapters.status = 'published'
+      AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
       AND chapters.published_at <= NOW()
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -114,7 +115,7 @@ export async function findPublicReaderChapters(
       ) AS can_read
     FROM chapters
     WHERE chapters.story_id = ${storyId}
-      AND chapters.status = 'published'
+      AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
       AND chapters.published_at <= NOW()
     ORDER BY chapters.chapter_number ASC, chapters.id ASC
   `
@@ -267,7 +268,7 @@ export async function findPublicContentBySlug(
         SELECT COUNT(*)::TEXT
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
       ) AS chapter_count,
       (
@@ -279,7 +280,7 @@ export async function findPublicContentBySlug(
         )
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
         ORDER BY chapters.chapter_number DESC, chapters.id DESC
         LIMIT 1
@@ -307,9 +308,9 @@ export async function findPublicContentBySlug(
     INNER JOIN genres AS primary_genre ON primary_genre.id = stories.primary_genre_id
     LEFT JOIN genres AS secondary_genre ON secondary_genre.id = stories.secondary_genre_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -342,9 +343,9 @@ export async function getPublicContentFavoriteBySlug(
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -361,9 +362,9 @@ export async function addPublicContentFavorite(
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -387,9 +388,9 @@ export async function removePublicContentFavorite(
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -419,9 +420,9 @@ export async function ratePublicContentBySlug(
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -485,9 +486,9 @@ export async function findPublicChaptersBySlug(
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -522,7 +523,7 @@ export async function findPublicChaptersBySlug(
       FROM chapters
       INNER JOIN stories ON stories.id = chapters.story_id
       WHERE chapters.story_id = ${story.id}
-        AND chapters.status = 'published'
+      AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
         AND chapters.published_at <= NOW()
       ORDER BY
         CASE WHEN ${sort} = 'latest' THEN chapters.published_at END DESC,
@@ -568,9 +569,9 @@ export async function listPublicContentForSitemap(): Promise<PublicContentSitema
     SELECT stories.slug, stories.cover_url, stories.updated_at
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
-    WHERE stories.status IN ('ongoing', 'completed')
+    WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     ORDER BY stories.updated_at DESC, stories.id DESC
   `

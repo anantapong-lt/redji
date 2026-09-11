@@ -37,6 +37,10 @@ export class WriterApplicationError extends Error {
   }
 }
 
+function writerApplicationStatusFilter(status: WriterApplicationStatus | null) {
+  return status ? db`AND wba.application_status = ${status}` : db``
+}
+
 export async function countWriterApplications(status: WriterApplicationStatus | null, search: string) {
   const [row] = await db<{ total: string }[]>`
     SELECT COUNT(*)::TEXT AS total
@@ -44,7 +48,7 @@ export async function countWriterApplications(status: WriterApplicationStatus | 
     INNER JOIN users applicant ON applicant.id = wba.writer_user_id
     WHERE wba.status = 'active'
       AND applicant.deleted_at IS NULL
-      AND (${status}::TEXT IS NULL OR wba.application_status = ${status})
+      ${writerApplicationStatusFilter(status)}
       AND (
         ${search} = ''
         OR STRPOS(LOWER(applicant.display_name), LOWER(${search})) > 0
@@ -63,7 +67,7 @@ export function findWriterApplications(page: number, limit: number, status: Writ
     LEFT JOIN users reviewer ON reviewer.id = wba.reviewed_by_user_id
     WHERE wba.status = 'active'
       AND applicant.deleted_at IS NULL
-      AND (${status}::TEXT IS NULL OR wba.application_status = ${status})
+      ${writerApplicationStatusFilter(status)}
       AND (
         ${search} = ''
         OR STRPOS(LOWER(applicant.display_name), LOWER(${search})) > 0

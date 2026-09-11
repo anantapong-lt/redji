@@ -1,5 +1,6 @@
 import { db } from '../../db'
-import type { StoryType } from '../../models/story.model'
+import { CHAPTER_STATUS, STORY_STATUS, type StoryType } from '../../models/story.model'
+import { USER_STATUS } from '../../models/user.model'
 import type { LandingSection } from './landing.schema'
 
 interface LandingStory {
@@ -92,7 +93,7 @@ export async function getLandingStories(
           chapters.published_at
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
         ORDER BY chapters.chapter_number DESC, chapters.id DESC
         LIMIT 1
@@ -117,9 +118,9 @@ export async function getLandingStories(
         FROM story_favorites
         WHERE story_favorites.story_id = stories.id
       ) AS favorite_stats ON TRUE
-      WHERE stories.status IN ('ongoing', 'completed')
+      WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
-        AND users.status = 'active'
+        AND users.status = ${USER_STATUS.ACTIVE}
         AND users.deleted_at IS NULL
         AND (${search} = '' OR stories.title ILIKE ${searchPattern})
         AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
@@ -153,9 +154,9 @@ export async function getLandingStories(
       SELECT COUNT(*)::TEXT AS total
       FROM stories
       INNER JOIN users ON users.id = stories.creator_user_id
-      WHERE stories.status IN ('ongoing', 'completed')
+      WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
-        AND users.status = 'active'
+        AND users.status = ${USER_STATUS.ACTIVE}
         AND users.deleted_at IS NULL
         AND (${search} = '' OR stories.title ILIKE ${searchPattern})
         AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
@@ -187,7 +188,7 @@ export async function getLandingStories(
           SELECT 1
           FROM chapters
           WHERE chapters.story_id = stories.id
-            AND chapters.status = 'published'
+            AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
             AND chapters.published_at <= NOW()
         )
     `,

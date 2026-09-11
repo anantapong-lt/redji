@@ -1,7 +1,7 @@
 import { db } from '../../db'
 import { deleteWriterCoverByUrl, uploadPublicCover } from '../writer/content/writer-cover.service'
-import type { StoryStatus, StoryType } from '../../models/story.model'
-import type { UserRole } from '../../models/user.model'
+import { CHAPTER_STATUS, STORY_STATUS, type StoryStatus, type StoryType } from '../../models/story.model'
+import { USER_STATUS, type UserRole } from '../../models/user.model'
 
 export interface ProfileSocialLinks {
   facebook?: string
@@ -58,7 +58,7 @@ async function findProfileStoryCounts(userId: string, role: UserRole): Promise<P
         AND EXISTS (
           SELECT 1 FROM chapters
           WHERE chapters.story_id = stories.id
-            AND chapters.status = 'published'
+            AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
             AND chapters.published_at <= NOW()
         )
     `
@@ -71,13 +71,16 @@ async function findProfileStoryCounts(userId: string, role: UserRole): Promise<P
       (COUNT(*) FILTER (WHERE stories.type = 'manga'))::INTEGER AS manga
     FROM story_favorites
     INNER JOIN stories ON stories.id = story_favorites.story_id
+    INNER JOIN users AS story_creators ON story_creators.id = stories.creator_user_id
     WHERE story_favorites.user_id = ${userId}
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND story_creators.status = ${USER_STATUS.ACTIVE}
+      AND story_creators.deleted_at IS NULL
       AND EXISTS (
         SELECT 1 FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
       )
   `
@@ -100,17 +103,17 @@ export async function findRandomWriterProfiles(limit = 5): Promise<RandomWriterP
       SELECT COUNT(*)::TEXT AS story_count
       FROM stories
       WHERE stories.creator_user_id = users.id
-        AND stories.status IN ('ongoing', 'completed')
+        AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
         AND EXISTS (
           SELECT 1 FROM chapters
           WHERE chapters.story_id = stories.id
-            AND chapters.status = 'published'
+            AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
             AND chapters.published_at <= NOW()
         )
     ) AS stories ON stories.story_count <> '0'
     WHERE users.role = 'writer'
-      AND users.status = 'active'
+      AND users.status = ${USER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     ORDER BY RANDOM()
     LIMIT ${limit}
@@ -123,7 +126,7 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
     SELECT id, username, display_name, avatar_url, profile_cover_url, role, bio, social_links, created_at
     FROM users
     WHERE LOWER(username) = LOWER(${username})
-      AND status = 'active'
+      AND status = ${USER_STATUS.ACTIVE}
       AND deleted_at IS NULL
     LIMIT 1
   `
@@ -145,7 +148,7 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
         json_build_object('chapter_number', MAX(chapter_number)::TEXT) AS latest_chapter
       FROM chapters
       WHERE chapters.story_id = stories.id
-        AND chapters.status = 'published'
+        AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
         AND chapters.published_at <= NOW()
     ) AS chapters ON chapters.chapter_count <> '0'
     LEFT JOIN LATERAL (
@@ -154,7 +157,7 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
       WHERE story_id = stories.id
     ) AS ratings ON TRUE
     WHERE stories.creator_user_id = ${profile.id}
-      AND stories.status IN ('ongoing', 'completed')
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
       AND stories.type = ${type}
     ORDER BY stories.updated_at DESC, stories.id DESC
@@ -173,13 +176,14 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
         chapters.latest_chapter
       FROM story_favorites
       INNER JOIN stories ON stories.id = story_favorites.story_id
+      INNER JOIN users AS story_creators ON story_creators.id = stories.creator_user_id
       INNER JOIN LATERAL (
         SELECT
           COUNT(*)::TEXT AS chapter_count,
           json_build_object('chapter_number', MAX(chapter_number)::TEXT) AS latest_chapter
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
       ) AS chapters ON chapters.chapter_count <> '0'
       LEFT JOIN LATERAL (
@@ -188,8 +192,10 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
         WHERE story_id = stories.id
       ) AS ratings ON TRUE
       WHERE story_favorites.user_id = ${profile.id}
-        AND stories.status IN ('ongoing', 'completed')
+        AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
+        AND story_creators.status = ${USER_STATUS.ACTIVE}
+        AND story_creators.deleted_at IS NULL
         AND stories.type = ${type}
       ORDER BY story_favorites.created_at DESC
       LIMIT ${limit + 1} OFFSET ${offset}
@@ -225,13 +231,14 @@ export async function findMyProfile(userId: string): Promise<PublicProfile | und
         chapters.latest_chapter
       FROM story_favorites
       INNER JOIN stories ON stories.id = story_favorites.story_id
+      INNER JOIN users AS story_creators ON story_creators.id = stories.creator_user_id
       INNER JOIN LATERAL (
         SELECT
           COUNT(*)::TEXT AS chapter_count,
           json_build_object('chapter_number', MAX(chapter_number)::TEXT) AS latest_chapter
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
       ) AS chapters ON chapters.chapter_count <> '0'
       LEFT JOIN LATERAL (
@@ -240,8 +247,10 @@ export async function findMyProfile(userId: string): Promise<PublicProfile | und
         WHERE story_id = stories.id
       ) AS ratings ON TRUE
       WHERE story_favorites.user_id = ${userId}
-        AND stories.status IN ('ongoing', 'completed')
+        AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
+        AND story_creators.status = ${USER_STATUS.ACTIVE}
+        AND story_creators.deleted_at IS NULL
       ORDER BY story_favorites.created_at DESC
       `,
   ])
