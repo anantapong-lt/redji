@@ -1,6 +1,7 @@
 import { status } from 'elysia'
 import type { createWriterBankAccountBodySchema } from './writer-bank-account.schema'
-import { findBankConfigs, findWriterApplicationStatus, findWriterBankAccount, upsertWriterBankAccount, WriterBankAccountError } from './writer-bank-account.service'
+import { findBankConfigs, findWriterApplicationStatus, findWriterBankAccount, hasProfileSocialLink, upsertWriterBankAccount, WriterBankAccountError } from './writer-bank-account.service'
+import { isFeatureEnabled } from '../site-config/site-config.service'
 
 export async function getBankConfigs() {
   try {
@@ -34,6 +35,12 @@ export async function submitWriterBankAccount(
   body: typeof createWriterBankAccountBodySchema.static,
 ) {
   try {
+    if (!(await isFeatureEnabled('writer_application'))) {
+      return status(403, { message: 'ขณะนี้ระบบปิดรับสมัครเป็นนักเขียนชั่วคราว' })
+    }
+    if (!(await hasProfileSocialLink(userId))) {
+      return status(400, { message: 'กรุณาเพิ่ม Social ในหน้าโปรไฟล์อย่างน้อย 1 รายการก่อนสมัครเป็นนักเขียน' })
+    }
     return { account: await upsertWriterBankAccount(userId, body) }
   } catch (error) {
     if (error instanceof WriterBankAccountError) return status(error.statusCode, { message: error.message })

@@ -6,6 +6,11 @@ import type { TopupPageConfig } from '@/interface/topup.interface'
 import type { UserProfile } from '@/interface/profile.interface'
 import { SITE_CONFIG } from '@/site.config'
 
+export interface PublicFeatureConfig {
+  registration: boolean
+  writer_application: boolean
+}
+
 function serverApiUrl(): string {
   const url = new URL(SITE_CONFIG.apiUrl, SITE_CONFIG.siteUrl)
   return url.toString().replace(/\/$/, '')
@@ -63,6 +68,20 @@ export async function getServerTopupConfig(): Promise<TopupPageConfig | null> {
     })
     if (!response.ok) return null
     return await response.json() as TopupPageConfig
+  } catch {
+    return null
+  }
+}
+
+export async function getServerFeatureConfig(): Promise<PublicFeatureConfig | null> {
+  try {
+    const response = await fetch(`${serverApiUrl()}/site-config/features`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) return null
+    const body = await response.json() as { features?: PublicFeatureConfig }
+    return body.features ?? null
   } catch {
     return null
   }

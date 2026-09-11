@@ -8,6 +8,7 @@ import {
   verifyLoginTurnstile,
   verifyRegistrationTurnstile,
 } from './auth.integrations'
+import { isFeatureEnabled } from '../site-config/site-config.service'
 
 function registrationErrorResponse(error: unknown) {
   if (error instanceof RegistrationError) {
@@ -30,6 +31,13 @@ export async function registerWithEmail(body: {
   password: string
   turnstile_token?: string
 }) {
+  if (!(await isFeatureEnabled('registration'))) {
+    return Response.json(
+      { message: 'ขณะนี้ระบบปิดรับสมัครสมาชิกชั่วคราว' },
+      { status: 403 },
+    )
+  }
+
   if (!(await verifyRegistrationTurnstile(body.turnstile_token))) {
     return Response.json(
       { message: 'ไม่สามารถยืนยัน Cloudflare Turnstile ได้ กรุณาลองใหม่อีกครั้ง', field: 'turnstile_token' },

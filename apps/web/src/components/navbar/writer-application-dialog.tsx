@@ -1,8 +1,9 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { getBankConfigs, getWriterApplicationStatus, submitWriterBankAccount } from '@/controllers/writer.controller'
+import { submitWriterBankAccount } from '@/controllers/writer.controller'
 import type { BankConfig } from '@/interface/writer-bank-account.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -22,9 +23,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
+  writerApplicationEnabled: boolean
+  banks: BankConfig[]
+  isPending: boolean
+  hasSocialLink: boolean
 }
 
-export function WriterApplicationDialog({ open, onOpenChange }: Props) {
+export function WriterApplicationDialog({ open, onOpenChange, writerApplicationEnabled, banks, isPending, hasSocialLink }: Props) {
   const { accessToken } = useAuth()
   const [form, setForm] = useState({
     account_holder_first_name: '',
@@ -33,30 +38,15 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
     account_number: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [banks, setBanks] = useState<BankConfig[]>([])
-  const [isLoadingBanks, setIsLoadingBanks] = useState(false)
-  const [isPending, setIsPending] = useState(false)
-
   useEffect(() => {
-    if (!open || !accessToken) return
-    setIsLoadingBanks(true)
-    void Promise.all([getBankConfigs(accessToken), getWriterApplicationStatus(accessToken)])
-      .then(([bankResult, statusResult]) => {
-        setBanks(bankResult.banks)
-        setIsPending(statusResult.status === 'pending')
-      })
-      .catch(() => toast.error('ไม่สามารถโหลดรายการธนาคารได้'))
-      .finally(() => setIsLoadingBanks(false))
-  }, [accessToken, open])
-
-  useEffect(() => {
-    if (!open)
+    if (!open) {
       setForm({ account_holder_first_name: '', account_holder_last_name: '', bank_code: '', account_number: '' })
+    }
   }, [open])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (isPending) return
+    if (isPending || !hasSocialLink) return
     if (!accessToken) {
       toast.error('กรุณาเข้าสู่ระบบอีกครั้ง')
       return
@@ -83,11 +73,33 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
             1–3 วัน
           </DialogDescription>
         </DialogHeader>
-        {isPending ? (
+        {!writerApplicationEnabled ? (
+          <>
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-5 text-center">
+              <p className="font-semibold text-foreground">ขณะนี้ระบบปิดรับสมัครเป็นนักเขียนชั่วคราว</p>
+              <p className="mt-1 text-sm text-muted-foreground">กรุณาติดตามประกาศจากทางเว็บไซต์อีกครั้ง</p>
+            </div>
+            <DialogFooter className="-mx-5 -mb-5 rounded-b-2xl px-5 sm:-mx-6 sm:-mb-6 sm:px-6">
+              <Button type="button" onClick={() => onOpenChange(false)}>ปิด</Button>
+            </DialogFooter>
+          </>
+        ) : isPending ? (
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-5 text-center">
             <p className="font-semibold text-foreground">ใบสมัครของคุณอยู่ระหว่างตรวจสอบข้อมูล</p>
             <p className="mt-1 text-sm text-muted-foreground">กรุณารอผลการพิจารณา 1–3 วัน ระบบจะแจ้งให้ทราบเมื่อมีผล</p>
           </div>
+        ) : !hasSocialLink ? (
+          <>
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-5 text-center">
+              <p className="font-semibold text-foreground">กรุณาเพิ่ม Social ในหน้าโปรไฟล์อย่างน้อย 1 รายการก่อนสมัคร</p>
+              <p className="mt-1 text-sm text-muted-foreground">รองรับ Facebook, Instagram, X, TikTok, YouTube หรือเว็บไซต์</p>
+            </div>
+            <DialogFooter className="-mx-5 -mb-5 rounded-b-2xl px-5 sm:-mx-6 sm:-mb-6 sm:px-6">
+              <Button asChild>
+                <Link href="/profile" onClick={() => onOpenChange(false)}>ไปตั้งค่า Social ในโปรไฟล์</Link>
+              </Button>
+            </DialogFooter>
+          </>
         ) : <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -115,10 +127,9 @@ export function WriterApplicationDialog({ open, onOpenChange }: Props) {
               required
               value={form.bank_code}
               onValueChange={(value) => setForm({ ...form, bank_code: value })}
-              disabled={isLoadingBanks}
             >
               <SelectTrigger id="writer-bank-code" className="w-full">
-                <SelectValue placeholder={isLoadingBanks ? 'กำลังโหลดรายการธนาคาร...' : 'เลือกธนาคาร'} />
+                <SelectValue placeholder="เลือกธนาคาร" />
               </SelectTrigger>
               <SelectContent
                 position="popper"

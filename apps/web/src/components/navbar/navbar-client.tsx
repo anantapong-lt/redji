@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, CheckCircle2, ChevronDown, CircleX, HistoryIcon, Home, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { getNotifications, getUnreadNotificationCount, markNotificationRead } from '@/controllers/notification.controller'
+import { getBankConfigs, getWriterApplicationStatus } from '@/controllers/writer.controller'
+import { getMyProfile } from '@/controllers/profile.controller'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -20,7 +23,9 @@ import { userRole, type AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { WriterApplicationDialog } from './writer-application-dialog'
 import type { UserNotification } from '@/interface/notification.interface'
+import type { BankConfig } from '@/interface/writer-bank-account.interface'
 import { NOTIFICATION_TYPE } from '@/constants/notification.constant'
+import type { PublicFeatureConfig } from '@/lib/server-auth'
 import {
   Dialog,
   DialogContent,
@@ -34,6 +39,12 @@ const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
   { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
 ]
+
+interface WriterApplicationData {
+  banks: BankConfig[]
+  isPending: boolean
+  hasSocialLink: boolean
+}
 
 function DisabledIconButton({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -210,13 +221,16 @@ function NotificationPopover({
 export function NavbarClient({
   initialUser,
   initialUnreadNotificationCount,
+  features,
 }: {
   initialUser: AuthUser | null
   initialUnreadNotificationCount: number
+  features: PublicFeatureConfig | null
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
   const [writerApplicationOpen, setWriterApplicationOpen] = useState(false)
+  const [writerApplicationData, setWriterApplicationData] = useState<WriterApplicationData | null>(null)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(initialUnreadNotificationCount)
   const pathname = usePathname()
   const { accessToken, logout, status, user: clientUser } = useAuth()
@@ -259,6 +273,35 @@ export function NavbarClient({
     setMobileMenuOpen(false)
   }
 
+  async function openWriterApplicationDialog() {
+    if (!features?.writer_application) {
+      setWriterApplicationOpen(true)
+      return
+    }
+    if (!accessToken) return
+
+    try {
+      const [bankResult, statusResult, profileResult] = await Promise.all([
+        getBankConfigs(accessToken),
+        getWriterApplicationStatus(accessToken),
+        getMyProfile(accessToken),
+      ])
+      setWriterApplicationData({
+        banks: bankResult.banks,
+        isPending: statusResult.status === 'pending',
+        hasSocialLink: Object.values(profileResult.profile.social_links ?? {}).some((value) => Boolean(value?.trim())),
+      })
+      setWriterApplicationOpen(true)
+    } catch {
+      toast.error('ไม่สามารถตรวจสอบข้อมูลสำหรับสมัครเป็นนักเขียนได้ กรุณาลองใหม่อีกครั้ง')
+    }
+  }
+
+  function handleWriterApplicationOpenChange(open: boolean) {
+    setWriterApplicationOpen(open)
+    if (!open) setWriterApplicationData(null)
+  }
+
   const userInitial = user?.display_name.trim().charAt(0)
     || user?.username.trim().charAt(0)
     || '?'
@@ -297,7 +340,7 @@ export function NavbarClient({
             ) : user?.role === userRole.USER ? (
               <button
                 type="button"
-                onClick={() => setWriterApplicationOpen(true)}
+                onClick={() => void openWriterApplicationDialog()}
                 aria-label="สมัครนักเขียน"
                 title="สมัครนักเขียน"
                 className="readji-icon-button cursor-pointer"
@@ -465,7 +508,7 @@ export function NavbarClient({
                 <button
                   key={label}
                   type="button"
-                  onClick={() => { setMobileMenuOpen(false); setWriterApplicationOpen(true) }}
+                  onClick={() => { setMobileMenuOpen(false); void openWriterApplicationDialog() }}
                   className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                 >
                   <Icon className="size-5 text-primary" />
@@ -529,13 +572,15 @@ export function NavbarClient({
                     <LogIn className="size-4" />
                     เข้าสู่ระบบ
                   </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex w-full items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
-                  >
-                    สมัครสมาชิก
-                  </Link>
+                  {features?.registration && (
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex w-full items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
+                    >
+                      สมัครสมาชิก
+                    </Link>
+                  )}
                 </>
               )}
             </div>
@@ -543,7 +588,14 @@ export function NavbarClient({
         </div>
       )}
 
-      <WriterApplicationDialog open={writerApplicationOpen} onOpenChange={setWriterApplicationOpen} />
+      <WriterApplicationDialog
+        open={writerApplicationOpen}
+        onOpenChange={handleWriterApplicationOpenChange}
+        writerApplicationEnabled={features?.writer_application === true}
+        banks={writerApplicationData?.banks ?? []}
+        isPending={writerApplicationData?.isPending ?? false}
+        hasSocialLink={writerApplicationData?.hasSocialLink ?? false}
+      />
     </>
   )
 }

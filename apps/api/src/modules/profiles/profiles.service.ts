@@ -1,5 +1,5 @@
 import { db } from '../../db'
-import { uploadPublicCover } from '../writer/content/writer-cover.service'
+import { deleteWriterCoverByUrl, uploadPublicCover } from '../writer/content/writer-cover.service'
 import type { StoryStatus, StoryType } from '../../models/story.model'
 import type { UserRole } from '../../models/user.model'
 
@@ -35,13 +35,91 @@ export interface PublicProfile {
   bio: string | null
   social_links: ProfileSocialLinks
   created_at: Date
+  story_counts: { novel: number; manga: number }
   stories: ProfileStory[]
   pagination: { page: number; limit: number; has_next_page: boolean }
 }
 
+interface ProfileStoryCounts {
+  novel: number
+  manga: number
+}
+
+async function findProfileStoryCounts(userId: string, role: UserRole): Promise<ProfileStoryCounts> {
+  if (role === 'writer') {
+    const [counts] = await db<ProfileStoryCounts[]>`
+      SELECT
+        (COUNT(*) FILTER (WHERE type = 'novel'))::INTEGER AS novel,
+        (COUNT(*) FILTER (WHERE type = 'manga'))::INTEGER AS manga
+      FROM stories
+      WHERE creator_user_id = ${userId}
+        AND status IN ('ongoing', 'completed')
+        AND deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM chapters
+          WHERE chapters.story_id = stories.id
+            AND chapters.status = 'published'
+            AND chapters.published_at <= NOW()
+        )
+    `
+    return counts ?? { novel: 0, manga: 0 }
+  }
+
+  const [counts] = await db<ProfileStoryCounts[]>`
+    SELECT
+      (COUNT(*) FILTER (WHERE stories.type = 'novel'))::INTEGER AS novel,
+      (COUNT(*) FILTER (WHERE stories.type = 'manga'))::INTEGER AS manga
+    FROM story_favorites
+    INNER JOIN stories ON stories.id = story_favorites.story_id
+    WHERE story_favorites.user_id = ${userId}
+      AND stories.status IN ('ongoing', 'completed')
+      AND stories.deleted_at IS NULL
+      AND EXISTS (
+        SELECT 1 FROM chapters
+        WHERE chapters.story_id = stories.id
+          AND chapters.status = 'published'
+          AND chapters.published_at <= NOW()
+      )
+  `
+  return counts ?? { novel: 0, manga: 0 }
+}
+
+export interface RandomWriterProfile {
+  id: string
+  username: string
+  display_name: string
+  avatar_url: string | null
+  story_count: string
+}
+
+export async function findRandomWriterProfiles(limit = 5): Promise<RandomWriterProfile[]> {
+  return db<RandomWriterProfile[]>`
+    SELECT users.id, users.username, users.display_name, users.avatar_url, stories.story_count
+    FROM users
+    INNER JOIN LATERAL (
+      SELECT COUNT(*)::TEXT AS story_count
+      FROM stories
+      WHERE stories.creator_user_id = users.id
+        AND stories.status IN ('ongoing', 'completed')
+        AND stories.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM chapters
+          WHERE chapters.story_id = stories.id
+            AND chapters.status = 'published'
+            AND chapters.published_at <= NOW()
+        )
+    ) AS stories ON stories.story_count <> '0'
+    WHERE users.role = 'writer'
+      AND users.status = 'active'
+      AND users.deleted_at IS NULL
+    ORDER BY RANDOM()
+    LIMIT ${limit}
+  `
+}
+
 export async function findPublicProfileByUsername(username: string, type: StoryType = 'novel', page = 1, limit = 12): Promise<PublicProfile | undefined> {
   const offset = (page - 1) * limit
-  const [profile] = await db<Omit<PublicProfile, 'stories' | 'pagination'>[]>`
+  const [profile] = await db<Omit<PublicProfile, 'story_counts' | 'stories' | 'pagination'>[]>`
     SELECT id, username, display_name, avatar_url, profile_cover_url, role, bio, social_links, created_at
     FROM users
     WHERE LOWER(username) = LOWER(${username})
@@ -51,7 +129,9 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
   `
   if (!profile) return undefined
 
-  const authoredStories = await db<ProfileStory[]>`
+  const [storyCounts, authoredStories] = await Promise.all([
+    findProfileStoryCounts(profile.id, profile.role),
+    db<ProfileStory[]>`
     SELECT
       stories.id, stories.title, stories.slug, stories.cover_url, stories.cover_blur_data_url,
       stories.type, stories.status,
@@ -79,7 +159,8 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
       AND stories.type = ${type}
     ORDER BY stories.updated_at DESC, stories.id DESC
     LIMIT ${limit + 1} OFFSET ${offset}
-  `
+    `,
+  ])
 
   const stories = profile.role === 'writer'
     ? authoredStories
@@ -116,13 +197,14 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
 
   return {
     ...profile,
+    story_counts: storyCounts,
     stories: stories.slice(0, limit),
     pagination: { page, limit, has_next_page: stories.length > limit },
   }
 }
 
 export async function findMyProfile(userId: string): Promise<PublicProfile | undefined> {
-  const [profile] = await db<Omit<PublicProfile, 'stories' | 'pagination'>[]>`
+  const [profile] = await db<Omit<PublicProfile, 'story_counts' | 'stories' | 'pagination'>[]>`
     SELECT id, username, display_name, avatar_url, profile_cover_url, role, bio, social_links, created_at
     FROM users
     WHERE id = ${userId} AND deleted_at IS NULL
@@ -130,9 +212,11 @@ export async function findMyProfile(userId: string): Promise<PublicProfile | und
   `
   if (!profile) return undefined
 
-  const stories = profile.role === 'writer'
-    ? await findPublicProfileByUsername(profile.username).then((result) => result?.stories ?? [])
-    : await db<ProfileStory[]>`
+  const [storyCounts, stories] = await Promise.all([
+    findProfileStoryCounts(userId, profile.role),
+    profile.role === 'writer'
+    ? findPublicProfileByUsername(profile.username).then((result) => result?.stories ?? [])
+    : db<ProfileStory[]>`
       SELECT
         stories.id, stories.title, stories.slug, stories.cover_url, stories.cover_blur_data_url,
         stories.type, stories.status,
@@ -159,9 +243,10 @@ export async function findMyProfile(userId: string): Promise<PublicProfile | und
         AND stories.status IN ('ongoing', 'completed')
         AND stories.deleted_at IS NULL
       ORDER BY story_favorites.created_at DESC
-    `
+      `,
+  ])
 
-  return { ...profile, stories, pagination: { page: 1, limit: stories.length, has_next_page: false } }
+  return { ...profile, story_counts: storyCounts, stories, pagination: { page: 1, limit: stories.length, has_next_page: false } }
 }
 
 export async function updateMyProfile(
@@ -192,6 +277,14 @@ export async function updateMyProfile(
 }
 
 export async function updateMyProfileCover(userId: string, cover: File): Promise<PublicProfile | undefined> {
+  const [currentProfile] = await db<Array<{ profile_cover_url: string | null }>>`
+    SELECT profile_cover_url
+    FROM users
+    WHERE id = ${userId} AND deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!currentProfile) return undefined
+
   const uploadedCover = await uploadPublicCover(cover, 'profiles/covers', {
     width: 1600,
     height: 900,
@@ -202,6 +295,37 @@ export async function updateMyProfileCover(userId: string, cover: File): Promise
     UPDATE users SET profile_cover_url = ${uploadedCover.cover_url}, updated_at = NOW()
     WHERE id = ${userId} AND deleted_at IS NULL
   `
+
+  if (currentProfile.profile_cover_url) {
+    await deleteWriterCoverByUrl(currentProfile.profile_cover_url)
+  }
+
+  return findMyProfile(userId)
+}
+
+export async function updateMyProfileAvatar(userId: string, avatar: File): Promise<PublicProfile | undefined> {
+  const [currentProfile] = await db<Array<{ avatar_url: string | null }>>`
+    SELECT avatar_url
+    FROM users
+    WHERE id = ${userId} AND deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!currentProfile) return undefined
+
+  const uploadedAvatar = await uploadPublicCover(avatar, 'profiles/avatars', {
+    width: 512,
+    height: 512,
+    quality: 82,
+  })
+
+  await db`
+    UPDATE users SET avatar_url = ${uploadedAvatar.cover_url}, updated_at = NOW()
+    WHERE id = ${userId} AND deleted_at IS NULL
+  `
+
+  if (currentProfile.avatar_url) {
+    await deleteWriterCoverByUrl(currentProfile.avatar_url)
+  }
 
   return findMyProfile(userId)
 }

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { AuthCard } from '@/components/auth/auth-card'
 import { RegisterForm } from '@/components/auth/register-form'
 import { SITE_CONFIG } from '@/site.config'
-import { getServerAuthUser } from '@/lib/server-auth'
+import { getServerAuthUser, getServerFeatureConfig } from '@/lib/server-auth'
 import { redirect } from 'next/dist/client/components/navigation'
 
 export const metadata: Metadata = {
@@ -13,9 +13,13 @@ export const metadata: Metadata = {
 }
 
 export default async function RegisterPage() {
-  const user = await getServerAuthUser()
+  const [user, features] = await Promise.all([getServerAuthUser(), getServerFeatureConfig()])
 
   if (user) redirect('/');
+
+  if (!features?.registration) {
+    return <AuthCard heading="ปิดรับสมัครสมาชิก"><p className="text-center text-sm text-muted-foreground">ขณะนี้ระบบปิดรับสมัครสมาชิกชั่วคราว</p></AuthCard>
+  }
 
   return <AuthCard heading={`สมัครสมาชิก ${SITE_CONFIG.name}`}><RegisterForm /></AuthCard>
 }

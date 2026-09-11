@@ -20,7 +20,7 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>
 
-export function LoginForm() {
+export function LoginForm({ registrationEnabled }: { registrationEnabled: boolean }) {
   const router = useRouter()
   const { login, status } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
@@ -142,7 +142,7 @@ export function LoginForm() {
         <span aria-disabled="true" title="ยังไม่เปิดใช้งาน" className="cursor-not-allowed text-muted-foreground opacity-45">
           ลืมรหัสผ่าน
         </span>
-        <Link href="/register" className="text-primary hover:underline">สมัครสมาชิก</Link>
+        {registrationEnabled && <Link href="/register" className="text-primary hover:underline">สมัครสมาชิก</Link>}
       </div>
     </form>
   )

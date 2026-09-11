@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { AuthCard } from '@/components/auth/auth-card'
 import { LoginForm } from '@/components/auth/login-form'
 import { userRole } from '@/interface/user.interface'
-import { getServerAuthUser } from '@/lib/server-auth'
+import { getServerAuthUser, getServerFeatureConfig } from '@/lib/server-auth'
 import { SITE_CONFIG } from '@/site.config'
 
 export const metadata: Metadata = {
@@ -14,9 +14,9 @@ export const metadata: Metadata = {
 }
 
 export default async function LoginPage() {
-  const user = await getServerAuthUser()
+  const [user, features] = await Promise.all([getServerAuthUser(), getServerFeatureConfig()])
 
   if (user) redirect('/');
 
-  return <AuthCard heading={`เข้าสู่ระบบของ ${SITE_CONFIG.name}`}><LoginForm /></AuthCard>
+  return <AuthCard heading={`เข้าสู่ระบบของ ${SITE_CONFIG.name}`}><LoginForm registrationEnabled={features?.registration === true} /></AuthCard>
 }

@@ -32,6 +32,15 @@ export interface UserProfile {
   bio: string | null
   social_links: ProfileSocialLinks
   created_at: string
+  story_counts: { novel: number; manga: number }
   stories: ProfileStory[]
   pagination: { page: number; limit: number; has_next_page: boolean }
+}
+
+export interface RandomWriterProfile {
+  id: string
+  username: string
+  display_name: string
+  avatar_url: string | null
+  story_count: string
 }

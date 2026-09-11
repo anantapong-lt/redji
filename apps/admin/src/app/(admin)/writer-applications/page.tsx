@@ -38,6 +38,7 @@ interface WriterApplication {
   username: string
   email: string
   phone_number: string | null
+  social_links: Record<string, string>
   balance: string
   user_status: 'active' | 'banned'
   email_verified_at: string | null
@@ -63,6 +64,15 @@ interface BankConfig {
   code: string
   name: string
   logo: string
+}
+
+const SOCIAL_LABELS: Record<string, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  x: 'X',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  website: 'เว็บไซต์',
 }
 
 function formatDate(value: string) {
@@ -433,6 +443,25 @@ export default function WriterApplicationsPage() {
                         ? formatDate(detailsApplication.last_login_at)
                         : 'ยังไม่เคยเข้าใช้งาน'}
                     </p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-muted-foreground">Social</p>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
+                      {Object.entries(detailsApplication.social_links ?? {})
+                        .filter(([key, value]) => SOCIAL_LABELS[key] && value.trim())
+                        .map(([key, value]) => (
+                          <a
+                            key={key}
+                            href={value}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {SOCIAL_LABELS[key]}: {value}
+                          </a>
+                        ))}
+                      {Object.values(detailsApplication.social_links ?? {}).every((value) => !value.trim()) && <p>-</p>}
+                    </div>
                   </div>
                 </div>
               </section>

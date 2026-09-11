@@ -1,4 +1,8 @@
-import { findMyProfile, findPublicProfileByUsername, updateMyProfile, updateMyProfileCover } from './profiles.service'
+import { findMyProfile, findPublicProfileByUsername, findRandomWriterProfiles, updateMyProfile, updateMyProfileAvatar, updateMyProfileCover } from './profiles.service'
+
+export async function getRandomWriterProfilesResponse(limit?: number) {
+  return { profiles: await findRandomWriterProfiles(limit ?? 5) }
+}
 
 export async function getMyProfileResponse(userId: string) {
   const profile = await findMyProfile(userId)
@@ -20,5 +24,10 @@ export async function updateMyProfileResponse(
 
 export async function updateMyProfileCoverResponse(userId: string, cover: File) {
   const profile = await updateMyProfileCover(userId, cover)
+  return profile ? { profile } : Response.json({ message: 'ไม่พบโปรไฟล์' }, { status: 404 })
+}
+
+export async function updateMyProfileAvatarResponse(userId: string, avatar: File) {
+  const profile = await updateMyProfileAvatar(userId, avatar)
   return profile ? { profile } : Response.json({ message: 'ไม่พบโปรไฟล์' }, { status: 404 })
 }

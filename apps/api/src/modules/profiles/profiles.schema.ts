@@ -10,6 +10,10 @@ export const profileStoriesQuerySchema = t.Object({
   limit: t.Optional(t.Numeric({ minimum: 1, maximum: 24, multipleOf: 1 })),
 })
 
+export const randomProfilesQuerySchema = t.Object({
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 12, multipleOf: 1 })),
+})
+
 export const profileSocialLinksSchema = t.Object({
   facebook: t.Optional(t.String({ maxLength: 2048, pattern: '^https?://' })),
   instagram: t.Optional(t.String({ maxLength: 2048, pattern: '^https?://' })),
@@ -26,6 +30,13 @@ export const updateMyProfileBodySchema = t.Object({
 
 export const updateMyProfileCoverBodySchema = t.Object({
   cover: t.File({
+    type: ['image/jpeg', 'image/png', 'image/webp'],
+    maxSize: '5m',
+  }),
+})
+
+export const updateMyProfileAvatarBodySchema = t.Object({
+  avatar: t.File({
     type: ['image/jpeg', 'image/png', 'image/webp'],
     maxSize: '5m',
   }),

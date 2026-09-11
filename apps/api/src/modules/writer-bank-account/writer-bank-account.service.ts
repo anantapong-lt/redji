@@ -54,6 +54,19 @@ export async function findWriterApplicationStatus(userId: string): Promise<Write
   return account?.application_status ?? null
 }
 
+export async function hasProfileSocialLink(userId: string): Promise<boolean> {
+  const [user] = await db<{ social_links: Record<string, unknown> | null }[]>`
+    SELECT social_links
+    FROM users
+    WHERE id = ${userId} AND deleted_at IS NULL
+    LIMIT 1
+  `
+
+  return Object.values(user?.social_links ?? {}).some(
+    (value) => typeof value === 'string' && value.trim().length > 0,
+  )
+}
+
 export async function upsertWriterBankAccount(
   userId: string,
   input: Omit<WriterBankAccount, 'id' | 'application_status' | 'status'>,
