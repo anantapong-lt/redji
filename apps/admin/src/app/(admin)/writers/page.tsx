@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 
 const USER_STATUS = {
   ACTIVE: 'active',
@@ -72,6 +73,8 @@ export default function WritersPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusChange, setStatusChange] = useState<{ writer: Writer; nextStatus: UserStatus } | null>(null)
   const [isChangingStatus, setIsChangingStatus] = useState(false)
+  const [banReason, setBanReason] = useState('')
+  const [banReasonError, setBanReasonError] = useState<string | null>(null)
 
   const loadWriters = useCallback(async () => {
     if (!accessToken) return
@@ -99,7 +102,14 @@ export default function WritersPage() {
 
   async function submitStatusChange() {
     if (!statusChange || !accessToken || isChangingStatus) return
+    const normalizedBanReason = banReason.trim()
+    if (statusChange.nextStatus === USER_STATUS.BANNED && !normalizedBanReason) {
+      setBanReasonError('กรุณาระบุเหตุผลในการแบนผู้เขียน')
+      return
+    }
+
     setIsChangingStatus(true)
+    setBanReasonError(null)
     try {
       const response = await fetch(`${apiUrl}/admin/writers/${statusChange.writer.id}/status`, {
         method: 'PUT',
@@ -109,12 +119,16 @@ export default function WritersPage() {
           Authorization: `Bearer ${accessToken}`,
         },
         credentials: 'include',
-        body: JSON.stringify({ status: statusChange.nextStatus }),
+        body: JSON.stringify({
+          status: statusChange.nextStatus,
+          ...(statusChange.nextStatus === USER_STATUS.BANNED ? { ban_reason: normalizedBanReason } : {}),
+        }),
       })
       const body = await response.json().catch(() => null) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถเปลี่ยนสถานะนักเขียนได้')
       toast.success(statusChange.nextStatus === USER_STATUS.BANNED ? 'แบนผู้เขียนเรียบร้อยแล้ว' : 'ปลดแบนผู้เขียนเรียบร้อยแล้ว')
       setStatusChange(null)
+      setBanReason('')
       await loadWriters()
     } catch (changeError) {
       toast.error(changeError instanceof Error ? changeError.message : 'ไม่สามารถเปลี่ยนสถานะนักเขียนได้')
@@ -178,7 +192,11 @@ export default function WritersPage() {
                           type="button"
                           size="sm"
                           variant={nextStatus === USER_STATUS.BANNED ? 'destructive' : 'outline'}
-                          onClick={() => setStatusChange({ writer, nextStatus })}
+                          onClick={() => {
+                            setStatusChange({ writer, nextStatus })
+                            setBanReason('')
+                            setBanReasonError(null)
+                          }}
                         >
                           {nextStatus === USER_STATUS.BANNED ? <Ban /> : <ShieldCheck />}
                           {nextStatus === USER_STATUS.BANNED ? 'แบน' : 'ปลดแบน'}
@@ -196,7 +214,13 @@ export default function WritersPage() {
       </CardContent>
       <div className="flex items-center justify-between border-t px-4 py-3"><span className="text-sm text-muted-foreground">หน้า {data?.pagination.page ?? 1} จาก {data?.pagination.totalPages ?? 1}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={isLoading || page <= 1} onClick={() => setPage((current) => current - 1)}><ChevronLeft />ก่อนหน้า</Button><Button size="sm" variant="outline" disabled={isLoading || !data || page >= data.pagination.totalPages} onClick={() => setPage((current) => current + 1)}>ถัดไป<ChevronRight /></Button></div></div>
     </Card>
-    <Dialog open={Boolean(statusChange)} onOpenChange={(open) => { if (!open && !isChangingStatus) setStatusChange(null) }}>
+    <Dialog open={Boolean(statusChange)} onOpenChange={(open) => {
+      if (!open && !isChangingStatus) {
+        setStatusChange(null)
+        setBanReason('')
+        setBanReasonError(null)
+      }
+    }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{statusChange?.nextStatus === USER_STATUS.BANNED ? 'ยืนยันการแบนผู้เขียน' : 'ยืนยันการปลดแบนผู้เขียน'}</DialogTitle>
@@ -205,6 +229,24 @@ export default function WritersPage() {
               ? `ผู้ใช้ ${statusChange?.writer.display_name ?? ''} และเนื้อหาของเขาจะไม่แสดงบนเว็บไซต์`
               : `ผู้ใช้ ${statusChange?.writer.display_name ?? ''} และเนื้อหาจะกลับมาแสดงบนเว็บไซต์`}
           </DialogDescription>
+          {statusChange?.nextStatus === USER_STATUS.BANNED ? (
+            <div className="space-y-2">
+              <label htmlFor="writer-ban-reason" className="text-sm font-medium">เหตุผลในการแบน <span className="text-destructive">*</span></label>
+              <Textarea
+                id="writer-ban-reason"
+                value={banReason}
+                onChange={(event) => {
+                  setBanReason(event.target.value)
+                  if (banReasonError) setBanReasonError(null)
+                }}
+                placeholder="ระบุเหตุผลที่ต้องการแบนผู้เขียน"
+                maxLength={1000}
+                disabled={isChangingStatus}
+                aria-invalid={Boolean(banReasonError)}
+              />
+              {banReasonError ? <p className="text-sm text-destructive">{banReasonError}</p> : null}
+            </div>
+          ) : null}
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={isChangingStatus} onClick={() => setStatusChange(null)}>ยกเลิก</Button>

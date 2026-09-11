@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE users
+  ADD COLUMN ban_reason TEXT,
+  ADD COLUMN banned_at TIMESTAMPTZ;
+
+COMMIT;
