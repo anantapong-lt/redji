@@ -3,6 +3,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 import type { AuthUser } from '@/interface/user.interface'
 import type { TopupPageConfig } from '@/interface/topup.interface'
+import type { UserProfile } from '@/interface/profile.interface'
 import { SITE_CONFIG } from '@/site.config'
 
 function serverApiUrl(): string {
@@ -62,6 +63,20 @@ export async function getServerTopupConfig(): Promise<TopupPageConfig | null> {
     })
     if (!response.ok) return null
     return await response.json() as TopupPageConfig
+  } catch {
+    return null
+  }
+}
+
+export async function getServerProfile(username: string): Promise<UserProfile | null> {
+  try {
+    const response = await fetch(
+      `${serverApiUrl()}/profiles/${encodeURIComponent(username)}`,
+      { cache: 'no-store', headers: { Accept: 'application/json' } },
+    )
+    if (!response.ok) return null
+    const body = await response.json() as { profile: UserProfile }
+    return body.profile
   } catch {
     return null
   }

@@ -359,9 +359,11 @@ export function NavbarClient({
                     </div>
 
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled className="py-2.5">
+                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                      <Link href="/profile">
                       <UserRound />
                       โปรไฟล์
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer py-2.5">
                       <Link href="/topup">

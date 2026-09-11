@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from contextlib import nullcontext
 from pathlib import Path
 from enum import Enum
 import faulthandler
@@ -54,6 +55,75 @@ class RenderError(RuntimeError):
     pass
 
 
+class _IncompleteFastLoad(RuntimeError):
+    pass
+
+
+def _load_voxcpm_weights():
+    """Skip disposable Linear/Embedding initialization in the isolated worker."""
+    import gc
+    import torch
+    from voxcpm import VoxCPM
+    from voxcpm.model.voxcpm2 import VoxCPM2Model
+
+    def load():
+        return VoxCPM.from_pretrained(
+            "openbmb/VoxCPM2", device="cuda", load_denoiser=False,
+            local_files_only=True, optimize=False,
+        )
+
+    original_linear_reset = torch.nn.Linear.reset_parameters
+    original_embedding_reset = torch.nn.Embedding.reset_parameters
+    original_load = VoxCPM2Model.load_state_dict
+    own_load = VoxCPM2Model.__dict__.get("load_state_dict")
+    checked = False
+    skipped = 0
+
+    def skip_reset(module):
+        nonlocal skipped
+        # Keep convolution/AudioVAE initialization and derived buffers intact.
+        skipped += 1
+
+    def checked_load(module, state_dict, strict=True, **kwargs):
+        nonlocal checked
+        result = original_load(module, state_dict, strict=False, **kwargs)
+        if result.missing_keys or result.unexpected_keys:
+            raise _IncompleteFastLoad(
+                f"missing={len(result.missing_keys)} unexpected={len(result.unexpected_keys)}"
+            )
+        checked = True
+        return result
+
+    fallback = False
+    try:
+        # This scope runs before inference, exclusively in the worker process.
+        torch.nn.Linear.reset_parameters = skip_reset
+        torch.nn.Embedding.reset_parameters = skip_reset
+        VoxCPM2Model.load_state_dict = checked_load
+        model = load()
+        if not checked:
+            del model
+            raise _IncompleteFastLoad("checkpoint coverage was not checked")
+    except _IncompleteFastLoad as error:
+        print(f"[TTS] fast weights load fallback: {error}", flush=True)
+        fallback = True
+    finally:
+        torch.nn.Linear.reset_parameters = original_linear_reset
+        torch.nn.Embedding.reset_parameters = original_embedding_reset
+        if own_load is None:
+            del VoxCPM2Model.load_state_dict
+        else:
+            VoxCPM2Model.load_state_dict = own_load
+
+    if fallback:
+        # Release the failed attempt after its exception traceback has gone.
+        gc.collect()
+        torch.cuda.empty_cache()
+        return load()
+    print(f"[TTS] fast weights load: skipped initialization of {skipped} layers; checkpoint coverage complete", flush=True)
+    return model
+
+
 class WorkerMessage(str, Enum):
     PRELOAD = "preload"
     RENDER = "render"
@@ -61,6 +131,73 @@ class WorkerMessage(str, Enum):
     RESULT = "result"
     ERROR = "error"
     STOP = "stop"
+
+
+class _RenderStageProfiler:
+    """Measure one real chunk, leaving compiled callables intact underneath."""
+
+    def __init__(self, model) -> None:
+        import torch
+        self.torch = torch
+        self.model = model
+        self.patches = []
+        self.samples = {}
+
+    def _wrap(self, target, attribute: str, stage: str) -> None:
+        original = getattr(target, attribute)
+        had_own_attribute = attribute in target.__dict__
+
+        def measured(*args, **kwargs):
+            start = self.torch.cuda.Event(enable_timing=True)
+            end = self.torch.cuda.Event(enable_timing=True)
+            start.record()
+            started = time.perf_counter()
+            try:
+                return original(*args, **kwargs)
+            finally:
+                cpu_seconds = time.perf_counter() - started
+                end.record()
+                self.samples.setdefault(stage, []).append((start, end, cpu_seconds))
+
+        setattr(target, attribute, measured)
+        self.patches.append((target, attribute, original, had_own_attribute))
+
+    def _restore(self) -> None:
+        for target, attribute, original, had_own_attribute in reversed(self.patches):
+            if had_own_attribute:
+                setattr(target, attribute, original)
+            else:
+                delattr(target, attribute)
+        self.patches.clear()
+
+    def __enter__(self):
+        self.torch.cuda.synchronize()
+        self.started = time.perf_counter()
+        try:
+            for name in ("base_lm", "residual_lm"):
+                module = getattr(self.model, name)
+                self._wrap(module, "forward", f"{name}_prefill")
+                self._wrap(module, "forward_step", f"{name}_decode")
+            self._wrap(self.model.feat_decoder, "forward", "diffusion")
+            self._wrap(self.model.audio_vae, "decode", "audio_vae")
+        except BaseException:
+            self._restore()
+            raise
+        print("[TTS] stage profile begin: first chunk; includes instrumentation and any first-use compilation", flush=True)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self._restore()
+        if exc_type is not None:
+            print("[TTS] stage profile aborted; incomplete timings discarded", flush=True)
+            return
+        # Synchronize once, not after each operation, to retain CPU/GPU overlap.
+        self.torch.cuda.synchronize()
+        for stage, samples in self.samples.items():
+            gpu_seconds = sum(start.elapsed_time(end) for start, end, _ in samples) / 1000
+            cpu_seconds = sum(cpu for _, _, cpu in samples)
+            print(f"[TTS] stage profile: stage={stage} calls={len(samples)} cpu_wall_seconds={cpu_seconds:.3f} cuda_interval_seconds={gpu_seconds:.3f}", flush=True)
+        print(f"[TTS] stage profile end: generation_wall_seconds={time.perf_counter() - self.started:.3f}; CPU/CUDA intervals overlap, do not add; other stages are not instrumented", flush=True)
 
 
 class _Mp3Encoder:
@@ -335,12 +472,14 @@ class _LocalVoxCpmRenderer:
         self.model = None
         self.sample_rate = 48_000
         self._prompt_caches: dict[str, tuple[tuple[Path, int, int], dict]] = {}
+        self._profile_pending = True
 
     def _load_model(self) -> None:
         if self.model is not None:
             return
         load_started = time.monotonic()
         self._prompt_caches.clear()
+        self._profile_pending = True
         if self.optimize:
             # Configure disk caches before importing torch/voxcpm. Keep them
             # outside temporary and packaged application directories so they
@@ -362,16 +501,8 @@ class _LocalVoxCpmRenderer:
         if not torch.cuda.is_available():
             raise RenderError("ไม่พบ NVIDIA CUDA GPU ที่พร้อมใช้งาน")
         weights_started = time.monotonic()
-        model = VoxCPM.from_pretrained(
-            "openbmb/VoxCPM2",
-            device="cuda",
-            load_denoiser=False,
-            # The GUI downloads missing model files before starting the worker.
-            local_files_only=True,
-            # VoxCPM's constructor warms up with its default 10 diffusion steps.
-            # Prepare explicitly below using the same settings as real jobs.
-            optimize=False,
-        )
+        # Load without VoxCPM's default 10-step warmup; prepare below at job settings.
+        model = _load_voxcpm_weights()
         torch.cuda.synchronize()
         print(f"[TTS] model weights to GPU: {time.monotonic() - weights_started:.2f}s", flush=True)
         if self.optimize:
@@ -442,6 +573,35 @@ class _LocalVoxCpmRenderer:
             chunks.append(current)
         return chunks
 
+    def _prepare_kv_capacity(self, chunks: list[str], prompt_cache: dict) -> None:
+        import inspect
+
+        model = self.model.tts_model
+        # This bound matches VoxCPM2's reference-only generation path. Keep the
+        # library's full capacity for any other prompt mode.
+        capacity = model.config.max_length
+        if prompt_cache.get("mode") == "reference":
+            parameters = inspect.signature(model._generate_with_prompt_cache).parameters
+            max_len = parameters["max_len"].default
+            ratio = parameters["retry_badcase_ratio_threshold"].default
+            reference_length = prompt_cache["ref_audio_feat"].shape[0]
+            token_lengths = [len(model.text_tokenizer(chunk)) for chunk in chunks]
+            required = max(
+                length + reference_length + 3
+                + min(int(length * ratio + 10), max_len)
+                for length in token_lengths
+            )
+            # Stable power-of-two buckets avoid a new compiled shape per chunk.
+            capacity = min(capacity, max(1024, 1 << (required - 1).bit_length()))
+        previous = model.base_lm.kv_cache.max_length
+        if capacity == previous:
+            return
+        for lm in (model.base_lm, model.residual_lm):
+            dtype = lm.kv_cache.kv_cache.dtype
+            lm.setup_cache(1, capacity, model.device, dtype)
+        self._profile_pending = True
+        print(f"[TTS] KV cache capacity: {previous} -> {capacity}; generation length limits unchanged; first chunk may compile a new shape", flush=True)
+
     def render(self, text: str, voice_slot: str, progress: Callable[[int, int], None]) -> tuple[Path, float]:
         ffmpeg = verify_ffmpeg()
         self._load_model()
@@ -452,19 +612,23 @@ class _LocalVoxCpmRenderer:
         total_duration = 0.0
         render_started = time.monotonic()
         prompt_cache = self._prompt_cache(voice_slot)
+        self._prepare_kv_capacity(chunks, prompt_cache)
         output = workspace / "full.mp3"
         try:
             with _Mp3Encoder(ffmpeg, output, self.sample_rate) as encoder:
                 for index, chunk in enumerate(chunks, start=1):
                     chunk_started = time.monotonic()
-                    audio, _, _ = self.model.tts_model.generate_with_prompt_cache(
-                        target_text=chunk,
-                        prompt_cache=prompt_cache,
-                        cfg_value=2.0,
-                        inference_timesteps=INFERENCE_TIMESTEPS,
-                        retry_badcase=True,
-                        retry_badcase_max_times=2,
-                    )
+                    profiling = self._profile_pending
+                    with (_RenderStageProfiler(self.model.tts_model) if profiling else nullcontext()):
+                        audio, _, _ = self.model.tts_model.generate_with_prompt_cache(
+                            target_text=chunk,
+                            prompt_cache=prompt_cache,
+                            cfg_value=2.0,
+                            inference_timesteps=INFERENCE_TIMESTEPS,
+                            retry_badcase=True,
+                            retry_badcase_max_times=2,
+                        )
+                    self._profile_pending = False
                     audio = audio.squeeze(0).cpu().numpy()
                     if audio.size == 0:
                         raise RenderError("VoxCPM2 ส่งผลลัพธ์เสียงว่างกลับมา")
