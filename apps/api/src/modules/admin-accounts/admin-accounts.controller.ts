@@ -1,6 +1,6 @@
 import { status } from 'elysia'
-import { countAdminAccounts, findAdminAccounts, insertAdminAccount } from './admin-accounts.service'
-import type { adminAccountsQuerySchema, createAdminAccountBodySchema } from './admin-accounts.schema'
+import { countAdminAccounts, findAdminAccounts, insertAdminAccount, updateAdminAccountStatus } from './admin-accounts.service'
+import type { adminAccountStatusBodySchema, adminAccountsQuerySchema, createAdminAccountBodySchema } from './admin-accounts.schema'
 
 export async function getAdminAccounts(query: typeof adminAccountsQuerySchema.static) {
   try {
@@ -36,5 +36,15 @@ export async function createAdminAccount(body: typeof createAdminAccountBodySche
 
     console.error('Unable to create admin account', error)
     return status(500, { message: 'ไม่สามารถเพิ่มแอดมินได้ กรุณาลองใหม่อีกครั้ง' })
+  }
+}
+
+export async function changeAdminAccountStatus(id: string, body: typeof adminAccountStatusBodySchema.static) {
+  try {
+    const account = await updateAdminAccountStatus(id, body.status)
+    return account ? { account } : status(404, { message: 'ไม่พบบัญชีแอดมิน' })
+  } catch (error) {
+    console.error('Unable to update admin account status', error)
+    return status(500, { message: 'ไม่สามารถเปลี่ยนสถานะบัญชีแอดมินได้ กรุณาลองใหม่อีกครั้ง' })
   }
 }

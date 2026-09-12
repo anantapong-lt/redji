@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Search, ShieldCheck } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, Plus, Search, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +44,8 @@ interface CreateAdminForm {
   confirm_password: string
 }
 
+type AdminAccountStatus = AdminAccount['status']
+
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 const emptyForm: CreateAdminForm = {
   display_name: '',
@@ -72,6 +74,8 @@ export default function AdminAccountPage() {
   const [form, setForm] = useState<CreateAdminForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [statusChange, setStatusChange] = useState<{ account: AdminAccount; nextStatus: AdminAccountStatus } | null>(null)
+  const [changingStatus, setChangingStatus] = useState(false)
 
   const loadAccounts = useCallback(async () => {
     if (!accessToken) return
@@ -166,6 +170,34 @@ export default function AdminAccountPage() {
     }
   }
 
+  const submitStatusChange = async () => {
+    if (!accessToken || !statusChange || changingStatus) return
+
+    setChangingStatus(true)
+    try {
+      const response = await fetch(`${apiUrl}/admin/accounts/${statusChange.account.id}/status`, {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ status: statusChange.nextStatus }),
+      })
+      const body = (await response.json().catch(() => null)) as { message?: string } | null
+      if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถเปลี่ยนสถานะบัญชีแอดมินได้')
+
+      toast.success(statusChange.nextStatus === 'banned' ? 'ปิดใช้งานบัญชีแอดมินเรียบร้อยแล้ว' : 'เปิดใช้งานบัญชีแอดมินเรียบร้อยแล้ว')
+      setStatusChange(null)
+      await loadAccounts()
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'ไม่สามารถเปลี่ยนสถานะบัญชีแอดมินได้')
+    } finally {
+      setChangingStatus(false)
+    }
+  }
+
   return (
     <main className="mx-auto w-full p-4 md:p-6">
       <div className="mb-6 flex flex-col gap-1">
@@ -214,6 +246,7 @@ export default function AdminAccountPage() {
                   <TableHead>สถานะ</TableHead>
                   <TableHead>วันที่เพิ่ม</TableHead>
                   <TableHead>เข้าใช้ล่าสุด</TableHead>
+                  <TableHead className="text-right">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -225,6 +258,7 @@ export default function AdminAccountPage() {
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                      <TableCell><Skeleton className="ml-auto h-8 w-24" /></TableCell>
                     </TableRow>
                   ))
                 ) : data?.accounts.length ? (
@@ -242,11 +276,25 @@ export default function AdminAccountPage() {
                       </TableCell>
                       <TableCell>{formatDate(account.created_at)}</TableCell>
                       <TableCell>{account.last_login_at ? formatDate(account.last_login_at) : 'ยังไม่เคยเข้าใช้งาน'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={account.status === 'active' ? 'destructive' : 'outline'}
+                          onClick={() => setStatusChange({
+                            account,
+                            nextStatus: account.status === 'active' ? 'banned' : 'active',
+                          })}
+                        >
+                          {account.status === 'active' ? <Ban /> : <ShieldCheck />}
+                          {account.status === 'active' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                       ไม่พบแอดมินที่ตรงกับเงื่อนไข
                     </TableCell>
                   </TableRow>
@@ -365,6 +413,34 @@ export default function AdminAccountPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(statusChange)} onOpenChange={(open) => {
+        if (!open && !changingStatus) setStatusChange(null)
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{statusChange?.nextStatus === 'banned' ? 'ยืนยันการปิดใช้งานบัญชีแอดมิน' : 'ยืนยันการเปิดใช้งานบัญชีแอดมิน'}</DialogTitle>
+            <DialogDescription>
+              {statusChange?.nextStatus === 'banned'
+                ? `บัญชี ${statusChange?.account.display_name ?? ''} จะไม่สามารถเข้าสู่ระบบหลังบ้านได้จนกว่าจะเปิดใช้งานอีกครั้ง`
+                : `บัญชี ${statusChange?.account.display_name ?? ''} จะสามารถเข้าสู่ระบบหลังบ้านได้อีกครั้ง`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={changingStatus} onClick={() => setStatusChange(null)}>
+              ยกเลิก
+            </Button>
+            <Button
+              type="button"
+              variant={statusChange?.nextStatus === 'banned' ? 'destructive' : 'default'}
+              disabled={changingStatus}
+              onClick={() => void submitStatusChange()}
+            >
+              {changingStatus ? 'กำลังบันทึก...' : statusChange?.nextStatus === 'banned' ? 'ยืนยันปิดใช้งาน' : 'ยืนยันเปิดใช้งาน'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </main>

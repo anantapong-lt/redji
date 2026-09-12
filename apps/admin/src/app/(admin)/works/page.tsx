@@ -1,12 +1,19 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpen, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Eye, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +21,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type WorkType = 'novel' | 'manga'
 type WorkStatus = 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'cancelled'
+const WORK_VISIBILITY = {
+  VISIBLE: 'visible',
+  HIDDEN: 'hidden',
+  ALL: 'all',
+} as const
+type WorkVisibility = (typeof WORK_VISIBILITY)[keyof typeof WORK_VISIBILITY]
 
 interface Work {
   id: string
@@ -21,6 +34,7 @@ interface Work {
   slug: string
   type: WorkType
   status: WorkStatus
+  deleted_at: string | null
   cover_url: string | null
   total_views: string
   chapter_count: string
@@ -34,19 +48,28 @@ interface WorksResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number }
 }
 
-interface GenreOption { value: string; label: string }
+interface GenreOption {
+  value: string
+  label: string
+}
 
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 const webUrl = (process.env.NEXT_PUBLIC_WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const typeLabels: Record<WorkType, string> = { novel: 'นิยาย', manga: 'การ์ตูน' }
 const statusLabels: Record<WorkStatus, string> = {
-  draft: 'ฉบับร่าง', ongoing: 'กำลังเผยแพร่', completed: 'จบแล้ว', hiatus: 'หยุดชั่วคราว', cancelled: 'ยกเลิก',
+  draft: 'ฉบับร่าง',
+  ongoing: 'กำลังเผยแพร่',
+  completed: 'จบแล้ว',
+  hiatus: 'หยุดชั่วคราว',
+  cancelled: 'ยกเลิก',
 }
 const statusBadgeClasses: Record<WorkStatus, string> = {
   draft: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  ongoing: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  ongoing:
+    'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   completed: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  hiatus: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300',
+  hiatus:
+    'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300',
   cancelled: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
 }
 
@@ -56,6 +79,7 @@ export default function WorksPage() {
   const [submittedSearch, setSubmittedSearch] = useState('')
   const [type, setType] = useState<'all' | WorkType>('all')
   const [status, setStatus] = useState<'all' | WorkStatus>('all')
+  const [visibility, setVisibility] = useState<WorkVisibility>(WORK_VISIBILITY.VISIBLE)
   const [genreId, setGenreId] = useState('all')
   const [genres, setGenres] = useState<GenreOption[]>([])
   const [data, setData] = useState<WorksResponse | null>(null)
@@ -63,6 +87,7 @@ export default function WorksPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hidingId, setHidingId] = useState<string | null>(null)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
   const [workToHide, setWorkToHide] = useState<Work | null>(null)
 
   const loadWorks = useCallback(async () => {
@@ -73,11 +98,13 @@ export default function WorksPage() {
     if (submittedSearch) query.set('search', submittedSearch)
     query.set('type', type)
     query.set('status', status)
+    query.set('visibility', visibility)
     if (genreId !== 'all') query.set('genre_id', genreId)
 
     try {
       const response = await fetch(`${apiUrl}/admin/contents?${query}`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` }, credentials: 'include',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
       })
       const body = (await response.json().catch(() => null)) as WorksResponse | { message?: string } | null
       if (!response.ok) throw new Error(body && 'message' in body ? body.message : 'ไม่สามารถโหลดรายการผลงานได้')
@@ -87,22 +114,40 @@ export default function WorksPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, genreId, page, status, submittedSearch, type])
+  }, [accessToken, genreId, page, status, submittedSearch, type, visibility])
 
-  useEffect(() => { void loadWorks() }, [loadWorks])
+  useEffect(() => {
+    void loadWorks()
+  }, [loadWorks])
 
   useEffect(() => {
     if (!accessToken) return
     void fetch(`${apiUrl}/genres-options`, { headers: { Accept: 'application/json' }, credentials: 'include' })
-      .then(async (response) => (response.ok ? (await response.json()) as { options: GenreOption[] } : null))
-      .then((body) => { if (body) setGenres(body.options) })
+      .then(async (response) => (response.ok ? ((await response.json()) as { options: GenreOption[] }) : null))
+      .then((body) => {
+        if (body) setGenres(body.options)
+      })
       .catch(() => undefined)
   }, [accessToken])
 
   const applySearch = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setPage(1); setSubmittedSearch(search.trim())
+    event.preventDefault()
+    setPage(1)
+    setSubmittedSearch(search.trim())
   }
-  const changeFilter = (setter: (value: string) => void) => (value: string | null) => { setter(value ?? 'all'); setPage(1) }
+  const clearFilters = () => {
+    setSearch('')
+    setSubmittedSearch('')
+    setType('all')
+    setStatus('all')
+    setVisibility(WORK_VISIBILITY.VISIBLE)
+    setGenreId('all')
+    setPage(1)
+  }
+  const changeFilter = <Value extends string>(setter: React.Dispatch<React.SetStateAction<Value>>) => (value: string | null) => {
+    setter((value ?? 'all') as Value)
+    setPage(1)
+  }
 
   const hideWork = async () => {
     if (!accessToken || !workToHide) return
@@ -110,7 +155,9 @@ export default function WorksPage() {
     setHidingId(work.id)
     try {
       const response = await fetch(`${apiUrl}/admin/contents/${work.id}`, {
-        method: 'DELETE', headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` }, credentials: 'include',
+        method: 'DELETE',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถซ่อนผลงานได้')
@@ -123,40 +170,296 @@ export default function WorksPage() {
     }
   }
 
+  const restoreWork = async (work: Work) => {
+    if (!accessToken || restoringId !== null) return
+    setRestoringId(work.id)
+    try {
+      const response = await fetch(`${apiUrl}/admin/contents/${work.id}/restore`, {
+        method: 'PUT',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      })
+      const body = (await response.json().catch(() => null)) as { message?: string } | null
+      if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถเปิดการมองเห็นผลงานได้')
+      await loadWorks()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'ไม่สามารถเปิดการมองเห็นผลงานได้')
+    } finally {
+      setRestoringId(null)
+    }
+  }
+
   return (
     <main className="mx-auto w-full p-4 md:p-6">
       <div className="mb-6 flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold"><BookOpen className="size-6 text-primary" />ผลงานทั้งหมด</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+          <BookOpen className="size-6 text-primary" />
+          ผลงานทั้งหมด
+        </h1>
       </div>
       <Card>
         <CardHeader className="gap-4 border-b">
-          <CardTitle>{data ? `พบผลงาน ${data.pagination.total.toLocaleString('th-TH')} รายการ` : 'กำลังโหลดรายการผลงาน'}</CardTitle>
+          <CardTitle>
+            {data ? `พบผลงาน ${data.pagination.total.toLocaleString('th-TH')} รายการ` : 'กำลังโหลดรายการผลงาน'}
+          </CardTitle>
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-            <form onSubmit={applySearch} className="flex min-w-0 flex-1 gap-2 lg:max-w-xl">
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาชื่อเรื่อง, Slug หรือผู้เขียน" aria-label="ค้นหาผลงาน" />
-              <Button type="submit" variant="outline" size="icon" aria-label="ค้นหา"><Search /></Button>
+            <form id="works-filter" onSubmit={applySearch} className="min-w-0 flex-1 lg:max-w-xl">
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="ค้นหาชื่อเรื่อง, Slug หรือผู้เขียน"
+                aria-label="ค้นหาผลงาน"
+              />
             </form>
-            <Select value={type} onValueChange={changeFilter(setType)}><SelectTrigger className="w-full lg:w-44"><SelectValue>{() => (type === 'all' ? 'ทุกประเภทผลงาน' : typeLabels[type])}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">ทุกประเภทผลงาน</SelectItem><SelectItem value="novel">นิยาย</SelectItem><SelectItem value="manga">การ์ตูน</SelectItem></SelectContent></Select>
-            <Select value={status} onValueChange={changeFilter(setStatus)}><SelectTrigger className="w-full lg:w-40"><SelectValue>{() => (status === 'all' ? 'ทุกสถานะ' : statusLabels[status])}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
-            <Select value={genreId} onValueChange={changeFilter(setGenreId)}><SelectTrigger className="w-full lg:w-44"><SelectValue>{() => (genreId === 'all' ? 'ทุกหมวดหมู่' : genres.find((genre) => genre.value === genreId)?.label ?? 'ทุกหมวดหมู่')}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">ทุกหมวดหมู่</SelectItem>{genres.map((genre) => <SelectItem key={genre.value} value={genre.value}>{genre.label}</SelectItem>)}</SelectContent></Select>
+            <Select value={type} onValueChange={changeFilter(setType)}>
+              <SelectTrigger className="w-full lg:w-44">
+                <SelectValue>{() => (type === 'all' ? 'ทุกประเภทผลงาน' : typeLabels[type])}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทุกประเภทผลงาน</SelectItem>
+                <SelectItem value="novel">นิยาย</SelectItem>
+                <SelectItem value="manga">การ์ตูน</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={status} onValueChange={changeFilter(setStatus)}>
+              <SelectTrigger className="w-full lg:w-40">
+                <SelectValue>{() => (status === 'all' ? 'ทุกสถานะ' : statusLabels[status])}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทุกสถานะ</SelectItem>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={visibility} onValueChange={changeFilter(setVisibility)}>
+              <SelectTrigger className="w-full lg:w-40">
+                <SelectValue>
+                  {() =>
+                    ({
+                      [WORK_VISIBILITY.VISIBLE]: 'กำลังแสดง',
+                      [WORK_VISIBILITY.HIDDEN]: 'ถูกซ่อน',
+                      [WORK_VISIBILITY.ALL]: 'ทั้งหมด',
+                    })[visibility]
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={WORK_VISIBILITY.VISIBLE}>กำลังแสดง</SelectItem>
+                <SelectItem value={WORK_VISIBILITY.HIDDEN}>ถูกซ่อน</SelectItem>
+                <SelectItem value={WORK_VISIBILITY.ALL}>ทั้งหมด</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={genreId} onValueChange={changeFilter(setGenreId)}>
+              <SelectTrigger className="w-full lg:w-44">
+                <SelectValue>
+                  {() =>
+                    genreId === 'all'
+                      ? 'ทุกหมวดหมู่'
+                      : (genres.find((genre) => genre.value === genreId)?.label ?? 'ทุกหมวดหมู่')
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทุกหมวดหมู่</SelectItem>
+                {genres.map((genre) => (
+                  <SelectItem key={genre.value} value={genre.value}>
+                    {genre.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" onClick={clearFilters}>
+              <RotateCcw />
+              ล้างตัวกรอง
+            </Button>
+            <Button type="submit" form="works-filter" variant="default" size="icon" aria-label="ค้นหา">
+              <Search />
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {error ? <div className="p-6 text-sm text-destructive">{error}</div> : <Table><TableHeader><TableRow><TableHead>ผลงาน</TableHead><TableHead>ผู้เขียน</TableHead><TableHead>ประเภท</TableHead><TableHead>หมวดหมู่</TableHead><TableHead>สถานะ</TableHead><TableHead>ตอน</TableHead><TableHead>เข้าชม</TableHead><TableHead className="text-right">จัดการ</TableHead></TableRow></TableHeader><TableBody>
-            {loading ? Array.from({ length: 6 }).map((_, index) => <TableRow key={index}>{Array.from({ length: 8 }).map((__, cell) => <TableCell key={cell}><Skeleton className="h-5 w-20" /></TableCell>)}</TableRow>) : data?.contents.length ? data.contents.map((work) => <TableRow key={work.id}><TableCell><div className="flex items-center gap-3"><div className="size-14 shrink-0 overflow-hidden rounded-md bg-muted">{work.cover_url ? <img src={work.cover_url} alt={`ปกเรื่อง ${work.title}`} className="size-full object-cover" loading="lazy" /> : <BookOpen className="m-auto mt-4 size-6 text-muted-foreground" />}</div><div className="min-w-0"><div className="font-medium">{work.title}</div><a href={`${webUrl}/content/${encodeURIComponent(work.slug)}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline-offset-4 hover:underline">/{work.slug}</a></div></div></TableCell><TableCell><div>{work.author.display_name}</div><div className="text-xs text-muted-foreground">@{work.author.username}</div></TableCell><TableCell><Badge variant="outline" className={work.type === 'novel' ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300'}>{typeLabels[work.type]}</Badge></TableCell><TableCell><div>{work.primary_genre.name}</div>{work.secondary_genre && <div className="text-xs text-muted-foreground">{work.secondary_genre.name}</div>}</TableCell><TableCell><Badge variant="outline" className={statusBadgeClasses[work.status]}>{statusLabels[work.status]}</Badge></TableCell><TableCell>{Number(work.chapter_count).toLocaleString('th-TH')}</TableCell><TableCell>{Number(work.total_views).toLocaleString('th-TH')}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setWorkToHide(work)} disabled={hidingId !== null} aria-label={`ซ่อนผลงาน ${work.title}`} title="ซ่อนผลงาน"><Trash2 /></Button></TableCell></TableRow>) : <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">ไม่พบผลงาน</TableCell></TableRow>}
-          </TableBody></Table>}
-          {data && data.pagination.totalPages > 1 && <div className="flex items-center justify-end gap-2 border-t p-4"><span className="text-sm text-muted-foreground">หน้า {data.pagination.page} / {data.pagination.totalPages}</span><Button variant="outline" size="icon" onClick={() => setPage((value) => value - 1)} disabled={page <= 1 || loading} aria-label="หน้าก่อนหน้า"><ChevronLeft /></Button><Button variant="outline" size="icon" onClick={() => setPage((value) => value + 1)} disabled={page >= data.pagination.totalPages || loading} aria-label="หน้าถัดไป"><ChevronRight /></Button></div>}
+          {error ? (
+            <div className="p-6 text-sm text-destructive">{error}</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ผลงาน</TableHead>
+                  <TableHead>ผู้เขียน</TableHead>
+                  <TableHead>ประเภท</TableHead>
+                  <TableHead>หมวดหมู่</TableHead>
+                  <TableHead>สถานะ</TableHead>
+                  <TableHead>ตอน</TableHead>
+                  <TableHead>เข้าชม</TableHead>
+                  <TableHead className="text-right">จัดการ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <TableRow key={index}>
+                      {Array.from({ length: 8 }).map((__, cell) => (
+                        <TableCell key={cell}>
+                          <Skeleton className="h-5 w-20" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : data?.contents.length ? (
+                  data.contents.map((work) => (
+                    <TableRow key={work.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                            {work.cover_url ? (
+                              <img
+                                src={work.cover_url}
+                                alt={`ปกเรื่อง ${work.title}`}
+                                className="size-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <BookOpen className="m-auto mt-4 size-6 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium">{work.title}</div>
+                            <a
+                              href={`${webUrl}/content/${encodeURIComponent(work.slug)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary underline-offset-4 hover:underline"
+                            >
+                              /{work.slug}
+                            </a>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>{work.author.display_name}</div>
+                        <div className="text-xs text-muted-foreground">@{work.author.username}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            work.type === 'novel'
+                              ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                              : 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300'
+                          }
+                        >
+                          {typeLabels[work.type]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div>{work.primary_genre.name}</div>
+                        {work.secondary_genre && (
+                          <div className="text-xs text-muted-foreground">{work.secondary_genre.name}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            work.deleted_at
+                              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300'
+                              : statusBadgeClasses[work.status]
+                          }
+                        >
+                          {work.deleted_at ? 'ถูกซ่อน (Admin)' : statusLabels[work.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{Number(work.chapter_count).toLocaleString('th-TH')}</TableCell>
+                      <TableCell>{Number(work.total_views).toLocaleString('th-TH')}</TableCell>
+                      <TableCell className="text-right">
+                        {work.deleted_at ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void restoreWork(work)}
+                            disabled={restoringId !== null}
+                            aria-label={`เปิดการมองเห็นผลงาน ${work.title}`}
+                            title="เปิดการมองเห็น"
+                          >
+                            <Eye />
+                            {restoringId === work.id ? 'กำลังเปิด...' : 'เปิดการมองเห็น'}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setWorkToHide(work)}
+                            disabled={hidingId !== null}
+                            aria-label={`ซ่อนผลงาน ${work.title}`}
+                            title="ซ่อนผลงาน"
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                      ไม่พบผลงาน
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+          {data && data.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-end gap-2 border-t p-4">
+              <span className="text-sm text-muted-foreground">
+                หน้า {data.pagination.page} / {data.pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage((value) => value - 1)}
+                disabled={page <= 1 || loading}
+                aria-label="หน้าก่อนหน้า"
+              >
+                <ChevronLeft />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setPage((value) => value + 1)}
+                disabled={page >= data.pagination.totalPages || loading}
+                aria-label="หน้าถัดไป"
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
-      <Dialog open={workToHide !== null} onOpenChange={(open) => { if (!open && !hidingId) setWorkToHide(null) }}>
+      <Dialog
+        open={workToHide !== null}
+        onOpenChange={(open) => {
+          if (!open && !hidingId) setWorkToHide(null)
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>ยืนยันการซ่อนผลงาน</DialogTitle>
-            <DialogDescription>ต้องการซ่อนผลงาน “{workToHide?.title}” ใช่หรือไม่? ผลงานจะไม่แสดงบน Web แต่ข้อมูลจะยังคงอยู่ในระบบ</DialogDescription>
+            <DialogDescription>
+              ต้องการซ่อนผลงาน “{workToHide?.title}” ใช่หรือไม่? ผลงานจะไม่แสดงบน Web แต่ข้อมูลจะยังคงอยู่ในระบบ
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setWorkToHide(null)} disabled={hidingId !== null}>ยกเลิก</Button>
-            <Button variant="destructive" onClick={() => void hideWork()} disabled={hidingId !== null}>{hidingId ? 'กำลังซ่อน...' : 'ซ่อนผลงาน'}</Button>
+            <Button variant="outline" onClick={() => setWorkToHide(null)} disabled={hidingId !== null}>
+              ยกเลิก
+            </Button>
+            <Button variant="destructive" onClick={() => void hideWork()} disabled={hidingId !== null}>
+              {hidingId ? 'กำลังซ่อน...' : 'ซ่อนผลงาน'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

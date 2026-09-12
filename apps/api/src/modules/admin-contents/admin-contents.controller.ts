@@ -1,6 +1,6 @@
 import { status } from 'elysia'
 import type { adminContentsQuerySchema } from './admin-contents.schema'
-import { findAdminContents, softDeleteAdminContent } from './admin-contents.service'
+import { findAdminContents, restoreAdminContentVisibility, softDeleteAdminContent } from './admin-contents.service'
 
 type AdminContentsQuery = typeof adminContentsQuerySchema.static
 
@@ -12,6 +12,7 @@ export async function getAdminContents(query: AdminContentsQuery) {
       query.search?.trim() ?? '',
       query.type ?? 'all',
       query.status ?? 'all',
+      query.visibility ?? 'visible',
       query.genre_id ?? null,
     )
   } catch (error) {
@@ -28,5 +29,16 @@ export async function hideAdminContent(contentId: string) {
   } catch (error) {
     console.error('Unable to hide admin content', error)
     return status(500, { message: 'ไม่สามารถซ่อนผลงานได้ กรุณาลองใหม่อีกครั้ง' })
+  }
+}
+
+export async function restoreAdminContent(contentId: string) {
+  try {
+    const restored = await restoreAdminContentVisibility(contentId)
+    if (!restored) return status(404, { message: 'ไม่พบผลงานที่ต้องการเปิดการมองเห็น' })
+    return { message: 'เปิดการมองเห็นผลงานเรียบร้อยแล้ว' }
+  } catch (error) {
+    console.error('Unable to restore admin content', error)
+    return status(500, { message: 'ไม่สามารถเปิดการมองเห็นผลงานได้ กรุณาลองใหม่อีกครั้ง' })
   }
 }

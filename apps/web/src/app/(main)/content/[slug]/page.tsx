@@ -168,17 +168,19 @@ export default async function ContentPage({ params }: ContentPageProps) {
               </div>
 
               <section className="mt-6 border-t border-border/70 pt-5">
-                <details className="group">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-background px-3 py-2.5 text-base font-extrabold text-foreground marker:content-none">
-                    เรื่องย่อ
+                <details className="group overflow-hidden rounded-xl border border-border/70 bg-background/70">
+                  <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-base font-extrabold text-foreground marker:content-none">
+                    <span>เรื่องย่อ</span>
                     <ChevronDown
                       className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
                       aria-hidden="true"
                     />
                   </summary>
-                  <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                    {story.synopsis || 'ยังไม่มีเรื่องย่อ'}
-                  </p>
+                  <div className="border-t border-border/70 px-4 py-3">
+                    <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground">
+                      {story.synopsis || 'ยังไม่มีเรื่องย่อ'}
+                    </p>
+                  </div>
                 </details>
               </section>
 

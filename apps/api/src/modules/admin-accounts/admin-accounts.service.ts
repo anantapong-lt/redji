@@ -75,3 +75,16 @@ export async function insertAdminAccount(input: {
     return account
   })
 }
+
+export async function updateAdminAccountStatus(id: string, status: UserStatus): Promise<{ id: string; status: UserStatus } | null> {
+  const [account] = await db<Array<{ id: string; status: UserStatus }>>`
+    UPDATE users
+    SET status = ${status},
+        updated_at = NOW()
+    WHERE id = ${id}
+      AND role = ${USER_ROLE.SUPER_ADMIN}
+      AND deleted_at IS NULL
+    RETURNING id, status
+  `
+  return account ?? null
+}

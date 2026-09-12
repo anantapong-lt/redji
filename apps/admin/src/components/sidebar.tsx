@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Banknote, BarChart3, BookOpen, ClipboardCheck, Flag, LayoutTemplate, LogOut, MessageSquare, PenSquare, ShieldCheck, UserCog, Users, Volume2 } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, ClipboardCheck, Flag, LayoutTemplate, LogOut, PenSquare, ShieldCheck, UserCog, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { NotificationBell } from '@readji/shared/src/notification-bell'
 import { useAdminAuth } from '@/components/admin-auth-provider'
@@ -13,7 +13,7 @@ const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').repl
 
 const navigation = [
   { label: 'ภาพรวม', items: [{ href: '/dashboard', label: 'Dashboard', icon: BarChart3 }, { href: '/reports', label: 'รายงาน', icon: Flag }] },
-  { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงานทั้งหมด', icon: BookOpen }, { href: '/tts-requests', label: 'คำขอ TTS', icon: Volume2 }, { href: '/messages', label: 'ข้อความติดต่อ', icon: MessageSquare }] },
+  { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงานทั้งหมด', icon: BookOpen }] },
   { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }, { href: '/writer-applications', label: 'คำขอเป็นนักเขียน', icon: ClipboardCheck }] },
   { label: 'การเงิน', items: [{ href: '/transactions', label: 'คำขอถอน', icon: Banknote }] },
   { label: 'ระบบ', items: [{ href: '/site', label: 'ตั้งค่าเว็บไซต์', icon: LayoutTemplate }] },
