@@ -27,7 +27,7 @@ function toPurchasableChapter(chapter: PublicReaderChapter): PublicChapter {
   }
 }
 
-export function ChapterReader({ data }: { data: PublicChapterResponse }) {
+export function ChapterReader({ data, commentsEnabled }: { data: PublicChapterResponse; commentsEnabled: boolean }) {
   const router = useRouter()
   const [settings, setSettings] = useState<ReadingSettings>(DEFAULT_READING_SETTINGS)
   const [chapters, setChapters] = useState(data.chapters)
@@ -142,10 +142,12 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
         visible={navigationVisible}
       />
 
-      <ChapterComments
-        slug={data.story.slug}
-        chapterNumber={String(Number(data.chapter.chapter_number))}
-      />
+      {commentsEnabled ? (
+        <ChapterComments
+          slug={data.story.slug}
+          chapterNumber={String(Number(data.chapter.chapter_number))}
+        />
+      ) : null}
 
       {pendingChapter ? (
         <ChapterPurchaseDialog

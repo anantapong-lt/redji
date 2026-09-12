@@ -20,6 +20,11 @@ import {
   type PublicChapterSort,
 } from './content.service'
 import { createWriterChapterPageSignedUrl } from '../writer/chapter/writer-chapter-page.service'
+import { isFeatureEnabled } from '../site-config/site-config.service'
+
+async function commentsAreEnabled() {
+  return isFeatureEnabled('comments')
+}
 
 async function findCommentableChapter(
   slug: string,
@@ -41,8 +46,10 @@ export async function getChapterComments(
   limit = 10,
 ) {
   try {
+    if (!await commentsAreEnabled()) return Response.json({ message: 'ระบบความคิดเห็นปิดใช้งานอยู่' }, { status: 403 })
     const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, false)
     if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+    if (chapter === 'forbidden') return Response.json({ message: 'คุณไม่มีสิทธิ์เข้าถึงความคิดเห็นของตอนนี้' }, { status: 403 })
     return getChapterCommentsForReading(chapter.id, currentUserId, page, limit)
   } catch (error) {
     console.error('Unable to load chapter comments', error)
@@ -58,6 +65,7 @@ export async function createChapterComment(
   parentCommentId?: string,
 ) {
   try {
+    if (!await commentsAreEnabled()) return Response.json({ message: 'ระบบความคิดเห็นปิดใช้งานอยู่' }, { status: 403 })
     const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
     if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
     if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนแสดงความคิดเห็น' }, { status: 403 })
@@ -79,6 +87,7 @@ export async function editChapterComment(
   body: string,
 ) {
   try {
+    if (!await commentsAreEnabled()) return Response.json({ message: 'ระบบความคิดเห็นปิดใช้งานอยู่' }, { status: 403 })
     const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
     if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
     if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนแก้ไขความคิดเห็น' }, { status: 403 })
@@ -99,6 +108,7 @@ export async function deleteChapterComment(
   currentUserId: string,
 ) {
   try {
+    if (!await commentsAreEnabled()) return Response.json({ message: 'ระบบความคิดเห็นปิดใช้งานอยู่' }, { status: 403 })
     const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
     if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
     if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนลบความคิดเห็น' }, { status: 403 })
@@ -119,6 +129,7 @@ async function updateChapterCommentReaction(
   currentUserId: string,
   reaction: Parameters<typeof setChapterCommentReactionById>[3] | null,
 ) {
+  if (!await commentsAreEnabled()) return Response.json({ message: 'ระบบความคิดเห็นปิดใช้งานอยู่' }, { status: 403 })
   const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
   if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
   if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนกดรีแอ็กชัน' }, { status: 403 })

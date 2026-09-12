@@ -9,6 +9,7 @@ import { SITE_CONFIG } from '@/site.config'
 export interface PublicFeatureConfig {
   registration: boolean
   writer_application: boolean
+  comments: boolean
 }
 
 function serverApiUrl(): string {

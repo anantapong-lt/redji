@@ -3,6 +3,7 @@ import { db } from '../../db'
 export interface PublicFeatureConfig {
   registration: boolean
   writer_application: boolean
+  comments: boolean
 }
 
 export async function getPublicFeatureConfig(): Promise<PublicFeatureConfig> {
@@ -16,6 +17,7 @@ export async function getPublicFeatureConfig(): Promise<PublicFeatureConfig> {
   return {
     registration: features?.registration === true,
     writer_application: features?.writer_application === true,
+    comments: features?.comments === true,
   }
 }
 
