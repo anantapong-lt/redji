@@ -57,6 +57,10 @@
     "apps/shared": {
       "name": "@readji/shared",
       "version": "0.1.0",
+      "devDependencies": {
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+      },
       "peerDependencies": {
         "lucide-react": "^1.16.0",
         "radix-ui": "^1.4.3",
