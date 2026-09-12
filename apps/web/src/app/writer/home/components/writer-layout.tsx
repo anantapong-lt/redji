@@ -9,10 +9,8 @@ import {
   BarChart3,
   BookOpen,
   FileText,
-  Flag,
   Home,
   Menu,
-  MessageSquare,
   UserCog,
   X,
 } from 'lucide-react'
@@ -25,12 +23,10 @@ const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
   { href: '/writer/contents/?tab=novel', label: 'ผลงาน', icon: BookOpen, enabled: true },
   { href: '/writer/withdrawals', label: 'ถอนเงิน', icon: Banknote, enabled: true },
-  { href: '/writer/reports', label: 'รายงานที่ได้รับ', icon: Flag, enabled: false },
 ] as const
 
 const writerInformationNavigation = [
   { label: 'ข้อมูลนักเขียน', icon: UserCog },
-  { label: 'ข่าวสาร', icon: MessageSquare },
   { label: 'ข้อกำหนดการใช้งาน', icon: FileText },
 ] as const
 
@@ -171,6 +167,9 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
             <span>กลับหน้าแรก</span>
           </Link>
         </div>
+
+        <div className="mx-3 border-t border-sidebar-border" />
+
         <footer className="p-3">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
             <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
