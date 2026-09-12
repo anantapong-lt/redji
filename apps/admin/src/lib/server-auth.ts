@@ -6,7 +6,11 @@ interface AdminSessionUser {
   role: string
 }
 
-const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
+const apiUrl = (
+  process.env.API_INTERNAL_URL
+  ?? process.env.NEXT_PUBLIC_API_URL
+  ?? 'http://localhost:4000'
+).replace(/\/$/, '')
 
 export async function getServerAdminUser(): Promise<AdminSessionUser | null> {
   const cookieHeader = (await cookies()).toString()
