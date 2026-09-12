@@ -2,12 +2,12 @@ FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json bun.lockb* ./
-RUN bun install --frozen-lockfile --production
+COPY package.json ./
+RUN bun install --production
 
 FROM base AS builder
-COPY package.json bun.lockb* ./
-RUN bun install --frozen-lockfile
+COPY package.json ./
+RUN bun install
 COPY . .
 
 FROM base AS runner
