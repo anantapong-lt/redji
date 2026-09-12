@@ -49,12 +49,13 @@ export async function getLandingStories(
   section: LandingSection,
   page: number,
   limit: number,
-  categorySlug: string | null = null,
+  categorySlugs: string[] = [],
   search = '',
   contentType: StoryType | null = null,
 ): Promise<LandingResult> {
   const offset = (page - 1) * limit
   const searchPattern = `%${search}%`
+  const categorySlugArray = db.array(categorySlugs, 'TEXT')
   const [stories, [count]] = await Promise.all([
     db<LandingStory[]>`
       SELECT
@@ -125,13 +126,13 @@ export async function getLandingStories(
         AND (${search} = '' OR stories.title ILIKE ${searchPattern})
         AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
         AND (
-          ${categorySlug}::TEXT IS NULL
+          CARDINALITY(${categorySlugArray}) = 0
           OR EXISTS (
             SELECT 1
             FROM genres
             WHERE (
-              LOWER(genres.slug) = LOWER(${categorySlug})
-              OR genres.id::TEXT = ${categorySlug}
+              LOWER(genres.slug) = ANY(${categorySlugArray})
+              OR genres.id::TEXT = ANY(${categorySlugArray})
             )
               AND (genres.id = stories.primary_genre_id OR genres.id = stories.secondary_genre_id)
           )
@@ -161,13 +162,13 @@ export async function getLandingStories(
         AND (${search} = '' OR stories.title ILIKE ${searchPattern})
         AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
         AND (
-          ${categorySlug}::TEXT IS NULL
+          CARDINALITY(${categorySlugArray}) = 0
           OR EXISTS (
             SELECT 1
             FROM genres
             WHERE (
-              LOWER(genres.slug) = LOWER(${categorySlug})
-              OR genres.id::TEXT = ${categorySlug}
+              LOWER(genres.slug) = ANY(${categorySlugArray})
+              OR genres.id::TEXT = ANY(${categorySlugArray})
             )
               AND (genres.id = stories.primary_genre_id OR genres.id = stories.secondary_genre_id)
           )

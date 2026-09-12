@@ -7,7 +7,7 @@ export function getLandingStories(
   page: number,
   limit: number,
   signal?: AbortSignal,
-  category?: string,
+  categories?: string[],
   search?: string,
   contentType?: StoryType,
 ): Promise<LandingResponse> {
@@ -16,7 +16,7 @@ export function getLandingStories(
     page: String(page),
     limit: String(limit),
   })
-  if (category) searchParams.set('category', category)
+  if (categories?.length) searchParams.set('category', categories.join(','))
   if (search) searchParams.set('search', search)
   if (contentType) searchParams.set('type', contentType)
 

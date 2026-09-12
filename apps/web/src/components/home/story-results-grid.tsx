@@ -52,14 +52,14 @@ function toStoryGridItem(
 export function StoryResultsGrid({
   initialData,
   renderedAt,
-  category,
+  categories,
   search,
   contentType,
   mobileInfiniteScroll = false,
 }: {
   initialData: LandingResponse
   renderedAt: number
-  category?: string
+  categories?: string[]
   search?: string
   contentType?: import('@/constants/story.constant').StoryType
   mobileInfiniteScroll?: boolean
@@ -94,7 +94,7 @@ export function StoryResultsGrid({
         pagination.page + 1,
         pagination.limit,
         undefined,
-        category,
+        categories,
         search,
         contentType,
       )
@@ -115,7 +115,7 @@ export function StoryResultsGrid({
         setIsLoadingMore(false)
       }
     }
-  }, [category, contentType, initialData.section, pagination.hasNextPage, pagination.limit, pagination.page, search])
+  }, [categories, contentType, initialData.section, pagination.hasNextPage, pagination.limit, pagination.page, search])
 
   const gridStories = useMemo(
     () => stories.map((story) => toStoryGridItem(story, initialData.section, renderedAt)),

@@ -16,7 +16,10 @@ export async function getLanding(input: GetLandingInput) {
       input.section,
       input.page ?? 1,
       input.limit ?? 12,
-      input.category ?? null,
+      input.category
+        ?.split(',')
+        .map((category) => category.trim().toLowerCase())
+        .filter(Boolean) ?? [],
       input.search?.trim() ?? '',
       input.type ?? null,
     )
