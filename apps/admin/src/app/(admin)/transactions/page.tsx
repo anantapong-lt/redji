@@ -303,7 +303,6 @@ export default function TransactionsPage() {
                 <TableRow>
                   <TableHead>เมื่อ</TableHead>
                   <TableHead>ผู้ขอถอน</TableHead>
-                  <TableHead>ประเภท</TableHead>
                   <TableHead>บัญชีรับเงิน</TableHead>
                   <TableHead className="text-right">ยอดที่ขอถอน</TableHead>
                   <TableHead className="text-right">ยอดสุทธิ</TableHead>
@@ -319,7 +318,6 @@ export default function TransactionsPage() {
                     <TableRow key={index}>
                       <TableCell className="py-3"><Skeleton className="h-4 w-36" /><Skeleton className="mt-2 h-3 w-24" /></TableCell>
                       <TableCell className="py-3"><Skeleton className="h-4 w-28" /><Skeleton className="mt-2 h-3 w-32" /></TableCell>
-                      <TableCell className="py-3"><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell className="py-3"><Skeleton className="h-4 w-28" /><Skeleton className="mt-2 h-3 w-20" /></TableCell>
                       <TableCell className="py-3"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
                       <TableCell className="py-3"><Skeleton className="ml-auto h-4 w-20" /><Skeleton className="mt-2 ml-auto h-3 w-16" /></TableCell>
@@ -339,10 +337,9 @@ export default function TransactionsPage() {
                       <TableCell className="py-3">
                         <div className="font-medium">{request.user.displayName}</div>
                         <div className="text-xs text-muted-foreground">
-                          {request.user.displayName} · @{request.user.username}
+                          @{request.user.username}
                         </div>
                       </TableCell>
-                      <TableCell className="py-3">{methodLabels[request.paymentMethod]}</TableCell>
                       <TableCell className="py-3">
                         <div className="font-medium">{request.account}</div>
                         <div className="text-xs text-muted-foreground">
@@ -410,7 +407,7 @@ export default function TransactionsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                       ไม่พบคำขอถอนเงิน
                     </TableCell>
                   </TableRow>

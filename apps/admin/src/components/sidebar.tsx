@@ -1,20 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { Banknote, BarChart3, BookOpen, ClipboardCheck, Flag, History, LayoutTemplate, LogOut, MessageSquare, PenSquare, ShieldCheck, UserCog, Users, Volume2 } from 'lucide-react'
+import { useState } from 'react'
+import { Banknote, BarChart3, BookOpen, ClipboardCheck, Flag, LayoutTemplate, LogOut, MessageSquare, PenSquare, ShieldCheck, UserCog, Users, Volume2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { NotificationBell } from '@readji/shared/src/notification-bell'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Button } from '@/components/ui/button'
-import { Sidebar as SidebarPrimitive, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
+import { Sidebar as SidebarPrimitive, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 
 const navigation = [
   { label: 'ภาพรวม', items: [{ href: '/dashboard', label: 'Dashboard', icon: BarChart3 }, { href: '/reports', label: 'รายงาน', icon: Flag }] },
   { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงานทั้งหมด', icon: BookOpen }, { href: '/tts-requests', label: 'คำขอ TTS', icon: Volume2 }, { href: '/messages', label: 'ข้อความติดต่อ', icon: MessageSquare }] },
-  { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writer-applications', label: 'คำขอเป็นนักเขียน', icon: ClipboardCheck }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }] },
-  { label: 'การเงิน', items: [{ href: '/transactions', label: 'คำขอถอน', icon: Banknote }, { href: '/history', label: 'ประวัติ', icon: History }] },
+  { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }, { href: '/writer-applications', label: 'คำขอเป็นนักเขียน', icon: ClipboardCheck }] },
+  { label: 'การเงิน', items: [{ href: '/transactions', label: 'คำขอถอน', icon: Banknote }] },
   { label: 'ระบบ', items: [{ href: '/site', label: 'ตั้งค่าเว็บไซต์', icon: LayoutTemplate }] },
 ] as const
 
@@ -22,6 +23,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { accessToken, logout, user } = useAdminAuth()
+  const { isMobile, setOpenMobile } = useSidebar()
+  const [notificationAnchor, setNotificationAnchor] = useState<HTMLDivElement | null>(null)
   const initials = user?.display_name.trim().slice(0, 1).toUpperCase() ?? 'A'
 
   return <SidebarPrimitive>
@@ -30,7 +33,7 @@ export function Sidebar() {
       const isActive = pathname === href
       return <SidebarMenuItem key={href}><SidebarMenuButton isActive={isActive} render={<Link href={href} />} className={isActive ? '!bg-primary !text-white hover:!bg-primary/90 [&_svg]:!text-white' : ''}><Icon />{itemLabel}</SidebarMenuButton></SidebarMenuItem>
     })}</SidebarMenu></SidebarGroupContent></SidebarGroup>)}</SidebarContent>
-    <SidebarFooter className="border-t p-3">
+    <SidebarFooter ref={setNotificationAnchor} className="border-t p-3">
       <div className="flex items-center gap-2">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">{initials}</div>
         <div className="min-w-0 flex-1">
@@ -40,10 +43,15 @@ export function Sidebar() {
         <NotificationBell
           apiUrl={apiUrl}
           accessToken={accessToken}
-          side="top"
+          side={isMobile ? 'top' : 'right'}
           align="end"
+          anchorElement={isMobile ? undefined : notificationAnchor}
+          portalContainer={isMobile ? notificationAnchor : undefined}
           triggerClassName="relative flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          onNotificationClick={(notification) => router.push(notification.target_url ?? '/transactions')}
+          onNotificationClick={(notification) => {
+            setOpenMobile(false)
+            router.push(notification.target_url ?? '/transactions')
+          }}
         />
         {/*
         <Popover open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>

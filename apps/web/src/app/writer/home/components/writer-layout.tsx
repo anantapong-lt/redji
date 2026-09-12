@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NotificationBell, getNotificationIcon, getNotificationIconClass, type NotificationItem } from '@readji/shared/src/notification-bell'
+import { NotificationBell, NotificationDetailDialog, type NotificationItem } from '@readji/shared/src/notification-bell'
 import {
   Banknote,
   BarChart3,
@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 
@@ -159,18 +158,20 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
             {writerInformationNavigation.map(({ icon, label }) => (
               <DisabledNavigationItem key={label} icon={icon} label={label} />
             ))}
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
-            >
-              <Home className="size-4 shrink-0" strokeWidth={1.8} />
-              <span>กลับหน้าแรก</span>
-            </Link>
           </div>
         </nav>
 
-        <footer className="border-t border-sidebar-border p-3">
+        <div className="px-3 pb-2">
+          <Link
+            href="/"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex min-h-10 items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
+          >
+            <Home className="size-4 shrink-0" strokeWidth={1.8} />
+            <span>กลับหน้าแรก</span>
+          </Link>
+        </div>
+        <footer className="p-3">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
             <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
               {user.avatar_url ? (
@@ -195,23 +196,7 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
 
       {children}
 
-      <Dialog open={selectedNotification !== null} onOpenChange={(open) => { if (!open) setSelectedNotification(null) }}>
-        <DialogContent className="overflow-hidden rounded-2xl p-0 sm:max-w-md">
-          <div className="bg-gradient-to-br from-primary/15 via-background to-background px-6 pb-5 pt-6">
-            <DialogHeader className="gap-3">
-              {selectedNotification && (() => {
-                const Icon = getNotificationIcon(selectedNotification.type)
-                return <span className={`flex size-11 items-center justify-center rounded-xl ${getNotificationIconClass(selectedNotification.type)}`}><Icon className="size-5" /></span>
-              })()}
-              <div>
-                <DialogTitle className="pr-8 text-lg leading-7">{selectedNotification?.title}</DialogTitle>
-                <p className="mt-1 text-xs text-muted-foreground">{selectedNotification && new Date(selectedNotification.created_at).toLocaleString('th-TH')}</p>
-              </div>
-            </DialogHeader>
-          </div>
-          <DialogDescription className="whitespace-pre-line px-6 py-5 text-sm leading-7 text-foreground/80">{selectedNotification?.message}</DialogDescription>
-        </DialogContent>
-      </Dialog>
+      <NotificationDetailDialog notification={selectedNotification} onOpenChange={(open) => { if (!open) setSelectedNotification(null) }} layerClassName="z-[80]" />
     </div>
   )
 }

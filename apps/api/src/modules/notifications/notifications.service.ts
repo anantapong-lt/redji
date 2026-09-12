@@ -59,3 +59,11 @@ export async function markNotificationRead(userId: string, notificationId: strin
   `
   return notification ?? null
 }
+
+export async function markAllNotificationsRead(userId: string) {
+  await db`
+    UPDATE notifications
+    SET read_at = NOW()
+    WHERE user_id = ${userId} AND read_at IS NULL
+  `
+}

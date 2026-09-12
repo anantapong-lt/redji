@@ -15,7 +15,6 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +38,7 @@ import type { WriterWithdrawalsResponse } from '@/interface/writer-withdrawal.in
 import { SITE_CONFIG } from '@/site.config'
 
 const PAGE_LIMIT = 10
+const WITHDRAWAL_CURRENCY = 'บาท'
 const amountFormat = new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const dateFormat = new Intl.DateTimeFormat('th-TH', {
   dateStyle: 'medium',
@@ -222,9 +222,9 @@ export function WriterWithdrawals() {
           <article className="readji-surface rounded-2xl bg-card p-5 lg:col-span-2">
             <p className="text-sm text-muted-foreground">ยอดที่ถอนได้</p>
             <p className="mt-2 flex items-center gap-2 text-3xl font-bold tabular-nums text-primary">
-              <GiTwoCoins className="size-7 shrink-0" />
+              <Banknote className="size-7 shrink-0" />
               {displayAmount(data.balance)}
-              <span className="text-base font-medium text-muted-foreground">{SITE_CONFIG.coinName}</span>
+              <span className="text-base font-medium text-muted-foreground">{WITHDRAWAL_CURRENCY}</span>
             </p>
             <p className="mt-3 text-xs text-muted-foreground">
               ค่าคอมมิชชันเมื่อถอน {displayAmount(data.commission_percent)}% และระบบจะคำนวณยอดสุทธิให้ก่อนยืนยัน
@@ -277,9 +277,9 @@ export function WriterWithdrawals() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="h-12 w-[25%] px-6">วันที่ส่งคำขอ</TableHead>
-                  <TableHead className="h-12 px-6 text-right">ยอดที่ขอถอน</TableHead>
-                  <TableHead className="h-12 px-6 text-right">ค่าธรรมเนียม</TableHead>
-                  <TableHead className="h-12 px-6 text-right">ยอดรับสุทธิ</TableHead>
+                  <TableHead className="h-12 px-6 text-right">ยอดที่ขอถอน (บาท)</TableHead>
+                  <TableHead className="h-12 px-6 text-right">ค่าธรรมเนียม (บาท)</TableHead>
+                  <TableHead className="h-12 px-6 text-right">ยอดรับสุทธิ (บาท)</TableHead>
                   <TableHead className="h-12 w-[18%] px-6 text-center">สถานะ</TableHead>
                   <TableHead className="h-12 w-[22%] px-6">หมายเหตุ</TableHead>
                 </TableRow>
@@ -307,7 +307,7 @@ export function WriterWithdrawals() {
                         </TableCell>
                         <TableCell className="px-6 py-4 text-right">
                           <p className="flex items-center justify-end gap-1 font-bold tabular-nums text-primary">
-                            <GiTwoCoins className="size-4 shrink-0" />
+                            <Banknote className="size-4 shrink-0" />
                             {displayAmount(request.net_amount)}
                           </p>
                         </TableCell>
@@ -400,7 +400,7 @@ export function WriterWithdrawals() {
           </DialogHeader>
           <form onSubmit={submitWithdrawal} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="withdrawal-amount">จำนวนที่ต้องการถอน ({SITE_CONFIG.coinName})</Label>
+              <Label htmlFor="withdrawal-amount">จำนวนที่ต้องการถอน ({WITHDRAWAL_CURRENCY})</Label>
               <Input
                 id="withdrawal-amount"
                 value={amount}
@@ -424,7 +424,7 @@ export function WriterWithdrawals() {
               <div className="mt-3 flex justify-between gap-4 border-t pt-3 font-bold">
                 <span>ยอดที่จะได้รับ</span>
                 <span className="tabular-nums text-primary">
-                  {displayAmount(String(netAmount))} {SITE_CONFIG.coinName}
+                  {displayAmount(String(netAmount))} {WITHDRAWAL_CURRENCY}
                 </span>
               </div>
             </div>

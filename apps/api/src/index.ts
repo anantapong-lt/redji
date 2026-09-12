@@ -1,6 +1,7 @@
 import { cors } from '@elysiajs/cors'
 import { Elysia } from 'elysia'
 import { env } from './config/env'
+import { adminAccountsRoutes } from './modules/admin-accounts/admin-accounts.routes'
 import { adminUsersRoutes } from './modules/admin-users/admin-users.routes'
 import { adminWriterApplicationRoutes } from './modules/admin-writer-applications/admin-writer-applications.routes'
 import { adminWritersRoutes } from './modules/admin-writers/admin-writers.routes'
@@ -41,6 +42,7 @@ const app = new Elysia()
       credentials: true,
     }),
   )
+  .use(adminAccountsRoutes)
   .use(adminUsersRoutes)
   .use(adminWriterApplicationRoutes)
   .use(adminWritersRoutes)

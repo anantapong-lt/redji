@@ -5,6 +5,7 @@
 
 @source "../app";
 @source "../components";
+@source "../../../shared/src";
 
 @custom-variant dark (&:is(.dark *));
 

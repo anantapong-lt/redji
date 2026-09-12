@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Bell, Banknote, CheckCircle2, CircleX, LoaderCircle } from 'lucide-react'
-import { Popover as PopoverPrimitive } from 'radix-ui'
+import { useEffect, useMemo, useState } from 'react'
+import { Bell, Banknote, CheckCircle2, CircleX, LoaderCircle, X } from 'lucide-react'
+import { Dialog as DialogPrimitive, Popover as PopoverPrimitive } from 'radix-ui'
 
 export type NotificationType =
   | 'withdrawal_requested'
@@ -36,6 +36,41 @@ export function getNotificationIconClass(type: NotificationType) {
   return 'bg-primary/10 text-primary'
 }
 
+export function NotificationDetailDialog({
+  notification,
+  onOpenChange,
+  layerClassName = 'z-[50]',
+}: {
+  notification: NotificationItem | null
+  onOpenChange: (open: boolean) => void
+  layerClassName?: string
+}) {
+  const Icon = notification ? getNotificationIcon(notification.type) : Bell
+
+  return (
+    <DialogPrimitive.Root open={notification !== null} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className={`fixed inset-0 isolate ${layerClassName} bg-black/10 backdrop-blur-xs duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0`} />
+        <DialogPrimitive.Content className={`fixed top-1/2 left-1/2 ${layerClassName} grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-0 overflow-hidden rounded-xl border border-border/80 bg-popover p-0 text-sm text-popover-foreground shadow-xl outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95`}>
+          <div className="border-b border-border bg-muted/30 px-5 py-4">
+            <div className="flex items-start gap-3 pr-7">
+              <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${notification ? getNotificationIconClass(notification.type) : ''}`}><Icon className="size-4" /></span>
+              <div className="min-w-0 flex-1">
+                <DialogPrimitive.Title className="text-base leading-6 font-semibold">{notification?.title}</DialogPrimitive.Title>
+                <p className="mt-0.5 text-xs text-muted-foreground">{notification && new Date(notification.created_at).toLocaleString('th-TH')}</p>
+              </div>
+            </div>
+          </div>
+          <DialogPrimitive.Description className="whitespace-pre-line px-5 py-4 text-sm leading-[1.625rem] text-foreground/85">{notification?.message}</DialogPrimitive.Description>
+          <DialogPrimitive.Close aria-label="ปิด" className="absolute top-3 right-3 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <X className="size-4" />
+          </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  )
+}
+
 export function NotificationBell({
   apiUrl,
   accessToken,
@@ -43,6 +78,9 @@ export function NotificationBell({
   onUnreadCountChange,
   onNotificationClick,
   triggerClassName = 'readji-icon-button relative',
+  popoverClassName = '',
+  anchorElement,
+  portalContainer,
   side = 'bottom',
   align = 'end',
 }: {
@@ -52,12 +90,18 @@ export function NotificationBell({
   onUnreadCountChange?: (count: number) => void
   onNotificationClick?: (notification: NotificationItem) => void
   triggerClassName?: string
+  popoverClassName?: string
+  anchorElement?: HTMLElement | null
+  portalContainer?: HTMLElement | null
   side?: 'top' | 'right' | 'bottom' | 'left'
   align?: 'start' | 'center' | 'end'
 }) {
+  // A sidebar can anchor to its full footer rather than the bell inside it.
+  const virtualAnchor = useMemo(() => anchorElement ? { current: anchorElement } : undefined, [anchorElement])
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [internalUnreadCount, setInternalUnreadCount] = useState(0)
@@ -139,28 +183,59 @@ export function NotificationBell({
     onNotificationClick?.(selectedNotification)
   }
 
+  async function markAllRead() {
+    if (!accessToken || resolvedUnreadCount === 0 || isMarkingAllRead) return
+    setIsMarkingAllRead(true)
+    try {
+      const response = await fetch(`${apiUrl}/notifications/read-all`, {
+        method: 'PATCH',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Unable to mark all notifications as read')
+      const readAt = new Date().toISOString()
+      setNotifications((current) => current.map((notification) => ({ ...notification, read_at: notification.read_at ?? readAt })))
+      updateUnreadCount(0)
+    } catch {
+      // The list remains usable if the bulk update fails.
+    } finally {
+      setIsMarkingAllRead(false)
+    }
+  }
+
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={(nextOpen) => {
       setOpen(nextOpen)
       if (nextOpen) setPage(1)
     }}>
+      {virtualAnchor && <PopoverPrimitive.Anchor virtualRef={virtualAnchor} />}
       <PopoverPrimitive.Trigger asChild>
         <button type="button" aria-label={resolvedUnreadCount > 0 ? `การแจ้งเตือนใหม่ ${resolvedUnreadCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className={triggerClassName}>
           <Bell className="size-5" />
-          {resolvedUnreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-white">{resolvedUnreadCount > 99 ? '99+' : resolvedUnreadCount}</span>}
+          {resolvedUnreadCount > 0 && <span className="absolute right-0 top-0 z-10 flex min-w-4 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-white">{resolvedUnreadCount > 99 ? '99+' : resolvedUnreadCount}</span>}
         </button>
       </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content side={side} align={align} sideOffset={8} className="z-[70] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border/70 bg-popover p-0 text-popover-foreground shadow-lg outline-hidden">
-          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-            <div><p className="font-semibold">การแจ้งเตือน</p><p className="text-xs text-muted-foreground">รายการล่าสุดสำหรับคุณ</p></div>
-            {resolvedUnreadCount > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">ใหม่ {resolvedUnreadCount}</span>}
+      <PopoverPrimitive.Portal container={portalContainer}>
+        <PopoverPrimitive.Content
+          side={side}
+          align={align}
+          sideOffset={8}
+          collisionPadding={16}
+          style={{
+            maxWidth: 'min(calc(100vw - 2rem), var(--radix-popover-content-available-width))',
+            maxHeight: 'min(calc(100dvh - 2rem), var(--radix-popover-content-available-height))',
+          }}
+          className={`z-[70] flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-border/70 bg-popover p-0 text-popover-foreground shadow-md outline-hidden ${popoverClassName}`}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/70 px-3 py-2.5">
+            <div><p className="text-sm font-semibold">การแจ้งเตือน</p><p className="text-[11px] text-muted-foreground">รายการล่าสุดสำหรับคุณ</p></div>
+            {resolvedUnreadCount > 0 && <button type="button" disabled={isMarkingAllRead} onClick={() => void markAllRead()} className="rounded-md px-1.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60">{isMarkingAllRead ? 'กำลังอัปเดต...' : 'อ่านทั้งหมด'}</button>}
           </div>
-          {isLoading && page === 1 ? <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />กำลังโหลด...</div> : notifications.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">ยังไม่มีการแจ้งเตือน</p> : <div className="max-h-80 overflow-y-auto p-2">{notifications.map((notification) => {
+          {isLoading && page === 1 ? <div className="flex items-center justify-center gap-2 px-3 py-6 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />กำลังโหลด...</div> : notifications.length === 0 ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">ยังไม่มีการแจ้งเตือน</p> : <div className="min-h-0 max-h-72 overflow-y-auto p-1.5">{notifications.map((notification) => {
             const Icon = getNotificationIcon(notification.type)
-            return <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-accent ${notification.read_at ? '' : 'bg-primary/5'}`}>
-              <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${getNotificationIconClass(notification.type)}`}><Icon className="size-4" /></span>
-              <span className="min-w-0 flex-1"><span className="flex items-start gap-2"><span className="flex-1 truncate font-medium">{notification.title}</span>{!notification.read_at && <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" aria-label="ยังไม่ได้อ่าน" />}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</span><span className="mt-1.5 block text-[11px] text-muted-foreground">{new Date(notification.created_at).toLocaleString('th-TH')}</span></span>
+            return <button key={notification.id} type="button" onClick={() => void openNotification(notification)} className={`flex w-full items-start gap-2.5 rounded-md px-2.5 py-2.5 text-left transition-colors hover:bg-accent ${notification.read_at ? '' : 'bg-primary/5'}`}>
+              <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md ${getNotificationIconClass(notification.type)}`}><Icon className="size-3.5" /></span>
+              <span className="min-w-0 flex-1"><span className="flex items-start gap-1.5"><span className="flex-1 truncate text-sm font-medium">{notification.title}</span>{!notification.read_at && <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" aria-label="ยังไม่ได้อ่าน" />}</span><span className="mt-0.5 block line-clamp-2 text-xs leading-[1.125rem] text-muted-foreground">{notification.message}</span><span className="mt-1 block text-[10px] text-muted-foreground">{new Date(notification.created_at).toLocaleString('th-TH')}</span></span>
             </button>
           })}{page < totalPages && <button type="button" disabled={isLoading} onClick={() => setPage((current) => current + 1)} className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60">{isLoading && <LoaderCircle className="size-4 animate-spin" />}แสดงเพิ่มเติม</button>}</div>}
         </PopoverPrimitive.Content>
