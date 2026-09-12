@@ -1,5 +1,6 @@
 import { db } from '../../db'
 import type { StoryStatus, StoryType } from '../../models/story.model'
+import { NOTIFICATION_TYPE } from '../../models/notification.model'
 
 type AdminContentTypeFilter = StoryType | 'all'
 type AdminContentStatusFilter = StoryStatus | 'all'
@@ -17,6 +18,7 @@ export interface AdminContent {
   author: { username: string; display_name: string }
   primary_genre: { id: string; name: string }
   secondary_genre: { id: string; name: string } | null
+  deleted_at: Date | null
   created_at: Date
   updated_at: Date
 }
@@ -92,15 +94,30 @@ export async function findAdminContents(
   return { contents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }
 }
 
-export async function softDeleteAdminContent(contentId: string): Promise<boolean> {
-  const [content] = await db<{ id: string }[]>`
-    UPDATE stories
-    SET deleted_at = NOW(), updated_at = NOW()
-    WHERE id = ${contentId}
-      AND deleted_at IS NULL
-    RETURNING id
-  `
-  return Boolean(content)
+export async function softDeleteAdminContent(contentId: string, reason: string): Promise<boolean> {
+  return db.begin(async (transaction) => {
+    const [content] = await transaction<Array<{ id: string; title: string; creator_user_id: string }>>`
+      UPDATE stories
+      SET deleted_at = NOW(), updated_at = NOW()
+      WHERE id = ${contentId}
+        AND deleted_at IS NULL
+      RETURNING id, title, creator_user_id
+    `
+    if (!content) return false
+
+    await transaction`
+      INSERT INTO notifications (user_id, type, title, message, target_url, data)
+      VALUES (
+        ${content.creator_user_id},
+        ${NOTIFICATION_TYPE.CONTENT_HIDDEN},
+        'ผลงานถูกซ่อนโดยแอดมิน',
+        ${`ผลงาน “${content.title}” ถูกซ่อนโดยแอดมิน\nเหตุผล: ${reason}`},
+        '/writer/contents',
+        ${JSON.stringify({ story_id: content.id, reason })}::JSONB
+      )
+    `
+    return true
+  })
 }
 
 export async function restoreAdminContentVisibility(contentId: string): Promise<boolean> {

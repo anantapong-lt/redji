@@ -4,6 +4,7 @@ export const NOTIFICATION_TYPE = {
   WITHDRAWAL_REJECTED: 'withdrawal_rejected',
   WRITER_APPLICATION_APPROVED: 'writer_application_approved',
   WRITER_APPLICATION_REJECTED: 'writer_application_rejected',
+  CONTENT_HIDDEN: 'content_hidden',
 } as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE]

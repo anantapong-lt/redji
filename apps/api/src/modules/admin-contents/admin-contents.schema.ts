@@ -16,3 +16,7 @@ export const adminContentsQuerySchema = t.Object({
 export const adminContentParamsSchema = t.Object({
   id: t.String({ format: 'uuid' }),
 })
+
+export const hideAdminContentBodySchema = t.Object({
+  reason: t.String({ minLength: 1, maxLength: 1_000 }),
+}, { additionalProperties: false })

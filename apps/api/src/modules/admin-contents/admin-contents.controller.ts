@@ -1,5 +1,5 @@
 import { status } from 'elysia'
-import type { adminContentsQuerySchema } from './admin-contents.schema'
+import type { adminContentsQuerySchema, hideAdminContentBodySchema } from './admin-contents.schema'
 import { findAdminContents, restoreAdminContentVisibility, softDeleteAdminContent } from './admin-contents.service'
 
 type AdminContentsQuery = typeof adminContentsQuerySchema.static
@@ -21,9 +21,9 @@ export async function getAdminContents(query: AdminContentsQuery) {
   }
 }
 
-export async function hideAdminContent(contentId: string) {
+export async function hideAdminContent(contentId: string, body: typeof hideAdminContentBodySchema.static) {
   try {
-    const hidden = await softDeleteAdminContent(contentId)
+    const hidden = await softDeleteAdminContent(contentId, body.reason.trim())
     if (!hidden) return status(404, { message: 'ไม่พบผลงานที่ต้องการซ่อน' })
     return { message: 'ซ่อนผลงานเรียบร้อยแล้ว' }
   } catch (error) {

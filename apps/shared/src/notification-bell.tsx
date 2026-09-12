@@ -10,6 +10,7 @@ export type NotificationType =
   | 'withdrawal_rejected'
   | 'writer_application_approved'
   | 'writer_application_rejected'
+  | 'content_hidden'
 
 export interface NotificationItem {
   id: string
@@ -25,14 +26,14 @@ export interface NotificationItem {
 export function getNotificationIcon(type: NotificationType) {
   if (type === 'withdrawal_requested') return Banknote
   if (type === 'withdrawal_approved' || type === 'writer_application_approved') return CheckCircle2
-  if (type === 'withdrawal_rejected' || type === 'writer_application_rejected') return CircleX
+  if (type === 'withdrawal_rejected' || type === 'writer_application_rejected' || type === 'content_hidden') return CircleX
   return Bell
 }
 
 export function getNotificationIconClass(type: NotificationType) {
   if (type === 'withdrawal_requested') return 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
   if (type === 'withdrawal_approved' || type === 'writer_application_approved') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-  if (type === 'withdrawal_rejected' || type === 'writer_application_rejected') return 'bg-destructive/10 text-destructive'
+  if (type === 'withdrawal_rejected' || type === 'writer_application_rejected' || type === 'content_hidden') return 'bg-destructive/10 text-destructive'
   return 'bg-primary/10 text-primary'
 }
 

@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 
 type WorkType = 'novel' | 'manga'
 type WorkStatus = 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'cancelled'
@@ -89,6 +90,8 @@ export default function WorksPage() {
   const [hidingId, setHidingId] = useState<string | null>(null)
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const [workToHide, setWorkToHide] = useState<Work | null>(null)
+  const [hideReason, setHideReason] = useState('')
+  const [hideReasonError, setHideReasonError] = useState<string | null>(null)
 
   const loadWorks = useCallback(async () => {
     if (!accessToken) return
@@ -151,17 +154,25 @@ export default function WorksPage() {
 
   const hideWork = async () => {
     if (!accessToken || !workToHide) return
+    const reason = hideReason.trim()
+    if (!reason) {
+      setHideReasonError('กรุณาระบุเหตุผลในการซ่อนผลงาน')
+      return
+    }
     const work = workToHide
     setHidingId(work.id)
     try {
       const response = await fetch(`${apiUrl}/admin/contents/${work.id}`, {
         method: 'DELETE',
-        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
+        body: JSON.stringify({ reason }),
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถซ่อนผลงานได้')
       setWorkToHide(null)
+      setHideReason('')
+      setHideReasonError(null)
       await loadWorks()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'ไม่สามารถซ่อนผลงานได้')
@@ -392,7 +403,11 @@ export default function WorksPage() {
                             variant="ghost"
                             size="icon"
                             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setWorkToHide(work)}
+                            onClick={() => {
+                              setWorkToHide(work)
+                              setHideReason('')
+                              setHideReasonError(null)
+                            }}
                             disabled={hidingId !== null}
                             aria-label={`ซ่อนผลงาน ${work.title}`}
                             title="ซ่อนผลงาน"
@@ -443,7 +458,11 @@ export default function WorksPage() {
       <Dialog
         open={workToHide !== null}
         onOpenChange={(open) => {
-          if (!open && !hidingId) setWorkToHide(null)
+          if (!open && !hidingId) {
+            setWorkToHide(null)
+            setHideReason('')
+            setHideReasonError(null)
+          }
         }}
       >
         <DialogContent>
@@ -452,9 +471,31 @@ export default function WorksPage() {
             <DialogDescription>
               ต้องการซ่อนผลงาน “{workToHide?.title}” ใช่หรือไม่? ผลงานจะไม่แสดงบน Web แต่ข้อมูลจะยังคงอยู่ในระบบ
             </DialogDescription>
+            <div className="space-y-2">
+              <label htmlFor="hide-work-reason" className="text-sm font-medium">
+                เหตุผลในการซ่อน <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                id="hide-work-reason"
+                value={hideReason}
+                onChange={(event) => {
+                  setHideReason(event.target.value)
+                  if (hideReasonError) setHideReasonError(null)
+                }}
+                placeholder="ระบุเหตุผลที่จะแจ้งให้เจ้าของผลงานทราบ"
+                maxLength={1000}
+                disabled={hidingId !== null}
+                aria-invalid={Boolean(hideReasonError)}
+              />
+              {hideReasonError ? <p className="text-sm text-destructive">{hideReasonError}</p> : null}
+            </div>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setWorkToHide(null)} disabled={hidingId !== null}>
+            <Button variant="outline" onClick={() => {
+              setWorkToHide(null)
+              setHideReason('')
+              setHideReasonError(null)
+            }} disabled={hidingId !== null}>
               ยกเลิก
             </Button>
             <Button variant="destructive" onClick={() => void hideWork()} disabled={hidingId !== null}>
