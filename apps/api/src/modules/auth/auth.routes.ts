@@ -28,7 +28,9 @@ const REFRESH_COOKIE_NAME = env.NODE_ENV === 'production' ? '__Host-refresh_toke
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  // The Web/Admin deployments live on a different site from the API, so the
+  // refresh cookie must be available to credentialed cross-origin requests.
+  sameSite: env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
   path: '/',
 }
 
