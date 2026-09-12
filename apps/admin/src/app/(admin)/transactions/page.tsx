@@ -65,6 +65,7 @@ export default function TransactionsPage() {
   const [requests, setRequests] = useState<WithdrawalRequest[]>([])
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
   const [search, setSearch] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
   const [status, setStatus] = useState<'all' | WithdrawalStatus>('all')
   const [method, setMethod] = useState<'all' | PaymentMethod>('all')
   const [dateRange, setDateRange] = useState<DateRange>('all')
@@ -80,11 +81,21 @@ export default function TransactionsPage() {
   const [transferProofFile, setTransferProofFile] = useState<File | null>(null)
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(search.trim()), 300)
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => {
     if (!accessToken) return
     let isCurrentRequest = true
 
     setIsLoadingRequests(true)
-    void fetch(`${apiUrl}/admin/withdrawals`, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
+    const query = new URLSearchParams()
+    if (status !== 'all') query.set('status', status)
+    if (appliedSearch) query.set('search', appliedSearch)
+    const queryString = query.toString()
+    const requestUrl = `${apiUrl}/admin/withdrawals${queryString ? `?${queryString}` : ''}`
+    void fetch(requestUrl, { headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'include' })
       .then(async (response) => {
         if (!response.ok) throw new Error('ไม่สามารถโหลดคำขอถอนเงินได้')
         const body = await response.json() as { requests: Array<{ id: string; user: { display_name: string; username: string }; requested_amount: string; commission_amount: string; net_amount: string; bank_code: string; account_number: string; requested_at: string; status: WithdrawalStatus; note: string | null; processed_by: string | null; has_proof: boolean }> }
@@ -100,10 +111,9 @@ export default function TransactionsPage() {
     return () => {
       isCurrentRequest = false
     }
-  }, [accessToken])
+  }, [accessToken, appliedSearch, status])
 
   const filteredRequests = useMemo(() => {
-    const query = search.trim().toLowerCase()
     const now = Date.now()
     const rangeInMilliseconds: Record<Exclude<DateRange, 'all'>, number> = {
       today: 24 * 60 * 60 * 1000,
@@ -112,18 +122,12 @@ export default function TransactionsPage() {
     }
 
     return requests.filter((request) => {
-      const matchesSearch =
-        !query ||
-        [request.id, request.user.displayName, request.user.username].some((value) =>
-          value.toLowerCase().includes(query),
-        )
-      const matchesStatus = status === 'all' || request.status === status
       const matchesMethod = method === 'all' || request.paymentMethod === method
       const matchesDate =
         dateRange === 'all' || now - new Date(request.submittedAt).getTime() <= rangeInMilliseconds[dateRange]
-      return matchesSearch && matchesStatus && matchesMethod && matchesDate
+      return matchesMethod && matchesDate
     })
-  }, [dateRange, method, requests, search, status])
+  }, [dateRange, method, requests])
 
   async function updateStatus(
     requestId: string,

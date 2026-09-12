@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { NotificationBell, getNotificationIcon, getNotificationIconClass, type NotificationItem } from '@readji/shared/src/notification-bell'
 import {
   Banknote,
   BarChart3,
@@ -16,6 +17,8 @@ import {
   X,
 } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
+import { useAuth } from '@/components/auth/auth-provider'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 
@@ -53,7 +56,9 @@ function DisabledNavigationItem({
 
 export function WriterLayout({ children, user }: { children: ReactNode; user: AuthUser }) {
   const pathname = usePathname()
+  const { accessToken } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null)
 
   useEffect(() => {
     setIsMobileMenuOpen(false)
@@ -176,11 +181,37 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
               <p className="truncate text-sm font-bold">{user.display_name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
+            <NotificationBell
+              apiUrl={SITE_CONFIG.apiUrl}
+              accessToken={accessToken}
+              side="top"
+              align="end"
+              triggerClassName="relative flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onNotificationClick={setSelectedNotification}
+            />
           </div>
         </footer>
       </aside>
 
       {children}
+
+      <Dialog open={selectedNotification !== null} onOpenChange={(open) => { if (!open) setSelectedNotification(null) }}>
+        <DialogContent className="overflow-hidden rounded-2xl p-0 sm:max-w-md">
+          <div className="bg-gradient-to-br from-primary/15 via-background to-background px-6 pb-5 pt-6">
+            <DialogHeader className="gap-3">
+              {selectedNotification && (() => {
+                const Icon = getNotificationIcon(selectedNotification.type)
+                return <span className={`flex size-11 items-center justify-center rounded-xl ${getNotificationIconClass(selectedNotification.type)}`}><Icon className="size-5" /></span>
+              })()}
+              <div>
+                <DialogTitle className="pr-8 text-lg leading-7">{selectedNotification?.title}</DialogTitle>
+                <p className="mt-1 text-xs text-muted-foreground">{selectedNotification && new Date(selectedNotification.created_at).toLocaleString('th-TH')}</p>
+              </div>
+            </DialogHeader>
+          </div>
+          <DialogDescription className="whitespace-pre-line px-6 py-5 text-sm leading-7 text-foreground/80">{selectedNotification?.message}</DialogDescription>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

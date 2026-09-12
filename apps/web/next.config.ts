@@ -90,6 +90,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  transpilePackages: ['@readji/shared'],
   experimental: {
     proxyClientMaxBodySize: '650mb',
     // The generated stylesheet is small enough to keep on the critical path

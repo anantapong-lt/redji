@@ -1,4 +1,5 @@
 export const NOTIFICATION_TYPE = {
+  WITHDRAWAL_REQUESTED: 'withdrawal_requested',
   WITHDRAWAL_APPROVED: 'withdrawal_approved',
   WITHDRAWAL_REJECTED: 'withdrawal_rejected',
   WRITER_APPLICATION_APPROVED: 'writer_application_approved',
