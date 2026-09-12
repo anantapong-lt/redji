@@ -48,3 +48,6 @@ Thumbs.db
 data_dump.sql
 *.dump.sql
 .neon
+
+.vercel
+.env*
