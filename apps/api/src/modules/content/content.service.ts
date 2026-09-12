@@ -13,6 +13,48 @@ export interface PublicReaderChapter {
   can_read: boolean
 }
 
+export const CHAPTER_COMMENT_REACTIONS = [
+  'like',
+  'love',
+  'wow',
+  'haha',
+  'sad',
+  'angry',
+] as const
+
+export type ChapterCommentReaction = (typeof CHAPTER_COMMENT_REACTIONS)[number]
+
+export interface ChapterComment {
+  id: string
+  parent_comment_id: string | null
+  body: string
+  created_at: Date
+  is_chapter_owner: boolean
+  author: {
+    id: string
+    username: string
+    display_name: string
+    avatar_url: string | null
+  }
+  reaction_counts: Partial<Record<ChapterCommentReaction, number>>
+  user_reaction: ChapterCommentReaction | null
+  replies: ChapterComment[]
+}
+
+export interface ChapterCommentReactionSummary {
+  reaction_counts: Partial<Record<ChapterCommentReaction, number>>
+  user_reaction: ChapterCommentReaction | null
+}
+
+export interface ChapterCommentsResult {
+  comments: ChapterComment[]
+  pagination: {
+    page: number
+    limit: number
+    has_more: boolean
+  }
+}
+
 export interface PublicChapterForReading {
   id: string
   chapter_number: string
@@ -84,6 +126,289 @@ export async function findPublicChapterForReading(
   `
 
   return chapter
+}
+
+interface ChapterCommentRow extends Omit<ChapterComment, 'replies'> {}
+
+export async function getChapterCommentsForReading(
+  chapterId: string,
+  currentUserId: string | null,
+  page: number,
+  limit: number,
+): Promise<ChapterCommentsResult> {
+  const offset = (page - 1) * limit
+  const [comments, [count]] = await Promise.all([
+    db<ChapterCommentRow[]>`
+    WITH root_comments AS (
+      SELECT
+        chapter_comments.id,
+        ROW_NUMBER() OVER (
+          ORDER BY
+            CASE WHEN chapter_comments.user_id = ${currentUserId}::UUID THEN 0 ELSE 1 END ASC,
+            (
+              SELECT COUNT(*)
+              FROM chapter_comment_reactions
+              WHERE comment_id = chapter_comments.id
+            ) DESC,
+            chapter_comments.created_at DESC,
+            chapter_comments.id DESC
+        ) AS sort_position
+      FROM chapter_comments
+      INNER JOIN users ON users.id = chapter_comments.user_id
+      WHERE chapter_comments.chapter_id = ${chapterId}
+        AND chapter_comments.parent_comment_id IS NULL
+        AND chapter_comments.deleted_at IS NULL
+        AND users.status = ${USER_STATUS.ACTIVE}
+        AND users.deleted_at IS NULL
+      ORDER BY
+        CASE WHEN chapter_comments.user_id = ${currentUserId}::UUID THEN 0 ELSE 1 END ASC,
+        (
+          SELECT COUNT(*)
+          FROM chapter_comment_reactions
+          WHERE comment_id = chapter_comments.id
+        ) DESC,
+        chapter_comments.created_at DESC,
+        chapter_comments.id DESC
+      LIMIT ${limit} OFFSET ${offset}
+    )
+    SELECT
+      chapter_comments.id,
+      chapter_comments.parent_comment_id,
+      chapter_comments.body,
+      chapter_comments.created_at,
+      (chapter_comments.user_id = stories.creator_user_id) AS is_chapter_owner,
+      json_build_object(
+        'id', users.id,
+        'username', users.username,
+        'display_name', users.display_name,
+        'avatar_url', users.avatar_url
+      ) AS author,
+      COALESCE(reaction_summary.reaction_counts, '{}'::JSONB) AS reaction_counts,
+      user_reaction.reaction AS user_reaction
+    FROM chapter_comments
+    INNER JOIN users ON users.id = chapter_comments.user_id
+    INNER JOIN chapters ON chapters.id = chapter_comments.chapter_id
+    INNER JOIN stories ON stories.id = chapters.story_id
+    LEFT JOIN root_comments AS root_order ON root_order.id = chapter_comments.id
+    LEFT JOIN LATERAL (
+      SELECT jsonb_object_agg(reaction, reaction_count) AS reaction_counts
+      FROM (
+        SELECT reaction, COUNT(*)::INTEGER AS reaction_count
+        FROM chapter_comment_reactions
+        WHERE comment_id = chapter_comments.id
+        GROUP BY reaction
+      ) AS grouped_reactions
+    ) AS reaction_summary ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT reaction
+      FROM chapter_comment_reactions
+      WHERE comment_id = chapter_comments.id
+        AND user_id = ${currentUserId}::UUID
+    ) AS user_reaction ON TRUE
+    WHERE chapter_comments.deleted_at IS NULL
+      AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.deleted_at IS NULL
+      AND (
+        chapter_comments.id IN (SELECT id FROM root_comments)
+        OR chapter_comments.parent_comment_id IN (SELECT id FROM root_comments)
+      )
+    ORDER BY
+      root_order.sort_position ASC NULLS LAST,
+      CASE WHEN chapter_comments.parent_comment_id IS NOT NULL THEN chapter_comments.parent_comment_id END ASC,
+      CASE WHEN chapter_comments.parent_comment_id IS NOT NULL THEN chapter_comments.created_at END ASC,
+      chapter_comments.id ASC
+    `,
+    db<Array<{ total: string }>>`
+      SELECT COUNT(*)::TEXT AS total
+      FROM chapter_comments
+      INNER JOIN users ON users.id = chapter_comments.user_id
+      WHERE chapter_comments.chapter_id = ${chapterId}
+        AND chapter_comments.parent_comment_id IS NULL
+        AND chapter_comments.deleted_at IS NULL
+        AND users.status = ${USER_STATUS.ACTIVE}
+        AND users.deleted_at IS NULL
+    `,
+  ])
+
+  // Reply rows can be returned before their root when timestamps are equal, so
+  // register every root first before attaching its replies.
+  const roots = new Map<string, ChapterComment>()
+  for (const comment of comments) {
+    if (!comment.parent_comment_id) {
+      roots.set(comment.id, { ...comment, replies: [] })
+    }
+  }
+  for (const comment of comments) {
+    if (comment.parent_comment_id) {
+      roots.get(comment.parent_comment_id)?.replies.push({ ...comment, replies: [] })
+    }
+  }
+
+  return {
+    comments: [...roots.values()],
+    pagination: {
+      page,
+      limit,
+      has_more: page * limit < Number(count.total),
+    },
+  }
+}
+
+export async function addChapterComment(
+  chapterId: string,
+  currentUserId: string,
+  body: string,
+  parentCommentId?: string,
+): Promise<ChapterComment | null> {
+  const trimmedBody = body.trim()
+  if (!trimmedBody) return null
+
+  if (parentCommentId) {
+    const [parent] = await db<Array<{ id: string }>>`
+      SELECT id
+      FROM chapter_comments
+      WHERE id = ${parentCommentId}
+        AND chapter_id = ${chapterId}
+        AND parent_comment_id IS NULL
+        AND deleted_at IS NULL
+      LIMIT 1
+    `
+    if (!parent) return null
+  }
+
+  const [comment] = await db<ChapterCommentRow[]>`
+    WITH inserted_comment AS (
+      INSERT INTO chapter_comments (chapter_id, user_id, parent_comment_id, body)
+      VALUES (${chapterId}, ${currentUserId}, ${parentCommentId ?? null}::UUID, ${trimmedBody})
+      RETURNING id, chapter_id, parent_comment_id, body, created_at, user_id
+    )
+    SELECT
+      inserted_comment.id,
+      inserted_comment.parent_comment_id,
+      inserted_comment.body,
+      inserted_comment.created_at,
+      (inserted_comment.user_id = stories.creator_user_id) AS is_chapter_owner,
+      json_build_object(
+        'id', users.id,
+        'username', users.username,
+        'display_name', users.display_name,
+        'avatar_url', users.avatar_url
+      ) AS author,
+      '{}'::JSONB AS reaction_counts,
+      NULL::VARCHAR AS user_reaction
+    FROM inserted_comment
+    INNER JOIN users ON users.id = inserted_comment.user_id
+    INNER JOIN chapters ON chapters.id = inserted_comment.chapter_id
+    INNER JOIN stories ON stories.id = chapters.story_id
+  `
+  return comment ? { ...comment, replies: [] } : null
+}
+
+export async function updateChapterCommentById(
+  chapterId: string,
+  commentId: string,
+  currentUserId: string,
+  body: string,
+): Promise<{ body: string; updated_at: Date } | undefined> {
+  const trimmedBody = body.trim()
+  if (!trimmedBody) return undefined
+
+  const [comment] = await db<Array<{ body: string; updated_at: Date }>>`
+    UPDATE chapter_comments
+    SET body = ${trimmedBody}, updated_at = NOW()
+    WHERE id = ${commentId}
+      AND chapter_id = ${chapterId}
+      AND user_id = ${currentUserId}
+      AND deleted_at IS NULL
+    RETURNING body, updated_at
+  `
+  return comment
+}
+
+export async function deleteChapterCommentById(
+  chapterId: string,
+  commentId: string,
+  currentUserId: string,
+): Promise<boolean> {
+  const result = await db`
+    DELETE FROM chapter_comments
+    WHERE id = ${commentId}
+      AND chapter_id = ${chapterId}
+      AND user_id = ${currentUserId}
+      AND deleted_at IS NULL
+    RETURNING id
+  `
+  return result.length > 0
+}
+
+export async function setChapterCommentReactionById(
+  chapterId: string,
+  commentId: string,
+  currentUserId: string,
+  reaction: ChapterCommentReaction,
+): Promise<boolean> {
+  const result = await db`
+    INSERT INTO chapter_comment_reactions (comment_id, user_id, reaction)
+    SELECT id, ${currentUserId}, ${reaction}
+    FROM chapter_comments
+    WHERE id = ${commentId}
+      AND chapter_id = ${chapterId}
+      AND deleted_at IS NULL
+    ON CONFLICT (comment_id, user_id) DO UPDATE SET
+      reaction = EXCLUDED.reaction,
+      updated_at = NOW()
+    RETURNING comment_id
+  `
+  return result.length > 0
+}
+
+export async function removeChapterCommentReactionById(
+  chapterId: string,
+  commentId: string,
+  currentUserId: string,
+): Promise<boolean> {
+  const result = await db`
+    DELETE FROM chapter_comment_reactions
+    WHERE comment_id = ${commentId}
+      AND user_id = ${currentUserId}
+      AND EXISTS (
+        SELECT 1 FROM chapter_comments
+        WHERE id = ${commentId} AND chapter_id = ${chapterId}
+      )
+    RETURNING comment_id
+  `
+  return result.length > 0
+}
+
+export async function getChapterCommentReactionSummary(
+  chapterId: string,
+  commentId: string,
+  currentUserId: string,
+): Promise<ChapterCommentReactionSummary | undefined> {
+  const [summary] = await db<ChapterCommentReactionSummary[]>`
+    SELECT
+      COALESCE(reaction_summary.reaction_counts, '{}'::JSONB) AS reaction_counts,
+      user_reaction.reaction AS user_reaction
+    FROM chapter_comments
+    LEFT JOIN LATERAL (
+      SELECT jsonb_object_agg(reaction, reaction_count) AS reaction_counts
+      FROM (
+        SELECT reaction, COUNT(*)::INTEGER AS reaction_count
+        FROM chapter_comment_reactions
+        WHERE comment_id = chapter_comments.id
+        GROUP BY reaction
+      ) AS grouped_reactions
+    ) AS reaction_summary ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT reaction
+      FROM chapter_comment_reactions
+      WHERE comment_id = chapter_comments.id AND user_id = ${currentUserId}
+    ) AS user_reaction ON TRUE
+    WHERE chapter_comments.id = ${commentId}
+      AND chapter_comments.chapter_id = ${chapterId}
+      AND chapter_comments.deleted_at IS NULL
+  `
+  return summary
 }
 
 export async function findPublicReaderChapters(

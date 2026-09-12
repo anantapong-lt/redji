@@ -13,10 +13,16 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-export default async function LoginPage() {
-  const [user, features] = await Promise.all([getServerAuthUser(), getServerFeatureConfig()])
+interface LoginPageProps {
+  searchParams: Promise<{ next?: string }>
+}
 
-  if (user) redirect('/');
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const [user, features] = await Promise.all([getServerAuthUser(), getServerFeatureConfig()])
+  const { next } = await searchParams
+  const returnTo = next?.startsWith('/') && !next.startsWith('//') ? next : null
+
+  if (user) redirect(returnTo ?? '/')
 
   return <AuthCard heading={`เข้าสู่ระบบของ ${SITE_CONFIG.name}`}><LoginForm registrationEnabled={features?.registration === true} /></AuthCard>
 }

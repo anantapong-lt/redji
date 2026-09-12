@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -22,6 +22,7 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function LoginForm({ registrationEnabled }: { registrationEnabled: boolean }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login, status } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
@@ -44,7 +45,9 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
 
     try {
       const session = await login(values.email, values.password, turnstileToken ?? undefined)
-      router.replace(session.user.role === userRole.WRITER ? '/writer' : '/')
+      const next = searchParams.get('next')
+      const returnTo = next?.startsWith('/') && !next.startsWith('//') ? next : null
+      router.replace(returnTo ?? (session.user.role === userRole.WRITER ? '/writer' : '/'))
     } catch (error) {
       setError('root', {
         message: error instanceof ApiError

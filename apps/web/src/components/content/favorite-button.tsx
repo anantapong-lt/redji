@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { Heart, LoaderCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
+import { LoginRequiredDialog } from '@/components/auth/login-required-dialog'
 import {
   favoritePublicContent,
   unfavoritePublicContent,
@@ -18,15 +18,15 @@ export function FavoriteButton({
   initialCount: number
   initialIsFavorited: boolean
 }) {
-  const router = useRouter()
   const { accessToken, status } = useAuth()
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited)
   const [favoriteCount, setFavoriteCount] = useState(initialCount)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isLoginRequiredDialogOpen, setIsLoginRequiredDialogOpen] = useState(false)
 
   async function toggleFavorite() {
     if (status !== 'authenticated' || !accessToken) {
-      router.push('/login')
+      setIsLoginRequiredDialogOpen(true)
       return
     }
     if (isUpdating) return
@@ -68,6 +68,10 @@ export function FavoriteButton({
       )}
       รายการโปรด
       <span className="tabular-nums">{favoriteCount.toLocaleString('th-TH')}</span>
+      <LoginRequiredDialog
+        open={isLoginRequiredDialogOpen}
+        onOpenChange={setIsLoginRequiredDialogOpen}
+      />
     </button>
   )
 }

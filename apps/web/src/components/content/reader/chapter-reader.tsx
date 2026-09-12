@@ -15,6 +15,7 @@ import {
   type ReadingSettings,
 } from '@/lib/reading-settings'
 import { ChapterNavigation } from './chapter-navigation'
+import { ChapterComments } from './chapter-comments'
 import { ChapterReaderHeader } from './chapter-reader-header'
 import { MangaChapterContent } from './manga-chapter-content'
 import { NovelChapterContent } from './novel-chapter-content'
@@ -139,6 +140,11 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
         onNavigate={navigateToChapter}
         floating
         visible={navigationVisible}
+      />
+
+      <ChapterComments
+        slug={data.story.slug}
+        chapterNumber={String(Number(data.chapter.chapter_number))}
       />
 
       {pendingChapter ? (

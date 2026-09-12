@@ -62,7 +62,7 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {needsLogin ? (
                 <Link
-                  href="/login"
+                  href={`/login?next=${encodeURIComponent(`/content/${slug}/${chapterNumber}`)}`}
                   className="rounded-full bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground transition-colors hover:bg-primary/85"
                 >
                   เข้าสู่ระบบ

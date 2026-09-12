@@ -1,5 +1,9 @@
 import {
   addPublicContentFavorite,
+  addChapterComment,
+  deleteChapterCommentById,
+  getChapterCommentReactionSummary,
+  getChapterCommentsForReading,
   findMangaChapterPages,
   findNovelChapterContent,
   findPublicChapterForReading,
@@ -9,10 +13,154 @@ import {
   listPublicContentForSitemap,
   ratePublicContentBySlug,
   removePublicContentFavorite,
+  removeChapterCommentReactionById,
+  setChapterCommentReactionById,
+  updateChapterCommentById,
   incrementPublicContentView,
   type PublicChapterSort,
 } from './content.service'
 import { createWriterChapterPageSignedUrl } from '../writer/chapter/writer-chapter-page.service'
+
+async function findCommentableChapter(
+  slug: string,
+  chapterNumber: string,
+  currentUserId: string | null,
+  requireReadAccess: boolean,
+) {
+  const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
+  if (!chapter) return null
+  if (requireReadAccess && !chapter.can_read) return 'forbidden' as const
+  return chapter
+}
+
+export async function getChapterComments(
+  slug: string,
+  chapterNumber: string,
+  currentUserId: string | null,
+  page = 1,
+  limit = 10,
+) {
+  try {
+    const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, false)
+    if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+    return getChapterCommentsForReading(chapter.id, currentUserId, page, limit)
+  } catch (error) {
+    console.error('Unable to load chapter comments', error)
+    return Response.json({ message: 'ไม่สามารถโหลดความคิดเห็นได้' }, { status: 500 })
+  }
+}
+
+export async function createChapterComment(
+  slug: string,
+  chapterNumber: string,
+  currentUserId: string,
+  body: string,
+  parentCommentId?: string,
+) {
+  try {
+    const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
+    if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+    if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนแสดงความคิดเห็น' }, { status: 403 })
+
+    const comment = await addChapterComment(chapter.id, currentUserId, body, parentCommentId)
+    if (!comment) return Response.json({ message: 'ไม่พบความคิดเห็นที่ต้องการตอบกลับ หรือข้อความว่างเปล่า' }, { status: 400 })
+    return Response.json({ comment }, { status: 201 })
+  } catch (error) {
+    console.error('Unable to create chapter comment', error)
+    return Response.json({ message: 'ไม่สามารถส่งความคิดเห็นได้' }, { status: 500 })
+  }
+}
+
+export async function editChapterComment(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  currentUserId: string,
+  body: string,
+) {
+  try {
+    const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
+    if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+    if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนแก้ไขความคิดเห็น' }, { status: 403 })
+
+    const comment = await updateChapterCommentById(chapter.id, commentId, currentUserId, body)
+    if (!comment) return Response.json({ message: 'ไม่พบความคิดเห็นที่แก้ไขได้ หรือข้อความว่างเปล่า' }, { status: 404 })
+    return { comment }
+  } catch (error) {
+    console.error('Unable to edit chapter comment', error)
+    return Response.json({ message: 'ไม่สามารถแก้ไขความคิดเห็นได้' }, { status: 500 })
+  }
+}
+
+export async function deleteChapterComment(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  currentUserId: string,
+) {
+  try {
+    const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
+    if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+    if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนลบความคิดเห็น' }, { status: 403 })
+
+    const deleted = await deleteChapterCommentById(chapter.id, commentId, currentUserId)
+    if (!deleted) return Response.json({ message: 'ไม่พบความคิดเห็นที่ลบได้' }, { status: 404 })
+    return { success: true }
+  } catch (error) {
+    console.error('Unable to delete chapter comment', error)
+    return Response.json({ message: 'ไม่สามารถลบความคิดเห็นได้' }, { status: 500 })
+  }
+}
+
+async function updateChapterCommentReaction(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  currentUserId: string,
+  reaction: Parameters<typeof setChapterCommentReactionById>[3] | null,
+) {
+  const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, true)
+  if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
+  if (chapter === 'forbidden') return Response.json({ message: 'กรุณาซื้อตอนนี้ก่อนกดรีแอ็กชัน' }, { status: 403 })
+
+  const changed = reaction
+    ? await setChapterCommentReactionById(chapter.id, commentId, currentUserId, reaction)
+    : await removeChapterCommentReactionById(chapter.id, commentId, currentUserId)
+  if (!changed && reaction) return Response.json({ message: 'ไม่พบความคิดเห็นที่ต้องการ' }, { status: 404 })
+
+  const summary = await getChapterCommentReactionSummary(chapter.id, commentId, currentUserId)
+  if (!summary) return Response.json({ message: 'ไม่พบความคิดเห็นที่ต้องการ' }, { status: 404 })
+  return summary
+}
+
+export async function setChapterCommentReaction(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  currentUserId: string,
+  reaction: Parameters<typeof setChapterCommentReactionById>[3],
+) {
+  try {
+    return await updateChapterCommentReaction(slug, chapterNumber, commentId, currentUserId, reaction)
+  } catch (error) {
+    console.error('Unable to set chapter comment reaction', error)
+    return Response.json({ message: 'ไม่สามารถบันทึกรีแอ็กชันได้' }, { status: 500 })
+  }
+}
+
+export async function removeChapterCommentReaction(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  currentUserId: string,
+) {
+  try {
+    return await updateChapterCommentReaction(slug, chapterNumber, commentId, currentUserId, null)
+  } catch (error) {
+    console.error('Unable to remove chapter comment reaction', error)
+    return Response.json({ message: 'ไม่สามารถลบรีแอ็กชันได้' }, { status: 500 })
+  }
+}
 
 export async function getPublicChapter(
   slug: string,

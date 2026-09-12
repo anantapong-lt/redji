@@ -4,7 +4,7 @@ import { Notifications } from './notifications'
 
 export default async function NotificationsPage() {
   const user = await getServerAuthUser()
-  if (!user) redirect('/login')
+  if (!user) redirect('/login?next=/notifications')
 
   return <Notifications />
 }

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function MyProfilePage() {
   const user = await getServerAuthUser()
-  if (!user) redirect('/login')
+  if (!user) redirect('/login?next=/profile')
 
   const profile = await getServerProfile(user.username)
   if (!profile) notFound()

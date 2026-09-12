@@ -7,7 +7,7 @@ import { WriterLayout } from './home/components/writer-layout'
 export default async function WriterRootLayout({ children }: { children: React.ReactNode }) {
   const user = await getServerAuthUser()
 
-  if (!user) redirect('/login')
+  if (!user) redirect('/login?next=/writer')
   if (user.role !== userRole.WRITER) redirect('/')
 
   return (

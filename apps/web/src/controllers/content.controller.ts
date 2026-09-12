@@ -7,6 +7,10 @@ import type {
   PublicContentSitemapResponse,
   PublicChaptersResponse,
   PublicChapterSort,
+  ChapterCommentReaction,
+  ChapterCommentReactionResponse,
+  ChapterCommentsResponse,
+  ChapterComment,
 } from '@/interface/content.interface'
 import { apiRequest } from '@/lib/api-client'
 
@@ -120,4 +124,96 @@ export function getPublicContentSitemap(): Promise<PublicContentSitemapResponse>
   return apiRequest<PublicContentSitemapResponse>('/contents', {
     cache: 'no-store',
   })
+}
+
+export function getChapterComments(
+  slug: string,
+  chapterNumber: string,
+  accessToken?: string | null,
+  page = 1,
+  limit = 10,
+): Promise<ChapterCommentsResponse> {
+  const searchParams = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return apiRequest<ChapterCommentsResponse>(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/comments?${searchParams.toString()}`,
+    { cache: 'no-store', accessToken },
+  )
+}
+
+export function createChapterComment(
+  slug: string,
+  chapterNumber: string,
+  body: string,
+  accessToken: string,
+  parentCommentId?: string,
+): Promise<{ comment: ChapterComment }> {
+  return apiRequest(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/comments`,
+    {
+      method: 'POST',
+      accessToken,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body, parent_comment_id: parentCommentId }),
+    },
+  )
+}
+
+export function editChapterComment(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  body: string,
+  accessToken: string,
+): Promise<{ comment: { body: string; updated_at: string } }> {
+  return apiRequest(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/comments/${encodeURIComponent(commentId)}`,
+    {
+      method: 'PATCH',
+      accessToken,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    },
+  )
+}
+
+export function deleteChapterComment(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  accessToken: string,
+): Promise<{ success: true }> {
+  return apiRequest(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/comments/${encodeURIComponent(commentId)}`,
+    { method: 'DELETE', accessToken },
+  )
+}
+
+export function setChapterCommentReaction(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  reaction: ChapterCommentReaction,
+  accessToken: string,
+): Promise<ChapterCommentReactionResponse> {
+  return apiRequest(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/comments/${encodeURIComponent(commentId)}/reaction`,
+    {
+      method: 'PUT',
+      accessToken,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reaction }),
+    },
+  )
+}
+
+export function removeChapterCommentReaction(
+  slug: string,
+  chapterNumber: string,
+  commentId: string,
+  accessToken: string,
+): Promise<ChapterCommentReactionResponse> {
+  return apiRequest(
+    `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/comments/${encodeURIComponent(commentId)}/reaction`,
+    { method: 'DELETE', accessToken },
+  )
 }
