@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { ReadingSettings } from '@/lib/reading-settings'
-import { READING_THEMES } from '@/lib/reading-settings'
+import { READING_FONTS, READING_THEMES } from '@/lib/reading-settings'
 import { ReaderContentSkeleton } from './reader-content-skeleton'
 import { useReaderContentProtection } from './use-reader-content-protection'
 
@@ -10,7 +10,6 @@ const BLOCKED_ELEMENTS = 'script,style,iframe,object,embed,form,input,button,tex
 const SAFE_ATTRIBUTES = new Set(['data-type', 'dir', 'start', 'style'])
 const SAFE_STYLE_PROPERTIES = new Set([
   'display',
-  'font-family',
   'font-style',
   'font-weight',
   'letter-spacing',
@@ -115,10 +114,12 @@ export function NovelChapterContent({
           onDragStart={preventInteraction}
         >
           <div
-            className={`mx-auto max-w-3xl select-none break-words [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/35 [&_blockquote]:pl-4 [&_h1]:my-6 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_hr]:my-8 [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:min-h-[1lh] [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7 ${
-              settings.fontFamily === 'serif' ? 'font-serif' : 'font-sans'
-            }`}
-            style={{ fontSize: settings.fontSize, lineHeight: 2 }}
+            className="mx-auto max-w-3xl select-none break-words [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/35 [&_blockquote]:pl-4 [&_h1]:my-6 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:my-5 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:my-4 [&_h3]:text-xl [&_h3]:font-bold [&_hr]:my-8 [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-7 [&_p]:min-h-[1lh] [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-7"
+            style={{
+              fontFamily: READING_FONTS[settings.fontFamily].family,
+              fontSize: settings.fontSize,
+              lineHeight: 2,
+            }}
             dangerouslySetInnerHTML={{ __html: safeContent }}
           />
           {isProduction ? (

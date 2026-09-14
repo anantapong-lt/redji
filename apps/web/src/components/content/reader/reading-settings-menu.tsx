@@ -8,10 +8,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import {
+  READING_FONTS,
   READING_THEMES,
   type ReadingSettings,
   type ReadingTheme,
 } from '@/lib/reading-settings'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const THEME_IDS = Object.keys(READING_THEMES) as ReadingTheme[]
 
@@ -45,27 +53,26 @@ export function ReadingSettingsMenu({
           onIncrease={() => onChange({ ...settings, fontSize: Math.min(32, settings.fontSize + 2) })}
         />
         <div>
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">รูปแบบตัวอักษร</p>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              ['sans', 'ไม่มีหัว'],
-              ['serif', 'มีหัว'],
-            ] as const).map(([fontFamily, label]) => (
-              <button
-                key={fontFamily}
-                type="button"
-                onClick={() => onChange({ ...settings, fontFamily })}
-                className={cn(
-                  'cursor-pointer rounded-lg border px-3 py-2 text-sm font-semibold',
-                  settings.fontFamily === fontFamily
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:bg-accent',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">ฟอนต์</p>
+          <Select
+            value={settings.fontFamily}
+            onValueChange={(fontFamily: ReadingSettings['fontFamily']) => onChange({ ...settings, fontFamily })}
+          >
+            <SelectTrigger className="h-10 w-full cursor-pointer bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(READING_FONTS).map(([fontFamily, font]) => (
+                <SelectItem
+                  key={fontFamily}
+                  value={fontFamily}
+                  style={{ fontFamily: font.family }}
+                >
+                  {font.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div>

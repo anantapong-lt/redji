@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { AuthProvider } from '@/components/auth/auth-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { SITE_CONFIG } from '@/site.config'
-import { notoSansThai } from '@/lib/fonts'
+import { notoSansThai, notoSerifThai, prompt, sarabun } from '@/lib/fonts'
 import './globals.css'
 
 // ─── Metadata ──────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="th" suppressHydrationWarning>
-      <body className={`${notoSansThai.variable} font-sans antialiased`}>
+      <body className={`${notoSansThai.variable} ${notoSerifThai.variable} ${sarabun.variable} ${prompt.variable} font-sans antialiased`}>
         <AuthProvider>
           {children}
           <Toaster />
