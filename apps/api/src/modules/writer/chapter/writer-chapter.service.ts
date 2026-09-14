@@ -20,7 +20,7 @@ export interface ChapterWriteInput {
   chapterNumber: number
   price: number
   status: ChapterStatus
-  publishedAt: Date | null
+  publishedAt: string | null
   content: string
   wordCount: number
 }
@@ -309,7 +309,7 @@ export async function updateChapterStatuses(
   storyId: string,
   chapterIds: string[],
   status: ChapterStatus,
-  publishedAt: Date | null,
+  publishedAt: string | null,
 ): Promise<number> {
   const ids = db.array([...new Set(chapterIds)], 'UUID')
   const rows = await db<{ id: string }[]>`

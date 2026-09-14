@@ -30,12 +30,12 @@ export function DateTimePicker({ id, value, onChange, disabled, label = 'เน�
   }
 
   return <Popover>
-    <PopoverTrigger asChild>
+    <PopoverTrigger render={
       <Button id={id} type="button" variant="outline" disabled={disabled} aria-label={label} className="h-9 w-full min-w-0 justify-start bg-background px-2 text-left text-xs font-normal shadow-none">
         <CalendarIcon className="size-4 shrink-0" />
         <span className="truncate">{selected ? new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(selected) : 'เน€เธฅเธทเธญเธเธงเธฑเธเนเธฅเธฐเน€เธงเธฅเธฒ'}</span>
       </Button>
-    </PopoverTrigger>
+    } />
     <PopoverContent align="start" className="w-auto max-w-[calc(100vw-2rem)] p-0">
       <Calendar locale={th} mode="single" selected={selected} defaultMonth={selected} onSelect={selectDate} disabled={disabled} />
       <div className="space-y-2 border-t p-3">

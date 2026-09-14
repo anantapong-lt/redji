@@ -1,10 +1,12 @@
 import type { MetadataRoute } from 'next'
 import { getPublicContentSitemap } from '@/controllers/content.controller'
 import { SITE_CONFIG } from '@/site.config'
+import { getServerFeatureConfig } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const features = await getServerFeatureConfig()
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: SITE_CONFIG.siteUrl,
@@ -21,11 +23,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'yearly',
       priority: 0.6,
     },
-    {
+    ...(features?.registration ? [{
       url: new URL('/register', SITE_CONFIG.siteUrl).toString(),
-      changeFrequency: 'yearly',
+      changeFrequency: 'yearly' as const,
       priority: 0.6,
-    },
+    }] : []),
   ]
 
   try {

@@ -81,7 +81,7 @@ export async function processAdminWithdrawal(
   const rows = await db.begin(async (tx) => {
     const [current] = await tx<
       WithdrawalRow[]
-    >`SELECT ${tx.unsafe(select)} FROM withdrawal_requests wr JOIN users u ON u.id = wr.writer_user_id LEFT JOIN users reviewer ON reviewer.id = wr.reviewed_by_user_id WHERE wr.id = ${id} FOR UPDATE`
+    >`SELECT ${tx.unsafe(select)} FROM withdrawal_requests wr JOIN users u ON u.id = wr.writer_user_id LEFT JOIN users reviewer ON reviewer.id = wr.reviewed_by_user_id WHERE wr.id = ${id} FOR UPDATE OF wr`
     if (!current) throw new Error('ไม่พบคำขอถอนเงิน')
     if (
       (action === 'approve' && current.status !== WITHDRAWAL_STATUS.PENDING) ||

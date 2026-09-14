@@ -17,6 +17,13 @@ export interface BankConfig {
   logo: string
 }
 
+export class WriterBankAccountError extends Error {
+  constructor(message: string, public readonly statusCode: number) {
+    super(message)
+    this.name = 'WriterBankAccountError'
+  }
+}
+
 export async function findBankConfigs(): Promise<BankConfig[]> {
   const [row] = await db<{ value: BankConfig[] }[]>`
     SELECT value
@@ -37,10 +44,38 @@ export async function findWriterBankAccount(userId: string) {
   return account ?? null
 }
 
+export async function findWriterApplicationStatus(userId: string): Promise<WriterApplicationStatus | null> {
+  const [account] = await db<{ application_status: WriterApplicationStatus }[]>`
+    SELECT application_status
+    FROM writer_bank_accounts
+    WHERE writer_user_id = ${userId} AND status = 'active'
+    LIMIT 1
+  `
+  return account?.application_status ?? null
+}
+
+export async function hasProfileSocialLink(userId: string): Promise<boolean> {
+  const [user] = await db<{ social_links: Record<string, unknown> | null }[]>`
+    SELECT social_links
+    FROM users
+    WHERE id = ${userId} AND deleted_at IS NULL
+    LIMIT 1
+  `
+
+  return Object.values(user?.social_links ?? {}).some(
+    (value) => typeof value === 'string' && value.trim().length > 0,
+  )
+}
+
 export async function upsertWriterBankAccount(
   userId: string,
   input: Omit<WriterBankAccount, 'id' | 'application_status' | 'status'>,
 ) {
+  const current = await findWriterBankAccount(userId)
+  if (current?.application_status === WRITER_APPLICATION_STATUS.PENDING) {
+    throw new WriterBankAccountError('ใบสมัครนักเขียนของคุณอยู่ระหว่างตรวจสอบข้อมูล', 409)
+  }
+
   const [account] = await db<WriterBankAccount[]>`
     INSERT INTO writer_bank_accounts (
       writer_user_id, account_holder_first_name, account_holder_last_name,

@@ -51,6 +51,10 @@ export function getWriterBankAccount(accessToken: string): Promise<{ account: Wr
   return apiRequest('/writer/bank-account', { accessToken, cache: 'no-store' })
 }
 
+export function getWriterApplicationStatus(accessToken: string): Promise<{ status: WriterBankAccount['application_status'] | null }> {
+  return apiRequest('/writer/application-status', { accessToken, cache: 'no-store' })
+}
+
 export function submitWriterBankAccount(
   body: WriterBankAccountInput,
   accessToken: string,

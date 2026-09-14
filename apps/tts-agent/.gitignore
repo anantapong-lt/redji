@@ -1,0 +1,28 @@
+# Python bytecode and tooling caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual environments
+.venv/
+venv/
+
+# Packaging output
+build/
+dist/
+*.egg-info/
+
+# Local renderer data and downloaded model weights
+runtime/
+models/
+assets/voice-candidates/
+assets/voices/**/*.wav
+assets/voices/**/*.mp3
+assets/voices/**/*.json
+
+# Local settings and logs (refresh tokens are stored in Windows Credential Manager)
+.env
+*.log

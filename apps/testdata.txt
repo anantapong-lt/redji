@@ -1,6 +1,0 @@
-{
-  "u_name": "testuser",
-  "display_name": "Test User",
-  "email": "test@example.com",
-  "password": "123password"
-}

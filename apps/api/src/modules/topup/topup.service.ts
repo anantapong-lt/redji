@@ -3,6 +3,7 @@ import { db } from '../../db'
 import { env, isDev } from '../../config/env'
 import { publishTopupEvent } from './topup.events'
 import { TopupStatus } from '../../models/topup.model'
+import { getPublicTopupConfig } from '../admin-site/admin-site.service'
 
 export interface TopupTransaction {
   id: string
@@ -26,7 +27,7 @@ export interface CreatedTopup {
   }
 }
 
-type TopupErrorStatus = 400 | 401 | 404 | 409 | 502
+type TopupErrorStatus = 400 | 401 | 403 | 404 | 409 | 502
 
 export class TopupError extends Error {
   constructor(
@@ -237,6 +238,12 @@ export async function createTopup(
   amount: number,
   clientIp: string,
 ): Promise<CreatedTopup> {
+  const config = await getPublicTopupConfig()
+  if (!config.features.topup) throw new TopupError('ระบบเติมเงินยังไม่เปิดใช้งาน', 403)
+
+  const selectedPackage = config.topup.packages.find((item) => Number(item.amount) === amount)
+  const bonusCoins = selectedPackage?.bonus ?? '0'
+
   const [pendingTopup] = await db<{ id: string }[]>`
     INSERT INTO topup_transactions (
       user_id,
@@ -250,8 +257,8 @@ export async function createTopup(
       'tmweasy',
       ${amount}::NUMERIC,
       ${amount}::NUMERIC,
-      0,
-      ${amount}::NUMERIC
+      ${bonusCoins}::NUMERIC,
+      (${amount}::NUMERIC + ${bonusCoins}::NUMERIC)
     )
     RETURNING id
   `

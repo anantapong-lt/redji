@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { ChapterReader } from '@/components/content/reader/chapter-reader'
 import { getPublicChapter, getPublicContent } from '@/controllers/content.controller'
 import { ApiError } from '@/lib/api-client'
+import { getServerFeatureConfig } from '@/lib/server-auth'
 import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 interface ChapterPageProps {
@@ -42,8 +43,11 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
 
   try {
     const cookieHeader = (await cookies()).toString()
-    const data = await getPublicChapter(slug, chapterNumber, cookieHeader)
-    return <ChapterReader data={data} />
+    const [data, features] = await Promise.all([
+      getPublicChapter(slug, chapterNumber, cookieHeader),
+      getServerFeatureConfig(),
+    ])
+    return <ChapterReader data={data} commentsEnabled={features?.comments === true} />
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound()
 
@@ -62,7 +66,7 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {needsLogin ? (
                 <Link
-                  href="/login"
+                  href={`/login?next=${encodeURIComponent(`/content/${slug}/${chapterNumber}`)}`}
                   className="rounded-full bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground transition-colors hover:bg-primary/85"
                 >
                   เข้าสู่ระบบ

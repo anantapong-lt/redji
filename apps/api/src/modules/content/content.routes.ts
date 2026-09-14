@@ -2,16 +2,27 @@ import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import {
   favoritePublicContent,
+  createChapterComment,
+  deleteChapterComment,
+  editChapterComment,
+  getChapterComments,
   getPublicChapter,
   getPublicMangaChapterPages,
   getPublicContent,
   getPublicContentChapters,
   getPublicContentSitemap,
   ratePublicContent,
+  removeChapterCommentReaction,
+  setChapterCommentReaction,
   unfavoritePublicContent,
 } from './content.controller'
 import {
   contentChapterParamsSchema,
+  chapterCommentBodySchema,
+  chapterCommentEditBodySchema,
+  chapterCommentsQuerySchema,
+  chapterCommentParamsSchema,
+  chapterCommentReactionBodySchema,
   contentChaptersQuerySchema,
   contentReaderPagesQuerySchema,
   contentParamsSchema,
@@ -25,6 +36,74 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
     '/:slug/favorite',
     ({ currentUser, params }) => favoritePublicContent(params.slug, currentUser.id),
     { auth: true, params: contentParamsSchema },
+  )
+  .get(
+    '/:slug/chapters/:chapterNumber/comments',
+    ({ currentUser, params, query }) => getChapterComments(
+      params.slug,
+      params.chapterNumber,
+      currentUser?.id ?? null,
+      query.page ?? 1,
+      query.limit ?? 10,
+    ),
+    {
+      optionalAuth: true,
+      params: contentChapterParamsSchema,
+      query: chapterCommentsQuerySchema,
+    },
+  )
+  .post(
+    '/:slug/chapters/:chapterNumber/comments',
+    ({ body, currentUser, params }) => createChapterComment(
+      params.slug,
+      params.chapterNumber,
+      currentUser.id,
+      body.body,
+      body.parent_comment_id,
+    ),
+    { auth: true, params: contentChapterParamsSchema, body: chapterCommentBodySchema },
+  )
+  .patch(
+    '/:slug/chapters/:chapterNumber/comments/:commentId',
+    ({ body, currentUser, params }) => editChapterComment(
+      params.slug,
+      params.chapterNumber,
+      params.commentId,
+      currentUser.id,
+      body.body,
+    ),
+    { auth: true, params: chapterCommentParamsSchema, body: chapterCommentEditBodySchema },
+  )
+  .delete(
+    '/:slug/chapters/:chapterNumber/comments/:commentId',
+    ({ currentUser, params }) => deleteChapterComment(
+      params.slug,
+      params.chapterNumber,
+      params.commentId,
+      currentUser.id,
+    ),
+    { auth: true, params: chapterCommentParamsSchema },
+  )
+  .put(
+    '/:slug/chapters/:chapterNumber/comments/:commentId/reaction',
+    ({ body, currentUser, params }) => setChapterCommentReaction(
+      params.slug,
+      params.chapterNumber,
+      params.commentId,
+      currentUser.id,
+      body.reaction,
+    ),
+    { auth: true, params: chapterCommentParamsSchema, body: chapterCommentReactionBodySchema },
+  )
+  .delete(
+    '/:slug/chapters/:chapterNumber/comments/:commentId/reaction',
+    ({ currentUser, params }) => removeChapterCommentReaction(
+      params.slug,
+      params.chapterNumber,
+      params.commentId,
+      currentUser.id,
+    ),
+    { auth: true, params: chapterCommentParamsSchema },
   )
   .delete(
     '/:slug/favorite',

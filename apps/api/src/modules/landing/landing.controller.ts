@@ -1,10 +1,13 @@
-import type { LandingSection } from './landing.schema'
+import type { ContentType, LandingSection } from './landing.schema'
 import { getLandingStories } from './landing.service'
 
 interface GetLandingInput {
   section: LandingSection
   page?: number
   limit?: number
+  category?: string
+  search?: string
+  type?: ContentType
 }
 
 export async function getLanding(input: GetLandingInput) {
@@ -13,6 +16,12 @@ export async function getLanding(input: GetLandingInput) {
       input.section,
       input.page ?? 1,
       input.limit ?? 12,
+      input.category
+        ?.split(',')
+        .map((category) => category.trim().toLowerCase())
+        .filter(Boolean) ?? [],
+      input.search?.trim() ?? '',
+      input.type ?? null,
     )
   } catch (error) {
     console.error('Unable to load landing stories', error)

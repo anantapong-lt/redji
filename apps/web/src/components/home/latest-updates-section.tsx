@@ -1,4 +1,4 @@
-import { LandingStoryGrid } from '@/components/home/landing-story-grid'
+import { StoryResultsGrid } from '@/components/home/story-results-grid'
 import type { LandingResponse } from '@/interface/landing.interface'
 
 export function LatestUpdatesSection({
@@ -17,7 +17,7 @@ export function LatestUpdatesSection({
         อัปเดตใหม่
       </h2>
 
-      <LandingStoryGrid initialData={data} renderedAt={renderedAt} />
+      <StoryResultsGrid initialData={data} renderedAt={renderedAt} />
     </section>
   )
 }

@@ -3,10 +3,14 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ChevronDown, History, Home, LogIn, LogOut, Menu, PenLine, Rss, Search, UserRound, X } from 'lucide-react'
+import { Bell, ChevronDown, HistoryIcon, Home, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { getUnreadNotificationCount } from '@/controllers/notification.controller'
+import { NotificationBell, NotificationDetailDialog } from '@readji/shared/src/notification-bell'
+import { getBankConfigs, getWriterApplicationStatus } from '@/controllers/writer.controller'
+import { getMyProfile } from '@/controllers/profile.controller'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,12 +23,20 @@ import {
 import { userRole, type AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { WriterApplicationDialog } from './writer-application-dialog'
+import type { UserNotification } from '@/interface/notification.interface'
+import type { BankConfig } from '@/interface/writer-bank-account.interface'
+import type { PublicFeatureConfig } from '@/lib/server-auth'
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
-  { label: 'ฟีด', icon: Rss },
-  { label: 'ประวัติ', icon: History },
+  { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
 ]
+
+interface WriterApplicationData {
+  banks: BankConfig[]
+  isPending: boolean
+  hasSocialLink: boolean
+}
 
 function DisabledIconButton({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -77,11 +89,21 @@ function formatBalance(balance: string) {
   return Number(balance).toLocaleString('th-TH')
 }
 
-export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) {
+export function NavbarClient({
+  initialUser,
+  initialUnreadNotificationCount,
+  features,
+}: {
+  initialUser: AuthUser | null
+  initialUnreadNotificationCount: number
+  features: PublicFeatureConfig | null
+}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
   const [writerApplicationOpen, setWriterApplicationOpen] = useState(false)
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
+  const [writerApplicationData, setWriterApplicationData] = useState<WriterApplicationData | null>(null)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(initialUnreadNotificationCount)
+  const [selectedNotification, setSelectedNotification] = useState<UserNotification | null>(null)
   const pathname = usePathname()
   const { accessToken, logout, status, user: clientUser } = useAuth()
   const user = status === 'loading' ? initialUser : clientUser
@@ -108,7 +130,7 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
 
   useEffect(() => {
     if (!accessToken) {
-      setUnreadNotificationCount(0)
+      if (status !== 'loading') setUnreadNotificationCount(0)
       return
     }
     let active = true
@@ -121,6 +143,35 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
   async function handleLogout() {
     await logout()
     setMobileMenuOpen(false)
+  }
+
+  async function openWriterApplicationDialog() {
+    if (!features?.writer_application) {
+      setWriterApplicationOpen(true)
+      return
+    }
+    if (!accessToken) return
+
+    try {
+      const [bankResult, statusResult, profileResult] = await Promise.all([
+        getBankConfigs(accessToken),
+        getWriterApplicationStatus(accessToken),
+        getMyProfile(accessToken),
+      ])
+      setWriterApplicationData({
+        banks: bankResult.banks,
+        isPending: statusResult.status === 'pending',
+        hasSocialLink: Object.values(profileResult.profile.social_links ?? {}).some((value) => Boolean(value?.trim())),
+      })
+      setWriterApplicationOpen(true)
+    } catch {
+      toast.error('ไม่สามารถตรวจสอบข้อมูลสำหรับสมัครเป็นนักเขียนได้ กรุณาลองใหม่อีกครั้ง')
+    }
+  }
+
+  function handleWriterApplicationOpenChange(open: boolean) {
+    setWriterApplicationOpen(open)
+    if (!open) setWriterApplicationData(null)
   }
 
   const userInitial = user?.display_name.trim().charAt(0)
@@ -146,7 +197,9 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
           </div>
 
           <div className="hidden shrink-0 items-center gap-1 md:flex">
-            <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
+            <Link href="/search" aria-label="ค้นหา" title="ค้นหา" className="readji-icon-button">
+              <Search className="size-5" />
+            </Link>
             {user?.role === userRole.WRITER ? (
               <Link
                 href="/writer"
@@ -159,7 +212,7 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
             ) : user?.role === userRole.USER ? (
               <button
                 type="button"
-                onClick={() => setWriterApplicationOpen(true)}
+                onClick={() => void openWriterApplicationDialog()}
                 aria-label="สมัครนักเขียน"
                 title="สมัครนักเขียน"
                 className="readji-icon-button cursor-pointer"
@@ -170,10 +223,13 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
               <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
             )}
             {user ? (
-              <Link href="/notifications" aria-label={unreadNotificationCount > 0 ? `การแจ้งเตือนใหม่ ${unreadNotificationCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
-                <Bell className="size-5" />
-                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
-              </Link>
+              <NotificationBell
+                apiUrl={SITE_CONFIG.apiUrl}
+                accessToken={accessToken}
+                unreadCount={unreadNotificationCount}
+                onUnreadCountChange={setUnreadNotificationCount}
+                onNotificationClick={(notification) => setSelectedNotification(notification)}
+              />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end gap-2">
               {status === 'loading' && !user ? (
@@ -222,9 +278,11 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
                     </div>
 
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled className="py-2.5">
+                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                      <Link href="/profile">
                       <UserRound />
                       โปรไฟล์
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer py-2.5">
                       <Link href="/topup">
@@ -233,7 +291,7 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled className="py-2.5">
-                      <History />
+                      <HistoryIcon />
                       ประวัติการทำรายการ
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -258,12 +316,17 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5 md:hidden">
-            <DisabledIconButton label="ค้นหา"><Search className="size-5" /></DisabledIconButton>
+            <Link href="/search" aria-label="ค้นหา" title="ค้นหา" className="readji-icon-button">
+              <Search className="size-5" />
+            </Link>
             {user ? (
-              <Link href="/notifications" aria-label={unreadNotificationCount > 0 ? `การแจ้งเตือนใหม่ ${unreadNotificationCount} รายการ` : 'การแจ้งเตือน'} title="การแจ้งเตือน" className="readji-icon-button relative">
-                <Bell className="size-5" />
-                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
-              </Link>
+              <NotificationBell
+                apiUrl={SITE_CONFIG.apiUrl}
+                accessToken={accessToken}
+                unreadCount={unreadNotificationCount}
+                onUnreadCountChange={setUnreadNotificationCount}
+                onNotificationClick={(notification) => setSelectedNotification(notification)}
+              />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <button
               type="button"
@@ -314,15 +377,14 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
                 หน้าแรก
               </Link>
               {[
-                { label: 'ฟีด', icon: Rss },
-                { label: 'ประวัติ', icon: History },
+                { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
                 { label: 'ค้นหานิยาย', icon: Search },
                 { label: user?.role === userRole.WRITER ? 'Writer Studio' : 'สมัครนักเขียน', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined, canApply: user?.role === userRole.USER },
               ].map(({ label, icon: Icon, href, canApply }) => canApply ? (
                 <button
                   key={label}
                   type="button"
-                  onClick={() => { setMobileMenuOpen(false); setWriterApplicationOpen(true) }}
+                  onClick={() => { setMobileMenuOpen(false); void openWriterApplicationDialog() }}
                   className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                 >
                   <Icon className="size-5 text-primary" />
@@ -386,13 +448,15 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
                     <LogIn className="size-4" />
                     เข้าสู่ระบบ
                   </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex w-full items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
-                  >
-                    สมัครสมาชิก
-                  </Link>
+                  {features?.registration && (
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex w-full items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground hover:bg-accent"
+                    >
+                      สมัครสมาชิก
+                    </Link>
+                  )}
                 </>
               )}
             </div>
@@ -400,7 +464,16 @@ export function NavbarClient({ initialUser }: { initialUser: AuthUser | null }) 
         </div>
       )}
 
-      <WriterApplicationDialog open={writerApplicationOpen} onOpenChange={setWriterApplicationOpen} />
+      <WriterApplicationDialog
+        open={writerApplicationOpen}
+        onOpenChange={handleWriterApplicationOpenChange}
+        writerApplicationEnabled={features?.writer_application === true}
+        banks={writerApplicationData?.banks ?? []}
+        isPending={writerApplicationData?.isPending ?? false}
+        hasSocialLink={writerApplicationData?.hasSocialLink ?? false}
+      />
+
+      <NotificationDetailDialog notification={selectedNotification} onOpenChange={(open) => { if (!open) setSelectedNotification(null) }} />
     </>
   )
 }

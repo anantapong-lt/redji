@@ -11,7 +11,6 @@ export const adminSiteConfigBodySchema = t.Object({
     tagline: t.String({ maxLength: 255 }),
     description: t.String({ maxLength: 1000 }),
     site_url: t.String({ format: 'uri', maxLength: 500 }),
-    admin_url: t.String({ format: 'uri', maxLength: 500 }),
     coin_name: t.String({ minLength: 1, maxLength: 50 }),
   }),
   topup: t.Object({

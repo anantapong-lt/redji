@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle2, ChevronLeft, ChevronRight, CircleX, ClipboardCheck, Eye, MoreHorizontal, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
@@ -38,6 +38,7 @@ interface WriterApplication {
   username: string
   email: string
   phone_number: string | null
+  social_links: Record<string, string>
   balance: string
   user_status: 'active' | 'banned'
   email_verified_at: string | null
@@ -63,6 +64,15 @@ interface BankConfig {
   code: string
   name: string
   logo: string
+}
+
+const SOCIAL_LABELS: Record<string, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  x: 'X',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  website: 'เว็บไซต์',
 }
 
 function formatDate(value: string) {
@@ -91,6 +101,7 @@ export default function WriterApplicationsPage() {
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const applicationsRequestId = useRef(0)
   const [reviewing, setReviewing] = useState<{ application: WriterApplication; action: 'approve' | 'reject' } | null>(
     null,
   )
@@ -100,6 +111,7 @@ export default function WriterApplicationsPage() {
 
   const loadApplications = useCallback(async () => {
     if (!accessToken) return
+    const requestId = ++applicationsRequestId.current
     setIsLoading(true)
     setError(null)
     const query = new URLSearchParams({ page: String(page), limit: '20' })
@@ -112,11 +124,12 @@ export default function WriterApplicationsPage() {
       })
       const body = (await response.json().catch(() => null)) as ApplicationsResponse | { message?: string } | null
       if (!response.ok) throw new Error(body && 'message' in body ? body.message : 'ไม่สามารถโหลดใบสมัครนักเขียนได้')
-      setData(body as ApplicationsResponse)
+      if (requestId === applicationsRequestId.current) setData(body as ApplicationsResponse)
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'ไม่สามารถโหลดใบสมัครนักเขียนได้')
+      if (requestId === applicationsRequestId.current)
+        setError(loadError instanceof Error ? loadError.message : 'ไม่สามารถโหลดใบสมัครนักเขียนได้')
     } finally {
-      setIsLoading(false)
+      if (requestId === applicationsRequestId.current) setIsLoading(false)
     }
   }, [accessToken, page, status, submittedSearch])
 
@@ -223,7 +236,7 @@ export default function WriterApplicationsPage() {
             >
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue>
-                  {() => (status === 'all' ? 'ทุกสถานะ' : WRITER_APPLICATION_STATUS_LABEL[status])}
+                  {status === 'all' ? 'ทุกสถานะ' : WRITER_APPLICATION_STATUS_LABEL[status]}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -433,6 +446,25 @@ export default function WriterApplicationsPage() {
                         ? formatDate(detailsApplication.last_login_at)
                         : 'ยังไม่เคยเข้าใช้งาน'}
                     </p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-muted-foreground">Social</p>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
+                      {Object.entries(detailsApplication.social_links ?? {})
+                        .filter(([key, value]) => SOCIAL_LABELS[key] && value.trim())
+                        .map(([key, value]) => (
+                          <a
+                            key={key}
+                            href={value}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {SOCIAL_LABELS[key]}: {value}
+                          </a>
+                        ))}
+                      {Object.values(detailsApplication.social_links ?? {}).every((value) => !value.trim()) && <p>-</p>}
+                    </div>
                   </div>
                 </div>
               </section>

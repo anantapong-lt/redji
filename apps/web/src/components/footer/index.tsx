@@ -38,7 +38,7 @@ function FooterItem({ label, icon: Icon, href }: { label: string; icon: typeof H
   )
 }
 
-export function Footer() {
+export function Footer({ registrationEnabled }: { registrationEnabled: boolean }) {
   const pathname = usePathname()
   if (/^\/content\/[^/]+\/[^/]+$/.test(pathname)) return null
 
@@ -67,7 +67,7 @@ export function Footer() {
             </ul>
             <div className="mt-4 flex gap-3 text-sm">
               <Link href="/login" className="text-[#F1F1EF]/70 hover:text-[#F1F1EF]">เข้าสู่ระบบ</Link>
-              <Link href="/register" className="text-[#F1F1EF]/70 hover:text-[#F1F1EF]">สมัครสมาชิก</Link>
+              {registrationEnabled && <Link href="/register" className="text-[#F1F1EF]/70 hover:text-[#F1F1EF]">สมัครสมาชิก</Link>}
             </div>
           </div>
 

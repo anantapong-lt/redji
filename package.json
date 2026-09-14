@@ -6,7 +6,8 @@
     "dev": "concurrently -n WEB,API,ADMIN -c blue,green,magenta \"bun run web\" \"bun run api\" \"bun run admin\"",
     "api": "bun run --cwd apps/api dev",
     "web": "bun run --cwd apps/web dev",
-    "admin": "bun run --cwd apps/admin dev"
+    "admin": "bun run --cwd apps/admin dev",
+    "tts": "cd apps/tts-agent && ./.venv/Scripts/python.exe -m readji_tts_agent.app"
   },
   "dependencies": {},
   "devDependencies": {

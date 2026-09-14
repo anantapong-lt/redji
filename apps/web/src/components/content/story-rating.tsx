@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { Star } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
+import { LoginRequiredDialog } from '@/components/auth/login-required-dialog'
 import { ratePublicContent } from '@/controllers/content.controller'
 
 function formatRating(value: number) {
@@ -24,18 +24,18 @@ export function StoryRating({
   initialCount: number
   initialUserRating: number | null
 }) {
-  const router = useRouter()
   const { accessToken, status } = useAuth()
   const [average, setAverage] = useState(initialAverage)
   const [count, setCount] = useState(initialCount)
   const [userRating, setUserRating] = useState(initialUserRating)
   const [hoveredRating, setHoveredRating] = useState<number | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isLoginRequiredDialogOpen, setIsLoginRequiredDialogOpen] = useState(false)
   const activeRating = hoveredRating ?? userRating ?? 0
 
   async function submitRating(rating: number) {
     if (status !== 'authenticated' || !accessToken) {
-      router.push('/login')
+      setIsLoginRequiredDialogOpen(true)
       return
     }
     if (isUpdating) return
@@ -87,6 +87,10 @@ export function StoryRating({
           ({count.toLocaleString('th-TH')})
         </span>
       </span>
+      <LoginRequiredDialog
+        open={isLoginRequiredDialogOpen}
+        onOpenChange={setIsLoginRequiredDialogOpen}
+      />
     </div>
   )
 }

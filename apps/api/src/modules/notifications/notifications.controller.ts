@@ -1,6 +1,6 @@
 import { status } from 'elysia'
 import type { notificationsQuerySchema } from './notifications.schema'
-import { findNotifications, findUnreadNotificationCount, markNotificationRead } from './notifications.service'
+import { findNotifications, findUnreadNotificationCount, markAllNotificationsRead, markNotificationRead } from './notifications.service'
 
 export async function getNotifications(userId: string, query: typeof notificationsQuerySchema.static) {
   try {
@@ -26,6 +26,16 @@ export async function readNotification(userId: string, notificationId: string) {
     return notification ? { notification } : status(404, { message: 'ไม่พบการแจ้งเตือน' })
   } catch (error) {
     console.error('Unable to mark notification as read', error)
+    return status(500, { message: 'ไม่สามารถอัปเดตการแจ้งเตือนได้' })
+  }
+}
+
+export async function readAllNotifications(userId: string) {
+  try {
+    await markAllNotificationsRead(userId)
+    return { success: true }
+  } catch (error) {
+    console.error('Unable to mark all notifications as read', error)
     return status(500, { message: 'ไม่สามารถอัปเดตการแจ้งเตือนได้' })
   }
 }

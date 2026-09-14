@@ -1,5 +1,6 @@
 import { db } from '../../db'
-import type { StoryType } from '../../models/story.model'
+import { CHAPTER_STATUS, STORY_STATUS, type StoryType } from '../../models/story.model'
+import { USER_STATUS } from '../../models/user.model'
 import type { LandingSection } from './landing.schema'
 
 interface LandingStory {
@@ -11,6 +12,7 @@ interface LandingStory {
   type: StoryType
   total_views: string
   ranking_views: string
+  favorite_count: string
   rating_average: string
   rating_count: string
   author: {
@@ -47,8 +49,13 @@ export async function getLandingStories(
   section: LandingSection,
   page: number,
   limit: number,
+  categorySlugs: string[] = [],
+  search = '',
+  contentType: StoryType | null = null,
 ): Promise<LandingResult> {
   const offset = (page - 1) * limit
+  const searchPattern = `%${search}%`
+  const categorySlugArray = db.array(categorySlugs, 'TEXT')
   const [stories, [count]] = await Promise.all([
     db<LandingStory[]>`
       SELECT
@@ -62,8 +69,11 @@ export async function getLandingStories(
         CASE
           WHEN ${section} = 'weekly'
             THEN COALESCE(weekly_stats.weekly_views, 0)::TEXT
+          WHEN ${section} = 'most-followed'
+            THEN COALESCE(favorite_stats.favorite_count, 0)::TEXT
           ELSE stories.total_views::TEXT
         END AS ranking_views,
+        COALESCE(favorite_stats.favorite_count, 0)::TEXT AS favorite_count,
         COALESCE(rating_stats.rating_average, '0.0') AS rating_average,
         COALESCE(rating_stats.rating_count, '0') AS rating_count,
         json_build_object(
@@ -84,7 +94,7 @@ export async function getLandingStories(
           chapters.published_at
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = 'published'
+          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
           AND chapters.published_at <= NOW()
         ORDER BY chapters.chapter_number DESC, chapters.id DESC
         LIMIT 1
@@ -104,18 +114,39 @@ export async function getLandingStories(
         )
         GROUP BY story_id
       ) AS weekly_stats ON weekly_stats.story_id = stories.id
-      WHERE stories.status IN ('ongoing', 'completed')
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::BIGINT AS favorite_count
+        FROM story_favorites
+        WHERE story_favorites.story_id = stories.id
+      ) AS favorite_stats ON TRUE
+      WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
-        AND users.status = 'active'
+        AND users.status = ${USER_STATUS.ACTIVE}
         AND users.deleted_at IS NULL
+        AND (${search} = '' OR stories.title ILIKE ${searchPattern})
+        AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
+        AND (
+          CARDINALITY(${categorySlugArray}) = 0
+          OR EXISTS (
+            SELECT 1
+            FROM genres
+            WHERE (
+              LOWER(genres.slug) = ANY(${categorySlugArray})
+              OR genres.id::TEXT = ANY(${categorySlugArray})
+            )
+              AND (genres.id = stories.primary_genre_id OR genres.id = stories.secondary_genre_id)
+          )
+        )
         AND (
           ${section} <> 'weekly'
           OR COALESCE(weekly_stats.weekly_views, 0) > 0
         )
       ORDER BY
+        CASE WHEN ${section} = 'random' THEN md5(stories.id::TEXT) END ASC,
         CASE WHEN ${section} = 'latest' THEN latest_chapter.published_at END DESC,
         CASE WHEN ${section} = 'weekly' THEN COALESCE(weekly_stats.weekly_views, 0) END DESC,
         CASE WHEN ${section} IN ('popular', 'all-time') THEN stories.total_views END DESC,
+        CASE WHEN ${section} = 'most-followed' THEN COALESCE(favorite_stats.favorite_count, 0) END DESC,
         stories.id DESC
       LIMIT ${limit}
       OFFSET ${offset}
@@ -124,10 +155,24 @@ export async function getLandingStories(
       SELECT COUNT(*)::TEXT AS total
       FROM stories
       INNER JOIN users ON users.id = stories.creator_user_id
-      WHERE stories.status IN ('ongoing', 'completed')
+      WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
-        AND users.status = 'active'
+        AND users.status = ${USER_STATUS.ACTIVE}
         AND users.deleted_at IS NULL
+        AND (${search} = '' OR stories.title ILIKE ${searchPattern})
+        AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
+        AND (
+          CARDINALITY(${categorySlugArray}) = 0
+          OR EXISTS (
+            SELECT 1
+            FROM genres
+            WHERE (
+              LOWER(genres.slug) = ANY(${categorySlugArray})
+              OR genres.id::TEXT = ANY(${categorySlugArray})
+            )
+              AND (genres.id = stories.primary_genre_id OR genres.id = stories.secondary_genre_id)
+          )
+        )
         AND (
           ${section} <> 'weekly'
           OR EXISTS (
@@ -144,7 +189,7 @@ export async function getLandingStories(
           SELECT 1
           FROM chapters
           WHERE chapters.story_id = stories.id
-            AND chapters.status = 'published'
+            AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
             AND chapters.published_at <= NOW()
         )
     `,

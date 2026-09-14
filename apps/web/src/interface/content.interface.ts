@@ -144,3 +144,45 @@ export interface PublicChapterResponse {
     has_next_page: boolean
   }
 }
+
+export const CHAPTER_COMMENT_REACTION_TYPES = [
+  'like',
+  'love',
+  'wow',
+  'haha',
+  'sad',
+  'angry',
+] as const
+
+export type ChapterCommentReaction = (typeof CHAPTER_COMMENT_REACTION_TYPES)[number]
+
+export interface ChapterComment {
+  id: string
+  parent_comment_id: string | null
+  body: string
+  created_at: string
+  is_chapter_owner: boolean
+  author: {
+    id: string
+    username: string
+    display_name: string
+    avatar_url: string | null
+  }
+  reaction_counts: Partial<Record<ChapterCommentReaction, number>>
+  user_reaction: ChapterCommentReaction | null
+  replies: ChapterComment[]
+}
+
+export interface ChapterCommentsResponse {
+  comments: ChapterComment[]
+  pagination: {
+    page: number
+    limit: number
+    has_more: boolean
+  }
+}
+
+export interface ChapterCommentReactionResponse {
+  reaction_counts: Partial<Record<ChapterCommentReaction, number>>
+  user_reaction: ChapterCommentReaction | null
+}

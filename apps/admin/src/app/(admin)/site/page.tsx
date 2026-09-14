@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 
 type Package = { amount: string; bonus: string }
 interface Config {
-  site: { name: string; tagline: string; description: string; site_url: string; admin_url: string; coin_name: string }
+  site: { name: string; tagline: string; description: string; site_url: string; coin_name: string }
   topup: { packages: Package[] }
   withdrawal: { commission_percent: string }
   features: Record<'registration' | 'writer_application' | 'comments' | 'topup' | 'withdrawals', boolean>
@@ -140,7 +140,6 @@ export default function SiteSettingsPage() {
               ['name', 'ชื่อเว็บไซต์'],
               ['tagline', 'คำโปรย'],
               ['site_url', 'URL เว็บไซต์'],
-              ['admin_url', 'URL Admin'],
               ['coin_name', 'ชื่อเหรียญ'],
             ] as const
           ).map(([key, label]) => (

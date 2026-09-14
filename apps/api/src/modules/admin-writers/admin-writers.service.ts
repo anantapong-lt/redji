@@ -1,5 +1,5 @@
 import { db } from '../../db'
-import { USER_ROLE, type UserStatus } from '../../models/user.model'
+import { USER_ROLE, USER_STATUS, type UserStatus } from '../../models/user.model'
 
 export interface AdminWriter {
   id: string
@@ -80,4 +80,19 @@ export function findAdminWriters(page: number, limit: number, search: string, st
     ORDER BY users.created_at DESC, users.id DESC
     LIMIT ${limit} OFFSET ${(page - 1) * limit}
   `
+}
+
+export async function updateAdminWriterStatus(id: string, status: UserStatus, banReason: string | null): Promise<{ id: string; status: UserStatus } | null> {
+  const [writer] = await db<Array<{ id: string; status: UserStatus }>>`
+    UPDATE users
+    SET status = ${status},
+        ban_reason = ${status === USER_STATUS.BANNED ? banReason : null},
+        banned_at = ${status === USER_STATUS.BANNED ? new Date() : null},
+        updated_at = NOW()
+    WHERE id = ${id}
+      AND role = ${USER_ROLE.WRITER}
+      AND deleted_at IS NULL
+    RETURNING id, status
+  `
+  return writer ?? null
 }

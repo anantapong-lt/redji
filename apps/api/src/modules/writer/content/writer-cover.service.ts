@@ -114,13 +114,14 @@ export async function optimizeWriterCover(
   }
 }
 
-export async function uploadWriterCover(
+export async function uploadPublicCover(
   file: File,
+  keyPrefix: string,
   options?: WriterCoverOptimizationOptions,
 ) {
   const optimizedCover = await optimizeWriterCover(file, options)
 
-  const key = `stories/covers/${crypto.randomUUID()}.${OPTIMIZED_WRITER_COVER_EXTENSION}`
+  const key = `${keyPrefix}/${crypto.randomUUID()}.${OPTIMIZED_WRITER_COVER_EXTENSION}`
   const r2 = createR2Client()
 
   await r2.write(key, optimizedCover.body, { type: optimizedCover.contentType })
@@ -130,6 +131,13 @@ export async function uploadWriterCover(
     cover_url: `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`,
     cover_blur_data_url: optimizedCover.blurDataUrl,
   }
+}
+
+export async function uploadWriterCover(
+  file: File,
+  options?: WriterCoverOptimizationOptions,
+) {
+  return uploadPublicCover(file, 'stories/covers', options)
 }
 
 export async function deleteWriterCover(key: string): Promise<void> {

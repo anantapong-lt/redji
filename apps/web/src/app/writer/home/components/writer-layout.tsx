@@ -3,19 +3,19 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { NotificationBell, NotificationDetailDialog, type NotificationItem } from '@readji/shared/src/notification-bell'
 import {
   Banknote,
   BarChart3,
   BookOpen,
   FileText,
-  Flag,
   Home,
   Menu,
-  MessageSquare,
   UserCog,
   X,
 } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
+import { useAuth } from '@/components/auth/auth-provider'
 import type { AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 
@@ -23,12 +23,10 @@ const writerNavigation = [
   { href: '/writer', label: 'แดชบอร์ด', icon: BarChart3, enabled: true },
   { href: '/writer/contents/?tab=novel', label: 'ผลงาน', icon: BookOpen, enabled: true },
   { href: '/writer/withdrawals', label: 'ถอนเงิน', icon: Banknote, enabled: true },
-  { href: '/writer/reports', label: 'รายงานที่ได้รับ', icon: Flag, enabled: false },
 ] as const
 
 const writerInformationNavigation = [
   { label: 'ข้อมูลนักเขียน', icon: UserCog },
-  { label: 'ข่าวสาร', icon: MessageSquare },
   { label: 'ข้อกำหนดการใช้งาน', icon: FileText },
 ] as const
 
@@ -53,7 +51,9 @@ function DisabledNavigationItem({
 
 export function WriterLayout({ children, user }: { children: ReactNode; user: AuthUser }) {
   const pathname = usePathname()
+  const { accessToken } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null)
 
   useEffect(() => {
     setIsMobileMenuOpen(false)
@@ -154,18 +154,23 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
             {writerInformationNavigation.map(({ icon, label }) => (
               <DisabledNavigationItem key={label} icon={icon} label={label} />
             ))}
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
-            >
-              <Home className="size-4 shrink-0" strokeWidth={1.8} />
-              <span>กลับหน้าแรก</span>
-            </Link>
           </div>
         </nav>
 
-        <footer className="border-t border-sidebar-border p-3">
+        <div className="px-3 pb-2">
+          <Link
+            href="/"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex min-h-10 items-center gap-3 rounded-xl px-2 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
+          >
+            <Home className="size-4 shrink-0" strokeWidth={1.8} />
+            <span>กลับหน้าแรก</span>
+          </Link>
+        </div>
+
+        <div className="mx-3 border-t border-sidebar-border" />
+
+        <footer className="p-3">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
             <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
               {user.avatar_url ? (
@@ -176,11 +181,21 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
               <p className="truncate text-sm font-bold">{user.display_name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
+            <NotificationBell
+              apiUrl={SITE_CONFIG.apiUrl}
+              accessToken={accessToken}
+              side="top"
+              align="end"
+              triggerClassName="relative flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onNotificationClick={setSelectedNotification}
+            />
           </div>
         </footer>
       </aside>
 
       {children}
+
+      <NotificationDetailDialog notification={selectedNotification} onOpenChange={(open) => { if (!open) setSelectedNotification(null) }} layerClassName="z-[80]" />
     </div>
   )
 }

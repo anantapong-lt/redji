@@ -4,6 +4,7 @@ import { db } from '../../db'
 export interface GenreOption {
   value: string
   label: string
+  slug: string
 }
 
 const GENRE_OPTIONS_CACHE_KEY = 'genre-options:all'
@@ -13,7 +14,9 @@ function isGenreOption(value: unknown): value is GenreOption {
   if (!value || typeof value !== 'object') return false
 
   const option = value as Record<string, unknown>
-  return typeof option.value === 'string' && typeof option.label === 'string'
+  return typeof option.value === 'string'
+    && typeof option.label === 'string'
+    && typeof option.slug === 'string'
 }
 
 function parseCachedGenreOptions(value: string): GenreOption[] | null {
@@ -37,7 +40,7 @@ export async function getGenreOptions(): Promise<GenreOption[]> {
   }
 
   const options = await db<GenreOption[]>`
-    SELECT id::TEXT AS value, name AS label
+    SELECT id::TEXT AS value, name AS label, slug
     FROM genres
     ORDER BY name ASC
   `

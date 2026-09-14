@@ -1,6 +1,6 @@
 import type { StoryType } from '@/constants/story.constant'
 
-export type LandingSection = 'latest' | 'popular' | 'weekly' | 'all-time'
+export type LandingSection = 'random' | 'latest' | 'popular' | 'weekly' | 'all-time' | 'most-followed'
 
 export interface LandingStory {
   id: string
@@ -11,6 +11,7 @@ export interface LandingStory {
   type: StoryType
   total_views: string
   ranking_views: string
+  favorite_count: string
   rating_average: string
   rating_count: string
   author: {

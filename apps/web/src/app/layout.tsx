@@ -19,6 +19,20 @@ export const metadata: Metadata = {
     title: SITE_CONFIG.name,
     description: SITE_CONFIG.description,
     type: 'website',
+    images: [
+      {
+        url: '/icon.png',
+        width: 640,
+        height: 640,
+        alt: `โลโก้ ${SITE_CONFIG.name}`,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_CONFIG.name,
+    description: SITE_CONFIG.description,
+    images: ['/icon.png'],
   },
 }
 

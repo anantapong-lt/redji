@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,8 +20,9 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>
 
-export function LoginForm() {
+export function LoginForm({ registrationEnabled }: { registrationEnabled: boolean }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login, status } = useAuth()
   const [previewMessage, setPreviewMessage] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
@@ -44,7 +45,9 @@ export function LoginForm() {
 
     try {
       const session = await login(values.email, values.password, turnstileToken ?? undefined)
-      router.replace(session.user.role === userRole.WRITER ? '/writer' : '/')
+      const next = searchParams.get('next')
+      const returnTo = next?.startsWith('/') && !next.startsWith('//') ? next : null
+      router.replace(returnTo ?? (session.user.role === userRole.WRITER ? '/writer' : '/'))
     } catch (error) {
       setError('root', {
         message: error instanceof ApiError
@@ -142,7 +145,7 @@ export function LoginForm() {
         <span aria-disabled="true" title="ยังไม่เปิดใช้งาน" className="cursor-not-allowed text-muted-foreground opacity-45">
           ลืมรหัสผ่าน
         </span>
-        <Link href="/register" className="text-primary hover:underline">สมัครสมาชิก</Link>
+        {registrationEnabled && <Link href="/register" className="text-primary hover:underline">สมัครสมาชิก</Link>}
       </div>
     </form>
   )

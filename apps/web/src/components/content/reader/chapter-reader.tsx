@@ -15,6 +15,7 @@ import {
   type ReadingSettings,
 } from '@/lib/reading-settings'
 import { ChapterNavigation } from './chapter-navigation'
+import { ChapterComments } from './chapter-comments'
 import { ChapterReaderHeader } from './chapter-reader-header'
 import { MangaChapterContent } from './manga-chapter-content'
 import { NovelChapterContent } from './novel-chapter-content'
@@ -26,7 +27,7 @@ function toPurchasableChapter(chapter: PublicReaderChapter): PublicChapter {
   }
 }
 
-export function ChapterReader({ data }: { data: PublicChapterResponse }) {
+export function ChapterReader({ data, commentsEnabled }: { data: PublicChapterResponse; commentsEnabled: boolean }) {
   const router = useRouter()
   const [settings, setSettings] = useState<ReadingSettings>(DEFAULT_READING_SETTINGS)
   const [chapters, setChapters] = useState(data.chapters)
@@ -140,6 +141,13 @@ export function ChapterReader({ data }: { data: PublicChapterResponse }) {
         floating
         visible={navigationVisible}
       />
+
+      {commentsEnabled ? (
+        <ChapterComments
+          slug={data.story.slug}
+          chapterNumber={String(Number(data.chapter.chapter_number))}
+        />
+      ) : null}
 
       {pendingChapter ? (
         <ChapterPurchaseDialog

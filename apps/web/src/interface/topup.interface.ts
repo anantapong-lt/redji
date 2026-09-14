@@ -1,5 +1,17 @@
 export type TopupStatus = 'pending' | 'paid' | 'expired' | 'failed'
 
+export interface TopupPackage {
+  amount: string
+  bonus: string
+}
+
+export interface TopupPageConfig {
+  topup: {
+    packages: TopupPackage[]
+  }
+  enabled: boolean
+}
+
 export interface TopupTransaction {
   id: string
   requested_amount: string

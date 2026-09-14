@@ -1,50 +1,40 @@
-import Image from 'next/image'
 import Link from 'next/link'
-import { POPULAR_NOVELS } from '@/components/home/home-mock-data'
+import { BookOpen } from 'lucide-react'
+import type { RandomWriterProfile } from '@/interface/profile.interface'
 
-const RISING_AUTHORS = POPULAR_NOVELS.slice(0, 5)
-
-export function RisingAuthorsSection() {
+export function RisingAuthorsSection({ profiles }: { profiles: RandomWriterProfile[] }) {
   return (
     <aside aria-labelledby="rising-authors-heading" className="w-full">
       <div className="rounded-md bg-card p-4">
         <h2 id="rising-authors-heading" className="text-lg font-bold tracking-tight text-foreground">
-          นักเขียนมาแรง
+          แนะนำนักเขียน
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground">นักเขียนที่กำลังได้รับความสนใจ</p>
+        <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <p>ค้นพบผลงานจากนักเขียนหลากหลายคน</p>
+          <span className="shrink-0 text-[10px] font-medium">เรื่อง</span>
+        </div>
 
         <ol className="mt-4 space-y-3">
-          {RISING_AUTHORS.map((story, index) => (
-            <li key={story.id}>
+          {profiles.map((profile) => (
+            <li key={profile.id}>
               <Link
-                href={`/author/${story.id}`}
+                href={`/profile/${encodeURIComponent(profile.username)}`}
                 className="group -mx-2 flex items-center gap-2.5 rounded-lg border border-transparent p-2 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/10 hover:shadow-sm"
               >
-                <span
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums transition-colors ${
-                    index === 0
-                      ? 'bg-primary text-white shadow-sm'
-                      : index < 3
-                        ? 'bg-secondary text-secondary-foreground'
-                        : 'text-muted-foreground group-hover:text-primary'
-                  }`}
-                >
-                  {index + 1}
-                </span>
                 <div className="relative size-9 shrink-0 overflow-hidden rounded-full border border-border bg-background">
-                  <Image
-                    src="/placeholder-user.jpg"
-                    alt={`รูปโปรไฟล์ของ ${story.author}`}
-                    fill
-                    sizes="36px"
-                    className="object-cover transition-transform duration-200 group-hover:scale-110"
-                  />
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="size-full object-cover transition-transform duration-200 group-hover:scale-110" />
+                  ) : (
+                    <span className="flex size-full items-center justify-center bg-primary text-xs font-bold text-primary-foreground">
+                      {profile.display_name.trim().charAt(0) || profile.username.charAt(0)}
+                    </span>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
                   <p className="truncate text-xs font-bold text-foreground transition-colors group-hover:text-primary">
-                    {story.author}
+                    {profile.display_name}
                   </p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{story.title}</p>
+                  <p className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground"><BookOpen className="size-3" />{Number(profile.story_count).toLocaleString()}</p>
                 </div>
               </Link>
             </li>

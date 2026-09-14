@@ -1,4 +1,6 @@
 import { db } from '../../db'
+import { NOTIFICATION_TYPE } from '../../models/notification.model'
+import { USER_ROLE, USER_STATUS } from '../../models/user.model'
 import { WITHDRAWAL_STATUS, type WithdrawalStatus } from '../../models/withdrawal.model'
 import type { WriterBankAccount } from '../writer-bank-account/writer-bank-account.service'
 
@@ -12,6 +14,7 @@ interface FeatureConfig {
 
 interface WriterAccountRow {
   balance: string
+  display_name: string
   status: string
   deleted_at: Date | null
 }
@@ -142,7 +145,7 @@ export async function createWriterWithdrawal(userId: string, amount: string) {
     if (bankAccount.application_status !== 'approve') throw new WriterWithdrawalError('บัญชีธนาคารของคุณยังไม่ได้รับการอนุมัติ', 403)
 
     const [writer] = await transaction<WriterAccountRow[]>`
-      SELECT balance::TEXT, status, deleted_at
+      SELECT balance::TEXT, display_name, status, deleted_at
       FROM users
       WHERE id = ${userId}
       FOR UPDATE
@@ -186,6 +189,20 @@ export async function createWriterWithdrawal(userId: string, amount: string) {
       INSERT INTO withdrawal_request_events (
         withdrawal_request_id, from_status, to_status, actor_user_id
       ) VALUES (${request.id}, NULL, ${WITHDRAWAL_STATUS.PENDING}, ${userId})
+    `
+    await transaction`
+      INSERT INTO notifications (user_id, type, title, message, target_url, data)
+      SELECT
+        id,
+        ${NOTIFICATION_TYPE.WITHDRAWAL_REQUESTED},
+        'มีคำขอถอนเงินใหม่',
+        ${`นักเขียน ${writer.display_name} ส่งคำขอถอนเงินจำนวน ${request.requested_amount}`},
+        '/transactions',
+        ${JSON.stringify({ withdrawal_request_id: request.id, writer_user_id: userId, status: WITHDRAWAL_STATUS.PENDING })}::JSONB
+      FROM users
+      WHERE role = ${USER_ROLE.SUPER_ADMIN}
+        AND status = ${USER_STATUS.ACTIVE}
+        AND deleted_at IS NULL
     `
     const [updatedWriter] = await transaction<{ balance: string }[]>`
       SELECT balance::TEXT FROM users WHERE id = ${userId}

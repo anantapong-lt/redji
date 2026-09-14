@@ -10,6 +10,7 @@ interface WriterApplicationRow {
   username: string
   email: string
   phone_number: string | null
+  social_links: Record<string, string>
   balance: string
   user_status: 'active' | 'banned'
   email_verified_at: Date | null
@@ -27,13 +28,17 @@ interface WriterApplicationRow {
   user_role: string
 }
 
-const select = `wba.id, wba.writer_user_id, applicant.display_name, applicant.username, applicant.email, applicant.phone_number, applicant.balance::TEXT, applicant.status AS user_status, applicant.email_verified_at, applicant.last_login_at, applicant.created_at AS user_created_at, wba.account_holder_first_name, wba.account_holder_last_name, wba.bank_code, wba.account_number, wba.application_status, wba.created_at, wba.reviewed_at, wba.review_note, reviewer.email AS reviewed_by, applicant.role AS user_role`
+const select = `wba.id, wba.writer_user_id, applicant.display_name, applicant.username, applicant.email, applicant.phone_number, applicant.social_links, applicant.balance::TEXT, applicant.status AS user_status, applicant.email_verified_at, applicant.last_login_at, applicant.created_at AS user_created_at, wba.account_holder_first_name, wba.account_holder_last_name, wba.bank_code, wba.account_number, wba.application_status, wba.created_at, wba.reviewed_at, wba.review_note, reviewer.email AS reviewed_by, applicant.role AS user_role`
 
 export class WriterApplicationError extends Error {
   constructor(message: string, readonly statusCode: 400 | 404 | 409) {
     super(message)
     this.name = 'WriterApplicationError'
   }
+}
+
+function writerApplicationStatusFilter(status: WriterApplicationStatus | null) {
+  return status ? db`AND wba.application_status = ${status}` : db``
 }
 
 export async function countWriterApplications(status: WriterApplicationStatus | null, search: string) {
@@ -43,7 +48,7 @@ export async function countWriterApplications(status: WriterApplicationStatus | 
     INNER JOIN users applicant ON applicant.id = wba.writer_user_id
     WHERE wba.status = 'active'
       AND applicant.deleted_at IS NULL
-      AND (${status}::TEXT IS NULL OR wba.application_status = ${status})
+      ${writerApplicationStatusFilter(status)}
       AND (
         ${search} = ''
         OR STRPOS(LOWER(applicant.display_name), LOWER(${search})) > 0
@@ -62,7 +67,7 @@ export function findWriterApplications(page: number, limit: number, status: Writ
     LEFT JOIN users reviewer ON reviewer.id = wba.reviewed_by_user_id
     WHERE wba.status = 'active'
       AND applicant.deleted_at IS NULL
-      AND (${status}::TEXT IS NULL OR wba.application_status = ${status})
+      ${writerApplicationStatusFilter(status)}
       AND (
         ${search} = ''
         OR STRPOS(LOWER(applicant.display_name), LOWER(${search})) > 0

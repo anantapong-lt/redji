@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
+import { LoginRequiredDialog } from '@/components/auth/login-required-dialog'
 import {
   Dialog,
   DialogClose,
@@ -48,6 +49,7 @@ export function ChapterPurchaseDialog({
   const { accessToken, refresh, status, user } = useAuth()
   const [isPurchasing, setIsPurchasing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isLoginRequiredDialogOpen, setIsLoginRequiredDialogOpen] = useState(false)
   const balance = Number(user?.balance ?? 0)
   const price = chapters.reduce((total, chapter) => total + Number(chapter.price), 0)
   const remainingBalance = balance - price
@@ -62,7 +64,7 @@ export function ChapterPurchaseDialog({
   async function confirmPurchase() {
     if (chapters.length === 0) return
     if (status !== 'authenticated' || !accessToken) {
-      router.push('/login')
+      setIsLoginRequiredDialogOpen(true)
       return
     }
     if (!hasEnoughBalance || isPurchasing) return
@@ -108,6 +110,7 @@ export function ChapterPurchaseDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={!isPurchasing}
@@ -246,5 +249,10 @@ export function ChapterPurchaseDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <LoginRequiredDialog
+      open={isLoginRequiredDialogOpen}
+      onOpenChange={setIsLoginRequiredDialogOpen}
+    />
+    </>
   )
 }

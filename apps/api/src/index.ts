@@ -1,6 +1,7 @@
 import { cors } from '@elysiajs/cors'
 import { Elysia } from 'elysia'
 import { env } from './config/env'
+import { adminAccountsRoutes } from './modules/admin-accounts/admin-accounts.routes'
 import { adminUsersRoutes } from './modules/admin-users/admin-users.routes'
 import { adminWriterApplicationRoutes } from './modules/admin-writer-applications/admin-writer-applications.routes'
 import { adminWritersRoutes } from './modules/admin-writers/admin-writers.routes'
@@ -14,11 +15,14 @@ import { contentRoutes } from './modules/content/content.routes'
 import { genreOptionsRoutes } from './modules/genre-options/genre-options.routes'
 import { landingRoutes } from './modules/landing/landing.routes'
 import { notificationRoutes } from './modules/notifications/notifications.routes'
+import { profilesRoutes } from './modules/profiles/profiles.routes'
+import { siteConfigRoutes } from './modules/site-config/site-config.routes'
 import { topupRoutes } from './modules/topup/topup.routes'
 import { publishScheduledChapters } from './modules/writer/chapter/writer-chapter.service'
 import { writerRoutes } from './modules/writer/writer.routes'
 import { writerBankAccountRoutes } from './modules/writer-bank-account/writer-bank-account.routes'
 import { writerWithdrawalRoutes } from './modules/writer-withdrawals/writer-withdrawals.routes'
+import { ttsAgentRoutes } from './modules/tts-agent/tts-agent.routes'
 
 const CHAPTER_PUBLISH_INTERVAL_MS = 60_000
 
@@ -30,7 +34,7 @@ async function runChapterPublisher() {
     console.error('Unable to publish scheduled chapters', error)
   }
 }
-
+//asd
 const app = new Elysia()
   .use(
     cors({
@@ -38,6 +42,7 @@ const app = new Elysia()
       credentials: true,
     }),
   )
+  .use(adminAccountsRoutes)
   .use(adminUsersRoutes)
   .use(adminWriterApplicationRoutes)
   .use(adminWritersRoutes)
@@ -51,9 +56,12 @@ const app = new Elysia()
   .use(genreOptionsRoutes)
   .use(landingRoutes)
   .use(notificationRoutes)
+  .use(profilesRoutes)
+  .use(siteConfigRoutes)
   .use(topupRoutes)
   .use(writerBankAccountRoutes)
   .use(writerWithdrawalRoutes)
+  .use(ttsAgentRoutes)
   .use(writerRoutes)
 
 app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })
