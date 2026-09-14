@@ -12,6 +12,7 @@ import { IconInput, PasswordInput } from './form-inputs'
 import { TurnstileWidget } from './turnstile-widget'
 import { ApiError } from '@/lib/api-client'
 import { userRole } from '@/interface/user.interface'
+import { SITE_CONFIG } from '@/site.config'
 
 const loginSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
@@ -24,7 +25,7 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login, status } = useAuth()
-  const [previewMessage, setPreviewMessage] = useState('')
+  const oauthError = searchParams.get('oauth_error')
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [turnstileKey, setTurnstileKey] = useState(0)
   const turnstileRequired = process.env.NODE_ENV !== 'development'
@@ -36,8 +37,6 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
 
   async function onSubmit(values: LoginValues) {
-    setPreviewMessage('')
-
     if (turnstileRequired && !turnstileToken) {
       setError('root', { message: 'กรุณายืนยัน Cloudflare Turnstile' })
       return
@@ -58,6 +57,13 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
       setTurnstileToken(null)
       setTurnstileKey((current) => current + 1)
     }
+  }
+
+  function signInWithGoogle() {
+    const next = searchParams.get('next')
+    const url = new URL('/auth/google', SITE_CONFIG.apiUrl)
+    if (next?.startsWith('/') && !next.startsWith('//')) url.searchParams.set('next', next)
+    window.location.assign(url.toString())
   }
 
   return (
@@ -111,7 +117,7 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
 
       <button
         type="button"
-        onClick={() => setPreviewMessage('ปุ่มเข้าสู่ระบบด้วย Google ยังไม่ได้เชื่อมต่อระบบ')}
+        onClick={signInWithGoogle}
         className="flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 text-base font-medium text-black transition-colors hover:bg-muted"
       >
         <svg className="size-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -135,9 +141,9 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
         เข้าสู่ระบบด้วย Google
       </button>
 
-      {previewMessage && (
-        <p role="status" className="rounded-lg bg-muted px-3 py-2 text-center text-sm text-muted-foreground">
-          {previewMessage}
+      {oauthError && (
+        <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+          {oauthError}
         </p>
       )}
 

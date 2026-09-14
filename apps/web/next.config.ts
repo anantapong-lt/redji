@@ -64,7 +64,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  `img-src 'self' data: blob: https://images.unsplash.com${apiOrigin ? ` ${apiOrigin}` : ''}${publicMediaOrigin ? ` ${publicMediaOrigin}` : ''}${privateMangaR2Origin ? ` ${privateMangaR2Origin}` : ''}`,
+  `img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com${apiOrigin ? ` ${apiOrigin}` : ''}${publicMediaOrigin ? ` ${publicMediaOrigin}` : ''}${privateMangaR2Origin ? ` ${privateMangaR2Origin}` : ''}`,
   `media-src 'self' blob:${publicMediaOrigin ? ` ${publicMediaOrigin}` : ''}`,
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
@@ -123,6 +123,11 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
+      },
+      // Google account avatars returned by the OpenID Connect userinfo endpoint.
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
       // Public R2/custom-media host from env only. Do not allow every R2
       // bucket: NEXT_PUBLIC_R2_PUBLIC_URL is the exact host returned by API.

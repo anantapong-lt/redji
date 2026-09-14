@@ -1,5 +1,5 @@
 import { jwt } from '@elysiajs/jwt'
-import { Elysia } from 'elysia'
+import { Elysia, t } from 'elysia'
 import { env } from '../../config/env'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import {
@@ -19,6 +19,7 @@ import {
   revokeAuthSession,
   validateAuthSession,
 } from './auth.service'
+import { beginGoogleAuthentication, finishGoogleAuthentication } from './google-auth.controller'
 import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
 import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
 
@@ -43,6 +44,29 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       exp: '7d',
     }),
   )
+  .get('/google', ({ cookie, query }) => beginGoogleAuthentication('login', query.next, cookie), {
+    query: t.Object({ next: t.Optional(t.String({ maxLength: 2048 })) }, { additionalProperties: false }),
+  })
+  .get('/google/register', ({ cookie, query }) => beginGoogleAuthentication('register', query.next, cookie), {
+    query: t.Object({ next: t.Optional(t.String({ maxLength: 2048 })) }, { additionalProperties: false }),
+  })
+  .get('/google/callback', ({ cookie, query, refreshJwt }) => finishGoogleAuthentication(
+    query,
+    cookie,
+    async (userId, role) => {
+      const claims = { sub: userId, role }
+      const refreshTokenId = crypto.randomUUID()
+      const sessionId = await createAuthSession(userId, refreshTokenId)
+      const refreshToken = await refreshJwt.sign({ ...claims, jti: refreshTokenId, sid: sessionId, token_type: 'refresh' })
+      cookie[REFRESH_COOKIE_NAME].set({ value: refreshToken, ...REFRESH_COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_TTL_SECONDS })
+    },
+  ), {
+    query: t.Object({
+      code: t.Optional(t.String({ maxLength: 4096 })),
+      state: t.Optional(t.String({ maxLength: 512 })),
+      error: t.Optional(t.String({ maxLength: 256 })),
+    }, { additionalProperties: true }),
+  })
   .post(
     '/register',
     ({ body }) => registerWithEmail(body),

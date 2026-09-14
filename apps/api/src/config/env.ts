@@ -66,6 +66,7 @@ function positiveInteger(name: string, fallback: number): number {
 export const env = {
   NODE_ENV: nodeEnv,
   PORT: Number(process.env.PORT ?? 3001),
+  API_ORIGIN: process.env.API_ORIGIN?.trim() ?? `http://localhost:${process.env.PORT ?? 3001}`,
   WEB_ORIGIN: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
   ADMIN_ORIGIN: process.env.ADMIN_ORIGIN ?? 'http://localhost:3002',
   DATABASE_URL: required('DATABASE_URL'),
@@ -76,6 +77,8 @@ export const env = {
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL?.trim() ?? '',
   EMAIL_VERIFICATION_TTL_HOURS: positiveInteger('EMAIL_VERIFICATION_TTL_HOURS', 24),
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY?.trim() ?? '',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID?.trim() ?? '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET?.trim() ?? '',
   R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID?.trim() ?? '',
   R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID?.trim() ?? '',
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY?.trim() ?? '',

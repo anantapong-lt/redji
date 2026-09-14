@@ -17,6 +17,13 @@ export type AuthenticationResult =
   | { status: 'inactive' }
   | { status: 'unverified' }
 
+export type GoogleProfile = {
+  id: string
+  email: string
+  name: string
+  picture?: string
+}
+
 type RegistrationErrorStatus = 400 | 409 | 410
 
 export class RegistrationError extends Error {
@@ -316,4 +323,82 @@ export async function authenticateWithPassword(
       status: user.status,
     },
   }
+}
+
+function usernameBase(email: string): string {
+  const localPart = email.split('@')[0] ?? 'reader'
+  const normalized = localPart.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '')
+  return (normalized || 'reader').slice(0, 23)
+}
+
+function generatedUsername(email: string, attempt: number): string {
+  const suffix = `${Math.floor(Math.random() * 900000 + 100000)}${attempt || ''}`
+  return `${usernameBase(email).slice(0, 30 - suffix.length)}${suffix}`
+}
+
+/** Finds a Google account or creates it as an already verified account. */
+export async function authenticateWithGoogle(
+  profile: GoogleProfile,
+  allowRegistration: boolean,
+): Promise<{ user: AuthenticatedUser; created: boolean } | { status: 'inactive' | 'not_registered' }> {
+  const email = profile.email.trim().toLowerCase()
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await db.begin(async (transaction) => {
+        const [linkedUser] = await transaction<AuthenticatedUser[]>`
+          SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.balance, u.role, u.status
+          FROM user_oauth_accounts AS oauth
+          INNER JOIN users AS u ON u.id = oauth.user_id
+          WHERE oauth.provider = 'google'
+            AND oauth.provider_account_id = ${profile.id}
+            AND u.deleted_at IS NULL
+          LIMIT 1
+          FOR UPDATE
+        `
+
+        if (linkedUser) {
+          if (linkedUser.status !== 'active') return { status: 'inactive' as const }
+          await transaction`UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = ${linkedUser.id}`
+          return { user: linkedUser, created: false }
+        }
+
+        const [emailUser] = await transaction<AuthenticatedUser[]>`
+          SELECT id, email, username, display_name, avatar_url, balance, role, status
+          FROM users
+          WHERE LOWER(email) = ${email} AND deleted_at IS NULL
+          LIMIT 1
+          FOR UPDATE
+        `
+
+        if (emailUser) {
+          if (emailUser.status !== 'active') return { status: 'inactive' as const }
+          await transaction`
+            INSERT INTO user_oauth_accounts (user_id, provider, provider_account_id, provider_email)
+            VALUES (${emailUser.id}, 'google', ${profile.id}, ${email})
+          `
+          await transaction`UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = ${emailUser.id}`
+          return { user: emailUser, created: false }
+        }
+
+        if (!allowRegistration) return { status: 'not_registered' as const }
+
+        const [newUser] = await transaction<AuthenticatedUser[]>`
+          INSERT INTO users (email, username, display_name, avatar_url, email_verified_at, last_login_at)
+          VALUES (${email}, ${generatedUsername(email, attempt)}, ${profile.name.slice(0, 100) || email}, ${profile.picture ?? null}, NOW(), NOW())
+          RETURNING id, email, username, display_name, avatar_url, balance, role, status
+        `
+        if (!newUser) throw new Error('Unable to create Google user')
+        await transaction`
+          INSERT INTO user_oauth_accounts (user_id, provider, provider_account_id, provider_email)
+          VALUES (${newUser.id}, 'google', ${profile.id}, ${email})
+        `
+        return { user: newUser, created: true }
+      })
+    } catch (error) {
+      if (!isUniqueViolation(error) || attempt === 4) throw error
+    }
+  }
+
+  throw new Error('Unable to create Google user')
 }
