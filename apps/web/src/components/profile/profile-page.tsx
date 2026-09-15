@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react'
-import { BookOpenText, Camera, Edit3, Globe2, ImageUp, Link2, Star, UserRound } from 'lucide-react'
+import { BookOpenText, Camera, Edit3, Globe2, ImageUp, Link2, ShieldCheck, Star, UserRound } from 'lucide-react'
 import { FaFacebookF, FaInstagram, FaTiktok, FaXTwitter, FaYoutube } from 'react-icons/fa6'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -12,6 +13,8 @@ import { StoryCardSkeleton } from '@/components/common/story-card-skeleton'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AccountSecurityPanel } from './account-security-panel'
 import { getProfile, updateMyProfile, uploadMyProfileAvatar, uploadMyProfileCover } from '@/controllers/profile.controller'
 import type { ProfileSocialKey, ProfileSocialLinks, UserProfile } from '@/interface/profile.interface'
 
@@ -65,14 +68,25 @@ function StoryTile({ story }: { story: UserProfile['stories'][number] }) {
 }
 
 export function ProfilePage({
-  username,
   initialProfile,
 }: {
   username?: string
   initialProfile: UserProfile
 }) {
   const { accessToken, user } = useAuth()
-  const isOwnProfile = !username || user?.username.toLowerCase() === initialProfile.username.toLowerCase()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isOwnProfile = user?.id === initialProfile.id
+  const activeTab = isOwnProfile && searchParams.get('tab') === 'security' ? 'security' : 'profile'
+  function changeTab(tab: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === 'security') params.set('tab', 'security')
+    else params.delete('tab')
+    params.delete('oauth_error')
+    params.delete('google_linked')
+    router.replace(`${pathname}${params.size ? `?${params}` : ''}`, { scroll: false })
+  }
   const [profile, setProfile] = useState<UserProfile>(initialProfile)
   const [editorOpen, setEditorOpen] = useState(false)
   const [coverEditorOpen, setCoverEditorOpen] = useState(false)
@@ -104,7 +118,7 @@ export function ProfilePage({
   }, [isLoadingMore, profile.username])
 
   useEffect(() => {
-    if (!storyPagination.has_next_page) return
+    if (activeTab !== 'profile' || !storyPagination.has_next_page) return
     const onScroll = () => {
       const loadMoreOffset = window.innerWidth < 768 ? 960 : 360
       if (window.innerHeight + window.scrollY < document.documentElement.scrollHeight - loadMoreOffset) return
@@ -112,7 +126,7 @@ export function ProfilePage({
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [activeStoryType, loadStories, storyPagination])
+  }, [activeTab, activeStoryType, loadStories, storyPagination])
 
   function changeStoryType(type: 'novel' | 'manga') {
     if (type === activeStoryType) return
@@ -201,7 +215,7 @@ export function ProfilePage({
   const profileCoverUrl = profile.profile_cover_url ?? '/profile-cover-default.png'
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-8 md:py-8">
+    <Tabs value={activeTab} onValueChange={changeTab} className="mx-auto w-full max-w-6xl gap-0 px-4 py-5 md:px-8 md:py-8">
       <section className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
         <div className="relative h-48 overflow-hidden bg-[linear-gradient(120deg,hsl(var(--primary)/.9),hsl(var(--primary)/.45),hsl(var(--secondary)))] sm:h-72">
           <img src={profileCoverUrl} alt="รูปหน้าปกโปรไฟล์" className="size-full object-cover" />
@@ -216,17 +230,29 @@ export function ProfilePage({
                 <p className="mt-1 text-sm text-muted-foreground">@{profile.username}</p>
               </div>
             </div>
-            {isOwnProfile && <Button onClick={() => setEditorOpen(true)} className="w-full sm:mb-1 sm:w-auto"><Edit3 />โปรไฟล์</Button>}
+            {isOwnProfile && (
+              <TabsList aria-label="เมนูบัญชี" className="h-11 w-full gap-1 bg-muted/60 p-1 sm:mb-1 sm:w-auto">
+                <TabsTrigger value="profile" className="gap-2 px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><UserRound className="size-4" />โปรไฟล์</TabsTrigger>
+                <TabsTrigger value="security" className="gap-2 px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><ShieldCheck className="size-4" />ความปลอดภัย</TabsTrigger>
+              </TabsList>
+            )}
           </div>
-          <div className="mt-4 max-w-3xl">
+          {activeTab === 'profile' && <div className="mt-4 max-w-3xl">
             <p className="mt-4 whitespace-pre-line leading-7 text-foreground/85">{profile.bio || (isOwnProfile ? 'เพิ่มคำแนะนำตัวเพื่อให้ผู้อ่านรู้จักคุณมากขึ้น' : 'ยังไม่ได้เพิ่มคำแนะนำตัว')}</p>
             {visibleSocials.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{visibleSocials.map(({ key, label, icon: Icon }) => <a key={key} href={profile.social_links[key]} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium transition hover:border-primary/40 hover:text-primary"><Icon className="size-4" />{label}<Link2 className="size-3" /></a>)}</div>}
-          </div>
+            {isOwnProfile && <Button variant="outline" size="sm" onClick={() => setEditorOpen(true)} className="mt-4"><Edit3 />แก้ไขโปรไฟล์</Button>}
+          </div>}
         </div>
       </section>
+      <TabsContent value="profile">
       <section className="mt-7"><div className="mb-4 flex min-w-0 flex-nowrap items-center gap-2"><BookOpenText className="size-5 shrink-0 text-primary" /><h2 className="min-w-0 truncate text-lg font-extrabold sm:text-xl">{collectionTitle}</h2><div className="ml-auto flex shrink-0 rounded-lg bg-white p-1 shadow-sm ring-1 ring-border"><Button type="button" size="sm" variant={activeStoryType === 'novel' ? 'default' : 'ghost'} onClick={() => changeStoryType('novel')}>นิยาย <Badge variant="secondary" className="ml-1 h-5 min-w-5 justify-center px-1 text-[10px]">{profile.story_counts.novel}</Badge></Button><Button type="button" size="sm" variant={activeStoryType === 'manga' ? 'default' : 'ghost'} onClick={() => changeStoryType('manga')}>การ์ตูน <Badge variant="secondary" className="ml-1 h-5 min-w-5 justify-center px-1 text-[10px]">{profile.story_counts.manga}</Badge></Button></div></div>
         {stories.length > 0 ? <><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{stories.map((story) => <StoryTile key={story.id} story={story} />)}{isLoadingMore && Array.from({ length: 4 }, (_, index) => <StoryCardSkeleton key={`story-loading-${index}`} />)}</div></> : <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center text-sm text-muted-foreground">{collectionEmpty}</div>}
       </section>
+      </TabsContent>
+
+      {isOwnProfile && <TabsContent value="security" className="mt-5">
+        <AccountSecurityPanel />
+      </TabsContent>}
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto sm:max-w-lg">
@@ -264,6 +290,6 @@ export function ProfilePage({
           <DialogFooter><Button type="button" variant="outline" onClick={() => setCoverEditorOpen(false)}>ยกเลิก</Button><Button type="button" onClick={() => void saveCover()} disabled={isSaving || !coverFile}>{isSaving ? 'กำลังบันทึก...' : 'บันทึกหน้าปก'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Tabs>
   )
 }

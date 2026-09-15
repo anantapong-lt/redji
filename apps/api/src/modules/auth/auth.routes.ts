@@ -1,5 +1,5 @@
 import { jwt } from '@elysiajs/jwt'
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { env } from '../../config/env'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import {
@@ -8,6 +8,8 @@ import {
   requireLoginTurnstile,
 } from './auth.controller'
 import {
+  googleAuthQuerySchema,
+  googleCallbackQuerySchema,
   loginBodySchema,
   registerBodySchema,
   verifyEmailBodySchema,
@@ -20,6 +22,7 @@ import {
   validateAuthSession,
 } from './auth.service'
 import { beginGoogleAuthentication, finishGoogleAuthentication } from './google-auth.controller'
+import { accountSecurityResponse } from './account-security.controller'
 import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
 import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
 
@@ -45,27 +48,23 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }),
   )
   .get('/google', ({ cookie, query }) => beginGoogleAuthentication('login', query.next, cookie), {
-    query: t.Object({ next: t.Optional(t.String({ maxLength: 2048 })) }, { additionalProperties: false }),
+    query: googleAuthQuerySchema,
   })
   .get('/google/register', ({ cookie, query }) => beginGoogleAuthentication('register', query.next, cookie), {
-    query: t.Object({ next: t.Optional(t.String({ maxLength: 2048 })) }, { additionalProperties: false }),
+    query: googleAuthQuerySchema,
   })
-  .get('/google/callback', ({ cookie, query, refreshJwt }) => finishGoogleAuthentication(
+  .get('/google/link', ({ cookie, currentUser }) => beginGoogleAuthentication('link', undefined, cookie, currentUser?.id), {
+    optionalAuth: true,
+  })
+  .get('/security', ({ currentUser }) => accountSecurityResponse(currentUser.id), { auth: true })
+  .get('/google/callback', ({ cookie, query, refreshJwt, currentUser }) => finishGoogleAuthentication(
     query,
     cookie,
-    async (userId, role) => {
-      const claims = { sub: userId, role }
-      const refreshTokenId = crypto.randomUUID()
-      const sessionId = await createAuthSession(userId, refreshTokenId)
-      const refreshToken = await refreshJwt.sign({ ...claims, jti: refreshTokenId, sid: sessionId, token_type: 'refresh' })
-      cookie[REFRESH_COOKIE_NAME].set({ value: refreshToken, ...REFRESH_COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_TTL_SECONDS })
-    },
+    (claims) => refreshJwt.sign(claims),
+    currentUser?.id,
   ), {
-    query: t.Object({
-      code: t.Optional(t.String({ maxLength: 4096 })),
-      state: t.Optional(t.String({ maxLength: 512 })),
-      error: t.Optional(t.String({ maxLength: 256 })),
-    }, { additionalProperties: true }),
+    query: googleCallbackQuerySchema,
+    optionalAuth: true,
   })
   .post(
     '/register',

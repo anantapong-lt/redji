@@ -1,5 +1,16 @@
 import { t } from 'elysia'
 
+export const googleAuthQuerySchema = t.Object(
+  { next: t.Optional(t.String({ maxLength: 2048 })) },
+  { additionalProperties: false },
+)
+
+export const googleCallbackQuerySchema = t.Object({
+  code: t.Optional(t.String({ maxLength: 4096 })),
+  state: t.Optional(t.String({ maxLength: 512 })),
+  error: t.Optional(t.String({ maxLength: 256 })),
+}, { additionalProperties: true })
+
 export const loginBodySchema = t.Object(
   {
     email: t.String({ format: 'email', maxLength: 320 }),

@@ -1,6 +1,11 @@
 import { apiRequest } from '@/lib/api-client'
 import type { AuthSession } from '@/interface/auth-session.interface'
 import type { AuthUser } from '@/interface/user.interface'
+import type { AccountSecurity } from '@/interface/account-security.interface'
+
+export function getAccountSecurity(accessToken: string): Promise<{ account: AccountSecurity }> {
+  return apiRequest('/auth/security', { accessToken })
+}
 
 export interface RegisterWithPasswordInput {
   username: string

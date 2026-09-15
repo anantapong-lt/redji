@@ -340,7 +340,7 @@ function generatedUsername(email: string, attempt: number): string {
 export async function authenticateWithGoogle(
   profile: GoogleProfile,
   allowRegistration: boolean,
-): Promise<{ user: AuthenticatedUser; created: boolean } | { status: 'inactive' | 'not_registered' }> {
+): Promise<{ user: AuthenticatedUser; created: boolean } | { status: 'inactive' | 'not_registered' | 'email_exists' }> {
   const email = profile.email.trim().toLowerCase()
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -373,12 +373,7 @@ export async function authenticateWithGoogle(
 
         if (emailUser) {
           if (emailUser.status !== 'active') return { status: 'inactive' as const }
-          await transaction`
-            INSERT INTO user_oauth_accounts (user_id, provider, provider_account_id, provider_email)
-            VALUES (${emailUser.id}, 'google', ${profile.id}, ${email})
-          `
-          await transaction`UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = ${emailUser.id}`
-          return { user: emailUser, created: false }
+          return { status: 'email_exists' as const }
         }
 
         if (!allowRegistration) return { status: 'not_registered' as const }
