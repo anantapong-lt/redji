@@ -8,6 +8,12 @@ export const changePasswordBodySchema = t.Object({
 
 export type ChangePasswordBody = typeof changePasswordBodySchema.static
 
+export const unlinkGoogleBodySchema = t.Object({
+  current_password: t.String({ minLength: 1, maxLength: 128 }),
+}, { additionalProperties: false })
+
+export type UnlinkGoogleBody = typeof unlinkGoogleBodySchema.static
+
 export const googleAuthQuerySchema = t.Object(
   { next: t.Optional(t.String({ maxLength: 2048 })) },
   { additionalProperties: false },

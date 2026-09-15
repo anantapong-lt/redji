@@ -52,6 +52,32 @@ export async function changeAccountPassword(
   return updated.length === 1 ? 'changed' : 'conflict'
 }
 
+export async function unlinkGoogleAccount(
+  userId: string,
+  currentPassword: string,
+): Promise<'unlinked' | 'no_password' | 'invalid_password' | 'not_linked'> {
+  return db.begin(async (transaction) => {
+    const [credentials] = await transaction<{ password_hash: string }[]>`
+      SELECT credentials.password_hash
+      FROM user_password_credentials AS credentials
+      INNER JOIN users AS u ON u.id = credentials.user_id
+      WHERE u.id = ${userId} AND u.status = 'active'
+        AND u.email_verified_at IS NOT NULL AND u.deleted_at IS NULL
+      LIMIT 1
+      FOR UPDATE
+    `
+    if (!credentials) return 'no_password'
+    if (!(await Bun.password.verify(currentPassword, credentials.password_hash))) return 'invalid_password'
+
+    const deleted = await transaction<{ id: string }[]>`
+      DELETE FROM user_oauth_accounts
+      WHERE user_id = ${userId} AND provider = 'google'
+      RETURNING id
+    `
+    return deleted.length === 1 ? 'unlinked' : 'not_linked'
+  })
+}
+
 export type GoogleLinkStatus = 'linked' | 'inactive' | 'email_mismatch' | 'already_linked'
 
 /** Only links a verified Google identity to the authenticated owner of the same email. */

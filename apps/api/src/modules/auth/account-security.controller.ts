@@ -1,5 +1,5 @@
-import { changeAccountPassword, getAccountSecurity } from './account-security.service'
-import type { ChangePasswordBody } from './auth.schema'
+import { changeAccountPassword, getAccountSecurity, unlinkGoogleAccount } from './account-security.service'
+import type { ChangePasswordBody, UnlinkGoogleBody } from './auth.schema'
 
 export async function accountSecurityResponse(userId: string) {
   const account = await getAccountSecurity(userId)
@@ -29,5 +29,23 @@ export async function changePasswordResponse(userId: string, body: ChangePasswor
     return { message: 'เปลี่ยนรหัสผ่านสำเร็จแล้ว' }
   } catch {
     return Response.json({ message: 'ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
+  }
+}
+
+export async function unlinkGoogleResponse(userId: string, body: UnlinkGoogleBody) {
+  try {
+    const result = await unlinkGoogleAccount(userId, body.current_password)
+    if (result === 'invalid_password') {
+      return Response.json({ message: 'รหัสผ่านไม่ถูกต้อง', field: 'current_password' }, { status: 400 })
+    }
+    if (result === 'no_password') {
+      return Response.json({ message: 'บัญชีนี้ยังไม่มีรหัสผ่าน จึงไม่สามารถยกเลิกการเชื่อม Google ได้' }, { status: 400 })
+    }
+    if (result === 'not_linked') {
+      return Response.json({ message: 'ไม่พบบัญชี Google ที่เชื่อมต่ออยู่' }, { status: 404 })
+    }
+    return { message: 'ยกเลิกการเชื่อมบัญชี Google สำเร็จแล้ว' }
+  } catch {
+    return Response.json({ message: 'ไม่สามารถยกเลิกการเชื่อมบัญชี Google ได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }

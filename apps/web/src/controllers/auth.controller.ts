@@ -12,6 +12,15 @@ export function changePassword(input: ChangePasswordInput, accessToken: string):
   })
 }
 
+export function unlinkGoogleAccount(currentPassword: string, accessToken: string): Promise<{ message: string }> {
+  return apiRequest('/auth/security/google/unlink', {
+    method: 'POST',
+    accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword }),
+  })
+}
+
 export function getAccountSecurity(accessToken: string): Promise<{ account: AccountSecurity }> {
   return apiRequest('/auth/security', { accessToken })
 }

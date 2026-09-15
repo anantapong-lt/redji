@@ -8,11 +8,14 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { PasswordInput } from '@/components/auth/form-inputs'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getAccountSecurity } from '@/controllers/auth.controller'
+import { getAccountSecurity, unlinkGoogleAccount } from '@/controllers/auth.controller'
 import type { AccountSecurity } from '@/interface/account-security.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { ChangePasswordSection } from './change-password-section'
+import { ApiError } from '@/lib/api-client'
 
 export function AccountSecurityPanel() {
   const { accessToken } = useAuth()
@@ -21,6 +24,10 @@ export function AccountSecurityPanel() {
   const [error, setError] = useState<string | null>(null)
   const [retry, setRetry] = useState(0)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [unlinkError, setUnlinkError] = useState<string | null>(null)
+  const [isUnlinking, setIsUnlinking] = useState(false)
   const oauthError = searchParams.get('oauth_error')
 
   useEffect(() => {
@@ -46,6 +53,30 @@ export function AccountSecurityPanel() {
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
     toast.success('เชื่อมบัญชี Google สำเร็จแล้ว', { duration: 2500 })
   }, [linked, searchParams])
+
+  function handleUnlinkDialog(open: boolean) {
+    setUnlinkDialogOpen(open)
+    if (!open) {
+      setCurrentPassword('')
+      setUnlinkError(null)
+    }
+  }
+
+  async function unlinkGoogle() {
+    if (!accessToken || !currentPassword || isUnlinking) return
+    setIsUnlinking(true)
+    setUnlinkError(null)
+    try {
+      const result = await unlinkGoogleAccount(currentPassword, accessToken)
+      setAccount((current) => current ? { ...current, google_email: null, google_linked_at: null } : current)
+      handleUnlinkDialog(false)
+      toast.success(result.message, { duration: 2500 })
+    } catch (cause) {
+      setUnlinkError(cause instanceof ApiError ? cause.message : 'ไม่สามารถยกเลิกการเชื่อมบัญชี Google ได้')
+    } finally {
+      setIsUnlinking(false)
+    }
+  }
 
   return (
     <div className="min-w-0 space-y-4">
@@ -82,7 +113,9 @@ export function AccountSecurityPanel() {
                 </div>
               </div>
               {linked ? (
-                <Badge variant="secondary" className="gap-1.5 self-start sm:self-auto"><CheckCircle2 className="size-3.5" />เชื่อมต่อแล้ว</Badge>
+                <Button variant="outline" className="self-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:self-auto" disabled={!account.has_password} onClick={() => handleUnlinkDialog(true)}>
+                  ยกเลิกการเชื่อมต่อ
+                </Button>
               ) : (
                 <Button variant="outline" disabled={isConnecting} onClick={() => {
                   setIsConnecting(true)
@@ -93,6 +126,25 @@ export function AccountSecurityPanel() {
             {!linked && <p className="mt-5 flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs leading-5 text-muted-foreground"><Link2 className="mt-0.5 size-4 shrink-0" />เลือกบัญชี Google ที่ใช้อีเมลเดียวกับบัญชีนี้ เมื่อเชื่อมต่อแล้ว คุณจะเข้าสู่ระบบด้วย Google ได้</p>}
           </section>
           <ChangePasswordSection hasPassword={account.has_password} />
+          <Dialog open={unlinkDialogOpen} onOpenChange={handleUnlinkDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>ยกเลิกการเชื่อมต่อ Google</DialogTitle>
+                <DialogDescription>กรอกรหัสผ่านเพื่อยืนยันการยกเลิกการเชื่อมต่อกับ {account.google_email}</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={(event) => { event.preventDefault(); void unlinkGoogle() }} className="space-y-3">
+                <div>
+                  <label htmlFor="unlink-google-password" className="mb-1.5 block text-sm font-medium">รหัสผ่าน</label>
+                  <PasswordInput id="unlink-google-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" disabled={isUnlinking} aria-invalid={Boolean(unlinkError)} />
+                </div>
+                {unlinkError && <p role="alert" className="text-sm text-destructive">{unlinkError}</p>}
+                <DialogFooter>
+                  <Button type="button" variant="outline" disabled={isUnlinking} onClick={() => handleUnlinkDialog(false)}>ยกเลิก</Button>
+                  <Button type="submit" variant="destructive" disabled={isUnlinking || !currentPassword}>{isUnlinking ? 'กำลังยกเลิก...' : 'ยืนยันการยกเลิก'}</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

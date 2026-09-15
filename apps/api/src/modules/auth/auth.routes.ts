@@ -10,6 +10,7 @@ import {
 import {
   googleAuthQuerySchema,
   changePasswordBodySchema,
+  unlinkGoogleBodySchema,
   googleCallbackQuerySchema,
   loginBodySchema,
   registerBodySchema,
@@ -23,7 +24,7 @@ import {
   validateAuthSession,
 } from './auth.service'
 import { beginGoogleAuthentication, finishGoogleAuthentication } from './google-auth.controller'
-import { accountSecurityResponse, changePasswordResponse } from './account-security.controller'
+import { accountSecurityResponse, changePasswordResponse, unlinkGoogleResponse } from './account-security.controller'
 import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
 import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
 
@@ -61,6 +62,10 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .post('/security/password', ({ currentUser, body }) => changePasswordResponse(currentUser.id, body), {
     auth: true,
     body: changePasswordBodySchema,
+  })
+  .post('/security/google/unlink', ({ currentUser, body }) => unlinkGoogleResponse(currentUser.id, body), {
+    auth: true,
+    body: unlinkGoogleBodySchema,
   })
   .get('/google/callback', ({ cookie, query, refreshJwt, currentUser }) => finishGoogleAuthentication(
     query,
