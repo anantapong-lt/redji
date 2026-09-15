@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { formatCoin } from '@/utils/format-coin'
 
 type WorkType = 'novel' | 'manga'
 type WorkStatus = 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'cancelled'
@@ -39,6 +40,8 @@ interface Work {
   cover_url: string | null
   total_views: string
   chapter_count: string
+  sales_total: string
+  created_at: string
   author: { username: string; display_name: string }
   primary_genre: { id: string; name: string }
   secondary_genre: { id: string; name: string } | null
@@ -299,12 +302,14 @@ export default function WorksPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ผลงาน</TableHead>
-                  <TableHead>ผู้เขียน</TableHead>
+                  <TableHead>ผู้สร้าง</TableHead>
+                  <TableHead className="text-right">ยอดขาย</TableHead>
+                  <TableHead className="text-right">จำนวนตอน</TableHead>
+                  <TableHead className="text-right">ยอดวิว</TableHead>
                   <TableHead>ประเภท</TableHead>
                   <TableHead>หมวดหมู่</TableHead>
                   <TableHead>สถานะ</TableHead>
-                  <TableHead>ตอน</TableHead>
-                  <TableHead>เข้าชม</TableHead>
+                  <TableHead>วันที่สร้าง</TableHead>
                   <TableHead className="text-right">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -312,7 +317,7 @@ export default function WorksPage() {
                 {loading ? (
                   Array.from({ length: 6 }).map((_, index) => (
                     <TableRow key={index}>
-                      {Array.from({ length: 8 }).map((__, cell) => (
+                      {Array.from({ length: 10 }).map((__, cell) => (
                         <TableCell key={cell}>
                           <Skeleton className="h-5 w-20" />
                         </TableCell>
@@ -353,6 +358,9 @@ export default function WorksPage() {
                         <div>{work.author.display_name}</div>
                         <div className="text-xs text-muted-foreground">@{work.author.username}</div>
                       </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCoin(work.sales_total)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{Number(work.chapter_count).toLocaleString('th-TH')}</TableCell>
+                      <TableCell className="text-right tabular-nums">{Number(work.total_views).toLocaleString('th-TH')}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -383,8 +391,7 @@ export default function WorksPage() {
                           {work.deleted_at ? 'ถูกซ่อน (Admin)' : statusLabels[work.status]}
                         </Badge>
                       </TableCell>
-                      <TableCell>{Number(work.chapter_count).toLocaleString('th-TH')}</TableCell>
-                      <TableCell>{Number(work.total_views).toLocaleString('th-TH')}</TableCell>
+                      <TableCell>{new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' }).format(new Date(work.created_at))}</TableCell>
                       <TableCell className="text-right">
                         {work.deleted_at ? (
                           <Button
@@ -420,7 +427,7 @@ export default function WorksPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                       ไม่พบผลงาน
                     </TableCell>
                   </TableRow>

@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { SITE_CONFIG } from '@/site.config'
+import { formatCoin } from '@/utils/format-coin'
 
 type UserStatus = 'active' | 'banned'
 
@@ -30,6 +32,9 @@ interface AdminUser {
   username: string
   display_name: string
   balance: string
+  topup_total: string
+  purchase_count: string
+  purchase_total: string
   role: 'user'
   status: UserStatus
   last_login_at: string | null
@@ -223,9 +228,11 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>ผู้ใช้งาน</TableHead>
                   <TableHead>สถานะ</TableHead>
-                  <TableHead>ยอดคงเหลือ</TableHead>
-                  <TableHead>สมัครเมื่อ</TableHead>
+                  <TableHead className="text-right">{SITE_CONFIG.coinName}ทั้งหมด</TableHead>
+                  <TableHead className="text-right">{SITE_CONFIG.coinName}คงเหลือ</TableHead>
+                  <TableHead>เริ่มใช้งาน</TableHead>
                   <TableHead>เข้าใช้ล่าสุด</TableHead>
+                  <TableHead>ข้อมูลการซื้อ</TableHead>
                   <TableHead className="text-right">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -251,6 +258,8 @@ export default function UsersPage() {
                       <TableCell>
                         <Skeleton className="ml-auto h-8 w-20" />
                       </TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-20" /></TableCell>
                     </TableRow>
                   ))
                 ) : data?.users.length ? (
@@ -275,9 +284,14 @@ export default function UsersPage() {
                           {statusLabels[user.status]}
                         </Badge>
                       </TableCell>
-                      <TableCell>{Number(user.balance).toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCoin(user.topup_total)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCoin(user.balance)}</TableCell>
                       <TableCell>{formatDate(user.created_at)}</TableCell>
                       <TableCell>{user.last_login_at ? formatDate(user.last_login_at) : 'ยังไม่เคยเข้าใช้'}</TableCell>
+                      <TableCell>
+                        <div>{Number(user.purchase_count).toLocaleString('th-TH')} ตอน</div>
+                        <div className="text-xs text-muted-foreground">{formatCoin(user.purchase_total)} {SITE_CONFIG.coinName}</div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => openEditDialog(user)}>
                           <Pencil />
@@ -288,7 +302,7 @@ export default function UsersPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                       ไม่พบผู้ใช้งานที่ตรงกับเงื่อนไข
                     </TableCell>
                   </TableRow>

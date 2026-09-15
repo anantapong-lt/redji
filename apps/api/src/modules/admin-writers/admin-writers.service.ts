@@ -1,5 +1,6 @@
 import { db } from '../../db'
 import { USER_ROLE, USER_STATUS, type UserStatus } from '../../models/user.model'
+import { WITHDRAWAL_STATUS } from '../../models/withdrawal.model'
 
 export interface AdminWriter {
   id: string
@@ -13,10 +14,13 @@ export interface AdminWriter {
   created_at: Date
   last_login_at: Date | null
   content_count: string
+  novel_count: string
+  manga_count: string
   chapter_count: string
   total_views: string
   sales_count: string
   sales_total: string
+  net_revenue: string
 }
 
 export async function countAdminWriters(search: string, status: UserStatus | null) {
@@ -48,6 +52,16 @@ export function findAdminWriters(page: number, limit: number, search: string, st
       ) AS content_count,
       (
         SELECT COUNT(*)::TEXT
+        FROM stories
+        WHERE stories.creator_user_id = users.id AND stories.deleted_at IS NULL AND stories.type = 'novel'
+      ) AS novel_count,
+      (
+        SELECT COUNT(*)::TEXT
+        FROM stories
+        WHERE stories.creator_user_id = users.id AND stories.deleted_at IS NULL AND stories.type = 'manga'
+      ) AS manga_count,
+      (
+        SELECT COUNT(*)::TEXT
         FROM chapters
         INNER JOIN stories ON stories.id = chapters.story_id
         WHERE stories.creator_user_id = users.id AND stories.deleted_at IS NULL
@@ -66,7 +80,13 @@ export function findAdminWriters(page: number, limit: number, search: string, st
         SELECT ROUND(COALESCE(SUM(chapter_purchases.price), 0), 2)::NUMERIC(12, 2)::TEXT
         FROM chapter_purchases
         WHERE chapter_purchases.writer_user_id = users.id
-      ) AS sales_total
+      ) AS sales_total,
+      ROUND(
+        (SELECT COALESCE(SUM(price), 0) FROM chapter_purchases WHERE writer_user_id = users.id)
+        - (SELECT COALESCE(SUM(commission_amount), 0) FROM withdrawal_requests
+           WHERE writer_user_id = users.id AND status = ${WITHDRAWAL_STATUS.PAID}),
+        2
+      )::TEXT AS net_revenue
     FROM users
     WHERE users.role = ${USER_ROLE.WRITER}
       AND users.deleted_at IS NULL

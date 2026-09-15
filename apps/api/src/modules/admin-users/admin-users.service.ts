@@ -1,5 +1,6 @@
 import { db } from '../../db'
 import type { UserStatus } from '../../models/user.model'
+import { TopupStatus } from '../../models/topup.model'
 
 interface AdminUserRow {
   id: string
@@ -13,6 +14,12 @@ interface AdminUserRow {
   email_verified_at: Date | null
   last_login_at: Date | null
   created_at: Date
+}
+
+interface AdminUserListRow extends AdminUserRow {
+  topup_total: string
+  purchase_count: string
+  purchase_total: string
 }
 
 export async function countAdminUsers(search: string, status: UserStatus | null): Promise<number> {
@@ -33,9 +40,21 @@ export async function countAdminUsers(search: string, status: UserStatus | null)
 }
 
 export function findAdminUsers(page: number, limit: number, search: string, status: UserStatus | null) {
-  return db<AdminUserRow[]>`
+  return db<AdminUserListRow[]>`
     SELECT id, email, phone_number, username, display_name, balance::TEXT, role, status,
-      email_verified_at, last_login_at, created_at
+      email_verified_at, last_login_at, created_at,
+      (
+        SELECT ROUND(COALESCE(SUM(topup_transactions.credited_coins), 0), 2)::TEXT
+        FROM topup_transactions
+        WHERE topup_transactions.user_id = users.id AND topup_transactions.status = ${TopupStatus.PAID}
+      ) AS topup_total,
+      (
+        SELECT COUNT(*)::TEXT FROM chapter_purchases WHERE chapter_purchases.buyer_user_id = users.id
+      ) AS purchase_count,
+      (
+        SELECT ROUND(COALESCE(SUM(chapter_purchases.price), 0), 2)::TEXT
+        FROM chapter_purchases WHERE chapter_purchases.buyer_user_id = users.id
+      ) AS purchase_total
     FROM users
     WHERE deleted_at IS NULL
       AND role = 'user'

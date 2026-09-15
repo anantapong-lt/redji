@@ -15,6 +15,7 @@ export interface AdminContent {
   cover_url: string | null
   total_views: string
   chapter_count: string
+  sales_total: string
   author: { username: string; display_name: string }
   primary_genre: { id: string; name: string }
   secondary_genre: { id: string; name: string } | null
@@ -39,6 +40,12 @@ export async function findAdminContents(
         stories.id, stories.title, stories.slug, stories.type, stories.status, stories.deleted_at,
         stories.cover_url, stories.total_views::TEXT,
         (SELECT COUNT(*)::TEXT FROM chapters WHERE chapters.story_id = stories.id) AS chapter_count,
+        (
+          SELECT ROUND(COALESCE(SUM(chapter_purchases.price), 0), 2)::TEXT
+          FROM chapter_purchases
+          INNER JOIN chapters ON chapters.id = chapter_purchases.chapter_id
+          WHERE chapters.story_id = stories.id
+        ) AS sales_total,
         json_build_object('username', users.username, 'display_name', users.display_name) AS author,
         json_build_object('id', primary_genre.id, 'name', primary_genre.name) AS primary_genre,
         CASE WHEN secondary_genre.id IS NULL THEN NULL

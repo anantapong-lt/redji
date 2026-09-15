@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Ban, BookOpen, ChevronLeft, ChevronRight, Search, ShieldCheck, UsersRound } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, Search, ShieldCheck, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { formatCoin } from '@/utils/format-coin'
 
 const USER_STATUS = {
   ACTIVE: 'active',
@@ -33,10 +34,13 @@ interface Writer {
   created_at: string
   last_login_at: string | null
   content_count: string
+  novel_count: string
+  manga_count: string
   chapter_count: string
   total_views: string
   sales_count: string
   sales_total: string
+  net_revenue: string
 }
 
 interface WritersResponse {
@@ -56,10 +60,6 @@ function formatDate(value: string) {
 
 function formatNumber(value: string) {
   return Number(value).toLocaleString('th-TH')
-}
-
-function formatCoin(value: string) {
-  return Number(value).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export default function WritersPage() {
@@ -149,12 +149,14 @@ export default function WritersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>นักเขียน</TableHead>
+                <TableHead className="text-right">ผลงาน</TableHead>
+                <TableHead className="text-right">นิยาย</TableHead>
+                <TableHead className="text-right">มังงะ</TableHead>
+                <TableHead className="text-right">ยอดขาย</TableHead>
+                <TableHead className="text-right">รายได้สุทธิ</TableHead>
+                <TableHead className="text-right">ยอดเงินคงเหลือ</TableHead>
+                <TableHead>วันที่สมัคร</TableHead>
                 <TableHead>สถานะ</TableHead>
-                <TableHead>ผลงาน</TableHead>
-                <TableHead>ยอดเข้าชม</TableHead>
-                <TableHead>ยอดขาย</TableHead>
-                <TableHead>ยอดคงเหลือ</TableHead>
-                <TableHead>เริ่มใช้งาน</TableHead>
                 <TableHead className="text-right">จัดการ</TableHead>
               </TableRow>
             </TableHeader>
@@ -162,7 +164,7 @@ export default function WritersPage() {
               {isLoading ? (
                 Array.from({ length: 6 }, (_, index) => (
                   <TableRow key={index}>
-                    {Array.from({ length: 8 }, (_, cellIndex) => (
+                    {Array.from({ length: 10 }, (_, cellIndex) => (
                       <TableCell key={cellIndex}><Skeleton className="h-5 w-24" /></TableCell>
                     ))}
                   </TableRow>
@@ -181,12 +183,16 @@ export default function WritersPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell><Badge variant={writer.status === USER_STATUS.ACTIVE ? 'secondary' : 'destructive'}>{statusLabel[writer.status]}</Badge></TableCell>
-                      <TableCell><div className="flex items-center gap-1"><BookOpen className="size-4 text-muted-foreground" />{formatNumber(writer.content_count)} เรื่อง</div><div className="text-xs text-muted-foreground">{formatNumber(writer.chapter_count)} ตอน</div></TableCell>
-                      <TableCell>{formatNumber(writer.total_views)}</TableCell>
-                      <TableCell><div>{formatCoin(writer.sales_total)}</div><div className="text-xs text-muted-foreground">{formatNumber(writer.sales_count)} รายการ</div></TableCell>
-                      <TableCell>{Number(writer.balance).toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(writer.content_count)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(writer.novel_count)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(writer.manga_count)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCoin(writer.sales_total)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCoin(writer.net_revenue)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCoin(writer.balance)}</TableCell>
                       <TableCell>{formatDate(writer.created_at)}</TableCell>
+                      <TableCell>
+                        <Badge variant={writer.status === USER_STATUS.ACTIVE ? 'secondary' : 'destructive'}>{statusLabel[writer.status]}</Badge>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           type="button"
@@ -206,7 +212,7 @@ export default function WritersPage() {
                   )
                 })
               ) : (
-                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">ไม่พบนักเขียนที่ตรงกับเงื่อนไข</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="h-32 text-center text-muted-foreground">ไม่พบนักเขียนที่ตรงกับเงื่อนไข</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

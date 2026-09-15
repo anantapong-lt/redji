@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Banknote, CheckCircle2, ExternalLink, Eye, FileText, MoreHorizontal, Search, UploadCloud, XCircle } from 'lucide-react'
+import { Banknote, CheckCircle2, Copy, ExternalLink, Eye, FileText, MoreHorizontal, Search, UploadCloud, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { useAdminAuth } from '@/components/admin-auth-provider'
@@ -35,13 +35,20 @@ interface WithdrawalRequest {
   fee: number
   netAmount: number
   paymentMethod: PaymentMethod
-  account: string
+  bankCode: string
+  accountNumber: string
   submittedAt: string
   status: WithdrawalStatus
   processedBy: string | null
   note: string | null
   transferProofName: string | null
   transferProofUrl: string | null
+}
+
+interface BankConfig {
+  code: string
+  name: string
+  logo: string
 }
 
 const statusLabels: Record<WithdrawalStatus, string> = {
@@ -63,6 +70,7 @@ const dateTime = (value: string) => new Date(value).toLocaleString('th-TH', { da
 export default function TransactionsPage() {
   const { accessToken } = useAdminAuth()
   const [requests, setRequests] = useState<WithdrawalRequest[]>([])
+  const [banks, setBanks] = useState<BankConfig[]>([])
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -79,6 +87,25 @@ export default function TransactionsPage() {
   const [rejectionRequest, setRejectionRequest] = useState<WithdrawalRequest | null>(null)
   const [rejectionNote, setRejectionNote] = useState('')
   const [transferProofFile, setTransferProofFile] = useState<File | null>(null)
+  const selectedBank = banks.find((bank) => bank.code === selectedRequest?.bankCode)
+
+  useEffect(() => {
+    if (!accessToken) return
+    const controller = new AbortController()
+    void fetch(`${apiUrl}/writer/banks`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return
+        const body = await response.json() as { banks: BankConfig[] }
+        if (!controller.signal.aborted) setBanks(body.banks)
+      })
+      .catch(() => undefined)
+
+    return () => controller.abort()
+  }, [accessToken])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setAppliedSearch(search.trim()), 300)
@@ -99,7 +126,22 @@ export default function TransactionsPage() {
       .then(async (response) => {
         if (!response.ok) throw new Error('ไม่สามารถโหลดคำขอถอนเงินได้')
         const body = await response.json() as { requests: Array<{ id: string; user: { display_name: string; username: string }; requested_amount: string; commission_amount: string; net_amount: string; bank_code: string; account_number: string; requested_at: string; status: WithdrawalStatus; note: string | null; processed_by: string | null; has_proof: boolean }> }
-        if (isCurrentRequest) setRequests(body.requests.map((request) => ({ id: request.id, user: { displayName: request.user.display_name, username: request.user.username }, requestedAmount: Number(request.requested_amount), fee: Number(request.commission_amount), netAmount: Number(request.net_amount), paymentMethod: 'bank', account: `${request.bank_code} •••• ${request.account_number.slice(-4)}`, submittedAt: request.requested_at, status: request.status, processedBy: request.processed_by, note: request.note, transferProofName: request.has_proof ? 'หลักฐานการโอน' : null, transferProofUrl: null })))
+        if (isCurrentRequest) setRequests(body.requests.map((request) => ({
+          id: request.id,
+          user: { displayName: request.user.display_name, username: request.user.username },
+          requestedAmount: Number(request.requested_amount),
+          fee: Number(request.commission_amount),
+          netAmount: Number(request.net_amount),
+          paymentMethod: 'bank',
+          bankCode: request.bank_code,
+          accountNumber: request.account_number,
+          submittedAt: request.requested_at,
+          status: request.status,
+          processedBy: request.processed_by,
+          note: request.note,
+          transferProofName: request.has_proof ? 'หลักฐานการโอน' : null,
+          transferProofUrl: null,
+        })))
       })
       .catch(() => {
         if (isCurrentRequest) setRequests([])
@@ -128,6 +170,15 @@ export default function TransactionsPage() {
       return matchesMethod && matchesDate
     })
   }, [dateRange, method, requests])
+
+  async function copyAccountNumber(accountNumber: string) {
+    try {
+      await navigator.clipboard.writeText(accountNumber)
+      toast.success('คัดลอกเลขบัญชีแล้ว')
+    } catch {
+      toast.error('ไม่สามารถคัดลอกได้ กรุณาเลือกเลขบัญชีแล้วคัดลอกด้วยตนเอง')
+    }
+  }
 
   async function updateStatus(
     requestId: string,
@@ -341,7 +392,7 @@ export default function TransactionsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="py-3">
-                        <div className="font-medium">{request.account}</div>
+                        <div className="font-medium">{request.bankCode} •••• {request.accountNumber.slice(-4)}</div>
                         <div className="text-xs text-muted-foreground">
                           {request.paymentMethod === 'bank' ? 'บัญชีธนาคาร' : 'หมายเลขพร้อมเพย์'}
                         </div>
@@ -459,7 +510,34 @@ export default function TransactionsPage() {
                       <Detail label="ผู้ขอถอน" value={`${selectedRequest.user.displayName} (@${selectedRequest.user.username})`} />
                       <Detail label="วันที่ส่งคำขอ" value={dateTime(selectedRequest.submittedAt)} />
                       <Detail label="ช่องทางรับเงิน" value={methodLabels[selectedRequest.paymentMethod]} />
-                      <Detail label="บัญชีรับเงิน" value={selectedRequest.account} />
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground">บัญชีรับเงิน</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {selectedBank ? (
+                            <img
+                              src={`${apiUrl}/writer/${selectedBank.logo}`}
+                              alt={selectedBank.name}
+                              title={selectedBank.name}
+                              className="size-7 shrink-0 object-contain"
+                            />
+                          ) : (
+                            <span className="text-sm font-medium">{selectedRequest.bankCode}</span>
+                          )}
+                          <p className="select-text break-all text-sm font-medium">
+                            {selectedRequest.accountNumber}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label="คัดลอกเลขบัญชีรับเงิน"
+                            onClick={() => void copyAccountNumber(selectedRequest.accountNumber)}
+                          >
+                            <Copy />
+                            คัดลอก
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </section>
 

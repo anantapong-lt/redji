@@ -1,3 +1,5 @@
+import { SITE_CONFIG as SHARED_SITE_CONFIG } from '@readji/shared/src/site-config'
+
 const getApiUrl = () => {
   if (typeof window !== 'undefined') {
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
@@ -14,7 +16,7 @@ export const SITE_CONFIG = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
   adminUrl: process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002',
   pageSize: 24,
-  coinName: 'เบรี',
+  coinName: SHARED_SITE_CONFIG.coinName,
 } as const
 
 export const isNovelFirst = SITE_CONFIG.type === 'novel'
