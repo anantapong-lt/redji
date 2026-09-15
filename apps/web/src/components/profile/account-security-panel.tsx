@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, Link2, Mail, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Link2, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getAccountSecurity } from '@/controllers/auth.controller'
 import type { AccountSecurity } from '@/interface/account-security.interface'
 import { SITE_CONFIG } from '@/site.config'
+import { ChangePasswordSection } from './change-password-section'
 
 export function AccountSecurityPanel() {
   const { accessToken } = useAuth()
@@ -91,7 +92,7 @@ export function AccountSecurityPanel() {
             </div>
             {!linked && <p className="mt-5 flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs leading-5 text-muted-foreground"><Link2 className="mt-0.5 size-4 shrink-0" />เลือกบัญชี Google ที่ใช้อีเมลเดียวกับบัญชีนี้ เมื่อเชื่อมต่อแล้ว คุณจะเข้าสู่ระบบด้วย Google ได้</p>}
           </section>
-          <div className="flex items-start gap-3 px-1 text-sm text-muted-foreground"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" /><p>การเชื่อมบัญชี Google ต้องทำหลังจากเข้าสู่ระบบบัญชีของคุณแล้วเท่านั้น</p></div>
+          <ChangePasswordSection hasPassword={account.has_password} />
         </>
       )}
     </div>

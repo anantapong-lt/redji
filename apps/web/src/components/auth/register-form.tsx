@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { Lock, X } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { IconInput, PasswordInput } from './form-inputs'
+import { PasswordStrengthIndicator } from './password-strength-indicator'
 import { TurnstileWidget } from './turnstile-widget'
 import { registerWithPassword } from '@/controllers/auth.controller'
 import { ApiError } from '@/lib/api-client'
@@ -39,12 +40,14 @@ export function RegisterForm() {
     register,
     handleSubmit,
     getValues,
+    watch,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: { terms: false },
   })
+  const password = watch('password')
 
   async function onSubmit(values: RegisterValues) {
     setSuccessMessage('')
@@ -106,6 +109,7 @@ export function RegisterForm() {
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">รหัสผ่าน</label>
           <PasswordInput icon={<Lock className="size-4" />} placeholder="รหัสผ่าน" autoComplete="new-password" {...register('password')} />
+          <PasswordStrengthIndicator password={password} />
           {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
         </div>
 

@@ -1,5 +1,13 @@
 import { t } from 'elysia'
 
+export const changePasswordBodySchema = t.Object({
+  current_password: t.String({ minLength: 1, maxLength: 128 }),
+  new_password: t.String({ minLength: 8, maxLength: 72 }),
+  confirm_password: t.String({ minLength: 8, maxLength: 72 }),
+}, { additionalProperties: false })
+
+export type ChangePasswordBody = typeof changePasswordBodySchema.static
+
 export const googleAuthQuerySchema = t.Object(
   { next: t.Optional(t.String({ maxLength: 2048 })) },
   { additionalProperties: false },
