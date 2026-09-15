@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import type { AuthUser } from '@/interface/user.interface'
 import type { TopupPageConfig } from '@/interface/topup.interface'
 import type { UserProfile } from '@/interface/profile.interface'
+import type { AccountSecurity } from '@/interface/account-security.interface'
 import { SITE_CONFIG } from '@/site.config'
 
 export interface PublicFeatureConfig {
@@ -34,6 +35,24 @@ export async function getServerAuthUser(): Promise<AuthUser | null> {
 
     const body = await response.json() as { user: AuthUser }
     return body.user
+  } catch {
+    return null
+  }
+}
+
+/** Uses the refresh session cookie so account security can be rendered on the server. */
+export async function getServerAccountSecurity(): Promise<AccountSecurity | null> {
+  const cookieHeader = (await cookies()).toString()
+  if (!cookieHeader) return null
+
+  try {
+    const response = await fetch(`${serverApiUrl()}/auth/security/session`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json', Cookie: cookieHeader },
+    })
+    if (!response.ok) return null
+    const body = await response.json() as { account: AccountSecurity }
+    return body.account
   } catch {
     return null
   }

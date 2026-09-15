@@ -14,6 +14,19 @@ export const unlinkGoogleBodySchema = t.Object({
 
 export type UnlinkGoogleBody = typeof unlinkGoogleBodySchema.static
 
+export const phoneVerificationRequestBodySchema = t.Object({
+  phone_number: t.String({ pattern: '^0[689][0-9]{8}$', maxLength: 10 }),
+}, { additionalProperties: false })
+
+export type PhoneVerificationRequestBody = typeof phoneVerificationRequestBodySchema.static
+
+export const phoneVerificationVerifyBodySchema = t.Object({
+  phone_number: t.String({ pattern: '^0[689][0-9]{8}$', maxLength: 10 }),
+  otp: t.String({ pattern: '^[0-9]{6}$', maxLength: 6 }),
+}, { additionalProperties: false })
+
+export type PhoneVerificationVerifyBody = typeof phoneVerificationVerifyBodySchema.static
+
 export const googleAuthQuerySchema = t.Object(
   { next: t.Optional(t.String({ maxLength: 2048 })) },
   { additionalProperties: false },

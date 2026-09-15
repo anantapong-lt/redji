@@ -1,23 +1,101 @@
 import { db } from '../../db'
 import type { GoogleProfile } from './auth.service'
 
+const MOCK_PHONE_OTP = '123456'
+const PHONE_OTP_TTL_MINUTES = 10
+
+function hashPhoneOtp(value: string): string {
+  return new Bun.CryptoHasher('sha256').update(value).digest('hex')
+}
+
 export async function getAccountSecurity(userId: string) {
   const [account] = await db<{
     email: string
     email_verified: boolean
+    phone_number: string | null
+    phone_verified: boolean
+    pending_phone_number: string | null
     has_password: boolean
     google_email: string | null
     google_linked_at: Date | null
   }[]>`
     SELECT u.email, u.email_verified_at IS NOT NULL AS email_verified,
+      u.phone_number, u.phone_verified_at IS NOT NULL AS phone_verified,
+      phone_request.phone_number AS pending_phone_number,
       EXISTS(SELECT 1 FROM user_password_credentials WHERE user_id = u.id) AS has_password,
       oauth.provider_email AS google_email, oauth.created_at AS google_linked_at
     FROM users AS u
     LEFT JOIN user_oauth_accounts AS oauth ON oauth.user_id = u.id AND oauth.provider = 'google'
+    LEFT JOIN phone_verification_requests AS phone_request ON phone_request.user_id = u.id AND phone_request.expires_at > NOW()
     WHERE u.id = ${userId} AND u.status = 'active' AND u.deleted_at IS NULL
     LIMIT 1
   `
   return account ?? null
+}
+
+export async function requestPhoneVerification(userId: string, phoneNumber: string): Promise<'sent' | 'inactive' | 'phone_in_use'> {
+  const [user] = await db<{ id: string }[]>`
+    SELECT id FROM users
+    WHERE id = ${userId} AND status = 'active'
+      AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+    LIMIT 1
+  `
+  if (!user) return 'inactive'
+
+  const [owner] = await db<{ id: string }[]>`
+    SELECT id FROM users
+    WHERE phone_number = ${phoneNumber} AND id <> ${userId} AND deleted_at IS NULL
+    LIMIT 1
+  `
+  if (owner) return 'phone_in_use'
+
+  await db`
+    INSERT INTO phone_verification_requests (user_id, phone_number, otp_hash, expires_at)
+    VALUES (${userId}, ${phoneNumber}, ${hashPhoneOtp(MOCK_PHONE_OTP)}, NOW() + (${PHONE_OTP_TTL_MINUTES} * INTERVAL '1 minute'))
+    ON CONFLICT (user_id) DO UPDATE SET
+      phone_number = EXCLUDED.phone_number,
+      otp_hash = EXCLUDED.otp_hash,
+      expires_at = EXCLUDED.expires_at,
+      updated_at = NOW()
+  `
+  return 'sent'
+}
+
+export async function verifyPhoneVerification(
+  userId: string,
+  phoneNumber: string,
+  otp: string,
+): Promise<'verified' | 'inactive' | 'invalid_otp' | 'expired' | 'phone_in_use'> {
+  try {
+    return await db.begin(async (transaction) => {
+      const [request] = await transaction<{ otp_hash: string; expires_at: Date }[]>`
+        SELECT otp_hash, expires_at
+        FROM phone_verification_requests
+        WHERE user_id = ${userId} AND phone_number = ${phoneNumber}
+        LIMIT 1
+        FOR UPDATE
+      `
+      if (!request || request.otp_hash !== hashPhoneOtp(otp)) return 'invalid_otp'
+      if (new Date(request.expires_at).getTime() <= Date.now()) {
+        await transaction`DELETE FROM phone_verification_requests WHERE user_id = ${userId}`
+        return 'expired'
+      }
+
+      const updated = await transaction<{ id: string }[]>`
+        UPDATE users
+        SET phone_number = ${phoneNumber}, phone_verified_at = NOW(), updated_at = NOW()
+        WHERE id = ${userId} AND status = 'active'
+          AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+        RETURNING id
+      `
+      if (!updated.length) return 'inactive'
+      await transaction`DELETE FROM phone_verification_requests WHERE user_id = ${userId}`
+      return 'verified'
+    })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') return 'phone_in_use'
+    throw error
+  }
 }
 
 export async function changeAccountPassword(

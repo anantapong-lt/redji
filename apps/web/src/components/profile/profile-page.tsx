@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AccountSecurityPanel } from './account-security-panel'
 import { getProfile, updateMyProfile, uploadMyProfileAvatar, uploadMyProfileCover } from '@/controllers/profile.controller'
 import type { ProfileSocialKey, ProfileSocialLinks, UserProfile } from '@/interface/profile.interface'
+import type { AccountSecurity } from '@/interface/account-security.interface'
 
 const SOCIAL_FIELDS: Array<{ key: ProfileSocialKey; label: string; placeholder: string; icon: ComponentType<{ className?: string }> }> = [
   { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/yourname', icon: FaFacebookF },
@@ -69,17 +70,27 @@ function StoryTile({ story }: { story: UserProfile['stories'][number] }) {
 
 export function ProfilePage({
   initialProfile,
+  initialIsOwnProfile,
+  initialTab = 'profile',
+  initialAccountSecurity = null,
 }: {
   username?: string
   initialProfile: UserProfile
+  initialIsOwnProfile?: boolean
+  initialTab?: 'profile' | 'security'
+  initialAccountSecurity?: AccountSecurity | null
 }) {
   const { accessToken, user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const isOwnProfile = user?.id === initialProfile.id
-  const activeTab = isOwnProfile && searchParams.get('tab') === 'security' ? 'security' : 'profile'
+  const isOwnProfile = initialIsOwnProfile ?? user?.id === initialProfile.id
+  const [activeTab, setActiveTab] = useState<'profile' | 'security'>(initialTab)
+  useEffect(() => {
+    setActiveTab(searchParams.get('tab') === 'security' ? 'security' : 'profile')
+  }, [searchParams])
   function changeTab(tab: string) {
+    if (tab === 'profile' || tab === 'security') setActiveTab(tab)
     const params = new URLSearchParams(searchParams.toString())
     if (tab === 'security') params.set('tab', 'security')
     else params.delete('tab')
@@ -251,7 +262,7 @@ export function ProfilePage({
       </TabsContent>
 
       {isOwnProfile && <TabsContent value="security" className="mt-5">
-        <AccountSecurityPanel />
+          <AccountSecurityPanel initialAccount={initialAccountSecurity} />
       </TabsContent>}
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>

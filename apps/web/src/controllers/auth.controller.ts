@@ -1,7 +1,25 @@
 import { apiRequest } from '@/lib/api-client'
 import type { AuthSession } from '@/interface/auth-session.interface'
 import type { AuthUser } from '@/interface/user.interface'
-import type { AccountSecurity, ChangePasswordInput } from '@/interface/account-security.interface'
+import type { AccountSecurity, ChangePasswordInput, PhoneVerificationInput } from '@/interface/account-security.interface'
+
+export function requestPhoneVerification(phoneNumber: string, accessToken: string): Promise<{ message: string }> {
+  return apiRequest('/auth/security/phone/request', {
+    method: 'POST',
+    accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber }),
+  })
+}
+
+export function verifyPhoneVerification(input: Required<PhoneVerificationInput>, accessToken: string): Promise<{ message: string; phone_number: string }> {
+  return apiRequest('/auth/security/phone/verify', {
+    method: 'POST',
+    accessToken,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
 
 export function changePassword(input: ChangePasswordInput, accessToken: string): Promise<{ message: string }> {
   return apiRequest('/auth/security/password', {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, Link2, Mail } from 'lucide-react'
+import { Link2, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -15,12 +15,13 @@ import { getAccountSecurity, unlinkGoogleAccount } from '@/controllers/auth.cont
 import type { AccountSecurity } from '@/interface/account-security.interface'
 import { SITE_CONFIG } from '@/site.config'
 import { ChangePasswordSection } from './change-password-section'
+import { PhoneVerificationSection } from './phone-verification-section'
 import { ApiError } from '@/lib/api-client'
 
-export function AccountSecurityPanel() {
+export function AccountSecurityPanel({ initialAccount = null }: { initialAccount?: AccountSecurity | null }) {
   const { accessToken } = useAuth()
   const searchParams = useSearchParams()
-  const [account, setAccount] = useState<AccountSecurity | null>(null)
+  const [account, setAccount] = useState<AccountSecurity | null>(initialAccount)
   const [error, setError] = useState<string | null>(null)
   const [retry, setRetry] = useState(0)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -101,6 +102,7 @@ export function AccountSecurityPanel() {
             </div>
             <Badge variant={account.email_verified ? 'secondary' : 'outline'}>{account.email_verified ? 'ยืนยันแล้ว' : 'ยังไม่ได้ยืนยัน'}</Badge>
           </section>
+          <PhoneVerificationSection phoneNumber={account.phone_number} pendingPhoneNumber={account.pending_phone_number} verified={account.phone_verified} onRequested={(phoneNumber) => setAccount((current) => current ? { ...current, pending_phone_number: phoneNumber } : current)} onVerified={(phoneNumber) => setAccount((current) => current ? { ...current, phone_number: phoneNumber, phone_verified: true, pending_phone_number: null } : current)} />
           <section aria-labelledby="linked-accounts-heading" className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
             <h2 id="linked-accounts-heading" className="text-lg font-bold">บัญชีที่เชื่อมต่อ</h2>
             <p className="mt-1 text-sm text-muted-foreground">จัดการบัญชีที่ใช้เข้าสู่ระบบ</p>

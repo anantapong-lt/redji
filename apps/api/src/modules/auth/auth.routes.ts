@@ -11,6 +11,8 @@ import {
   googleAuthQuerySchema,
   changePasswordBodySchema,
   unlinkGoogleBodySchema,
+  phoneVerificationRequestBodySchema,
+  phoneVerificationVerifyBodySchema,
   googleCallbackQuerySchema,
   loginBodySchema,
   registerBodySchema,
@@ -24,7 +26,7 @@ import {
   validateAuthSession,
 } from './auth.service'
 import { beginGoogleAuthentication, finishGoogleAuthentication } from './google-auth.controller'
-import { accountSecurityResponse, changePasswordResponse, unlinkGoogleResponse } from './account-security.controller'
+import { accountSecurityResponse, accountSecuritySessionResponse, changePasswordResponse, requestPhoneVerificationResponse, unlinkGoogleResponse, verifyPhoneVerificationResponse } from './account-security.controller'
 import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
 import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
 
@@ -59,6 +61,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     optionalAuth: true,
   })
   .get('/security', ({ currentUser }) => accountSecurityResponse(currentUser.id), { auth: true })
+  .get('/security/session', ({ currentUser }) => accountSecuritySessionResponse(currentUser?.id), { optionalAuth: true })
   .post('/security/password', ({ currentUser, body }) => changePasswordResponse(currentUser.id, body), {
     auth: true,
     body: changePasswordBodySchema,
@@ -66,6 +69,14 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .post('/security/google/unlink', ({ currentUser, body }) => unlinkGoogleResponse(currentUser.id, body), {
     auth: true,
     body: unlinkGoogleBodySchema,
+  })
+  .post('/security/phone/request', ({ currentUser, body }) => requestPhoneVerificationResponse(currentUser.id, body), {
+    auth: true,
+    body: phoneVerificationRequestBodySchema,
+  })
+  .post('/security/phone/verify', ({ currentUser, body }) => verifyPhoneVerificationResponse(currentUser.id, body), {
+    auth: true,
+    body: phoneVerificationVerifyBodySchema,
   })
   .get('/google/callback', ({ cookie, query, refreshJwt, currentUser }) => finishGoogleAuthentication(
     query,

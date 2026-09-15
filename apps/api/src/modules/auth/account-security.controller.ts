@@ -1,10 +1,19 @@
-import { changeAccountPassword, getAccountSecurity, unlinkGoogleAccount } from './account-security.service'
-import type { ChangePasswordBody, UnlinkGoogleBody } from './auth.schema'
+import { changeAccountPassword, getAccountSecurity, requestPhoneVerification, unlinkGoogleAccount, verifyPhoneVerification } from './account-security.service'
+import type { ChangePasswordBody, PhoneVerificationRequestBody, PhoneVerificationVerifyBody, UnlinkGoogleBody } from './auth.schema'
+
+function thaiPhoneNumber(phoneNumber: string): string {
+  return `+66${phoneNumber.slice(1)}`
+}
 
 export async function accountSecurityResponse(userId: string) {
   const account = await getAccountSecurity(userId)
   if (!account) return Response.json({ message: 'ไม่พบบัญชีผู้ใช้' }, { status: 404 })
   return { account }
+}
+
+export async function accountSecuritySessionResponse(userId: string | undefined) {
+  if (!userId) return Response.json({ message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
+  return accountSecurityResponse(userId)
 }
 
 export async function changePasswordResponse(userId: string, body: ChangePasswordBody) {
@@ -47,5 +56,29 @@ export async function unlinkGoogleResponse(userId: string, body: UnlinkGoogleBod
     return { message: 'ยกเลิกการเชื่อมบัญชี Google สำเร็จแล้ว' }
   } catch {
     return Response.json({ message: 'ไม่สามารถยกเลิกการเชื่อมบัญชี Google ได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
+  }
+}
+
+export async function requestPhoneVerificationResponse(userId: string, body: PhoneVerificationRequestBody) {
+  try {
+    const result = await requestPhoneVerification(userId, thaiPhoneNumber(body.phone_number))
+    if (result === 'inactive') return Response.json({ message: 'บัญชีนี้ไม่สามารถเข้าใช้งานได้' }, { status: 403 })
+    if (result === 'phone_in_use') return Response.json({ message: 'เบอร์มือถือถูกใช้งานกับบัญชีอื่นแล้ว', field: 'phone_number' }, { status: 409 })
+    return { message: 'ส่งรหัส OTP แล้ว กรุณากรอกเพื่อยืนยันเบอร์มือถือ' }
+  } catch {
+    return Response.json({ message: 'ไม่สามารถส่งรหัส OTP ได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
+  }
+}
+
+export async function verifyPhoneVerificationResponse(userId: string, body: PhoneVerificationVerifyBody) {
+  try {
+    const result = await verifyPhoneVerification(userId, thaiPhoneNumber(body.phone_number), body.otp)
+    if (result === 'inactive') return Response.json({ message: 'บัญชีนี้ไม่สามารถเข้าใช้งานได้' }, { status: 403 })
+    if (result === 'phone_in_use') return Response.json({ message: 'เบอร์มือถือถูกใช้งานกับบัญชีอื่นแล้ว', field: 'phone_number' }, { status: 409 })
+    if (result === 'expired') return Response.json({ message: 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่' }, { status: 400 })
+    if (result === 'invalid_otp') return Response.json({ message: 'รหัส OTP ไม่ถูกต้อง', field: 'otp' }, { status: 400 })
+    return { message: 'ยืนยันเบอร์มือถือสำเร็จแล้ว', phone_number: thaiPhoneNumber(body.phone_number) }
+  } catch {
+    return Response.json({ message: 'ไม่สามารถยืนยันเบอร์มือถือได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }
