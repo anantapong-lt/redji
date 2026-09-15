@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { BookOpen, ChevronLeft, ChevronRight, Eye, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, RotateCcw, Search } from 'lucide-react'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,13 +22,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatCoin } from '@/utils/format-coin'
 
 type WorkType = 'novel' | 'manga'
-type WorkStatus = 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'cancelled'
-const WORK_VISIBILITY = {
-  VISIBLE: 'visible',
+type WorkStatus = 'active' | 'hidden' | 'suspended'
+const WORK_STATUS = {
+  ACTIVE: 'active',
   HIDDEN: 'hidden',
-  ALL: 'all',
+  SUSPENDED: 'suspended',
 } as const
-type WorkVisibility = (typeof WORK_VISIBILITY)[keyof typeof WORK_VISIBILITY]
 
 interface Work {
   id: string
@@ -61,20 +60,14 @@ const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').repl
 const webUrl = (process.env.NEXT_PUBLIC_WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const typeLabels: Record<WorkType, string> = { novel: 'นิยาย', manga: 'การ์ตูน' }
 const statusLabels: Record<WorkStatus, string> = {
-  draft: 'ฉบับร่าง',
-  ongoing: 'กำลังเผยแพร่',
-  completed: 'จบแล้ว',
-  hiatus: 'หยุดชั่วคราว',
-  cancelled: 'ยกเลิก',
+  active: 'ใช้งาน',
+  hidden: 'ซ่อน',
+  suspended: 'ระงับ',
 }
 const statusBadgeClasses: Record<WorkStatus, string> = {
-  draft: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  ongoing:
-    'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-  completed: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  hiatus:
-    'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300',
-  cancelled: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
+  active: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  hidden: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  suspended: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
 }
 
 export default function WorksPage() {
@@ -83,7 +76,6 @@ export default function WorksPage() {
   const [submittedSearch, setSubmittedSearch] = useState('')
   const [type, setType] = useState<'all' | WorkType>('all')
   const [status, setStatus] = useState<'all' | WorkStatus>('all')
-  const [visibility, setVisibility] = useState<WorkVisibility>(WORK_VISIBILITY.VISIBLE)
   const [genreId, setGenreId] = useState('all')
   const [genres, setGenres] = useState<GenreOption[]>([])
   const [data, setData] = useState<WorksResponse | null>(null)
@@ -93,6 +85,7 @@ export default function WorksPage() {
   const [hidingId, setHidingId] = useState<string | null>(null)
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const [workToHide, setWorkToHide] = useState<Work | null>(null)
+  const [workStatusToApply, setWorkStatusToApply] = useState<Exclude<WorkStatus, 'active'>>(WORK_STATUS.HIDDEN)
   const [hideReason, setHideReason] = useState('')
   const [hideReasonError, setHideReasonError] = useState<string | null>(null)
 
@@ -104,12 +97,11 @@ export default function WorksPage() {
     if (submittedSearch) query.set('search', submittedSearch)
     query.set('type', type)
     query.set('status', status)
-    query.set('visibility', visibility)
     if (genreId !== 'all') query.set('genre_id', genreId)
 
     try {
       const response = await fetch(`${apiUrl}/admin/contents?${query}`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       })
       const body = (await response.json().catch(() => null)) as WorksResponse | { message?: string } | null
@@ -120,7 +112,7 @@ export default function WorksPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, genreId, page, status, submittedSearch, type, visibility])
+  }, [accessToken, genreId, page, status, submittedSearch, type])
 
   useEffect(() => {
     void loadWorks()
@@ -146,7 +138,6 @@ export default function WorksPage() {
     setSubmittedSearch('')
     setType('all')
     setStatus('all')
-    setVisibility(WORK_VISIBILITY.VISIBLE)
     setGenreId('all')
     setPage(1)
   }
@@ -159,17 +150,17 @@ export default function WorksPage() {
     if (!accessToken || !workToHide) return
     const reason = hideReason.trim()
     if (!reason) {
-      setHideReasonError('กรุณาระบุเหตุผลในการซ่อนผลงาน')
+      setHideReasonError(`กรุณาระบุเหตุผลในการ${workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน`)
       return
     }
     const work = workToHide
     setHidingId(work.id)
     try {
-      const response = await fetch(`${apiUrl}/admin/contents/${work.id}`, {
-        method: 'DELETE',
+      const response = await fetch(`${apiUrl}/admin/contents/${work.id}/status`, {
+        method: 'PUT',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ status: workStatusToApply, reason }),
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถซ่อนผลงานได้')
@@ -188,10 +179,11 @@ export default function WorksPage() {
     if (!accessToken || restoringId !== null) return
     setRestoringId(work.id)
     try {
-      const response = await fetch(`${apiUrl}/admin/contents/${work.id}/restore`, {
+      const response = await fetch(`${apiUrl}/admin/contents/${work.id}/status`, {
         method: 'PUT',
         headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
+        body: JSON.stringify({ status: WORK_STATUS.ACTIVE }),
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถเปิดการมองเห็นผลงานได้')
@@ -246,24 +238,6 @@ export default function WorksPage() {
                     {label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={visibility} onValueChange={changeFilter(setVisibility)}>
-              <SelectTrigger className="w-full lg:w-40">
-                <SelectValue>
-                  {() =>
-                    ({
-                      [WORK_VISIBILITY.VISIBLE]: 'กำลังแสดง',
-                      [WORK_VISIBILITY.HIDDEN]: 'ถูกซ่อน',
-                      [WORK_VISIBILITY.ALL]: 'ทั้งหมด',
-                    })[visibility]
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={WORK_VISIBILITY.VISIBLE}>กำลังแสดง</SelectItem>
-                <SelectItem value={WORK_VISIBILITY.HIDDEN}>ถูกซ่อน</SelectItem>
-                <SelectItem value={WORK_VISIBILITY.ALL}>ทั้งหมด</SelectItem>
               </SelectContent>
             </Select>
             <Select value={genreId} onValueChange={changeFilter(setGenreId)}>
@@ -383,45 +357,36 @@ export default function WorksPage() {
                         <Badge
                           variant="outline"
                           className={
-                            work.deleted_at
+                            work.status === WORK_STATUS.SUSPENDED
                               ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300'
                               : statusBadgeClasses[work.status]
                           }
                         >
-                          {work.deleted_at ? 'ถูกซ่อน (Admin)' : statusLabels[work.status]}
+                          {statusLabels[work.status]}
                         </Badge>
                       </TableCell>
                       <TableCell>{new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' }).format(new Date(work.created_at))}</TableCell>
                       <TableCell className="text-right">
-                        {work.deleted_at ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void restoreWork(work)}
-                            disabled={restoringId !== null}
-                            aria-label={`เปิดการมองเห็นผลงาน ${work.title}`}
-                            title="เปิดการมองเห็น"
-                          >
-                            <Eye />
-                            {restoringId === work.id ? 'กำลังเปิด...' : 'เปิดการมองเห็น'}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => {
-                              setWorkToHide(work)
-                              setHideReason('')
-                              setHideReasonError(null)
-                            }}
-                            disabled={hidingId !== null}
-                            aria-label={`ซ่อนผลงาน ${work.title}`}
-                            title="ซ่อนผลงาน"
-                          >
-                            <Trash2 />
-                          </Button>
-                        )}
+                        <Select
+                          value={work.status}
+                          onValueChange={(value) => {
+                            if (value === work.status) return
+                            if (value === WORK_STATUS.ACTIVE) {
+                              void restoreWork(work)
+                              return
+                            }
+                            setWorkToHide(work)
+                            setWorkStatusToApply(value as Exclude<WorkStatus, 'active'>)
+                            setHideReason('')
+                            setHideReasonError(null)
+                          }}
+                        >
+                          <SelectTrigger className="ml-auto h-8 w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={WORK_STATUS.ACTIVE}>ใช้งาน</SelectItem>
+                            <SelectItem value={WORK_STATUS.SUSPENDED}>ระงับ</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                     </TableRow>
                   ))
@@ -474,13 +439,15 @@ export default function WorksPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>ยืนยันการซ่อนผลงาน</DialogTitle>
+            <DialogTitle>ยืนยันการ{workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน</DialogTitle>
             <DialogDescription>
-              ต้องการซ่อนผลงาน “{workToHide?.title}” ใช่หรือไม่? ผลงานจะไม่แสดงบน Web แต่ข้อมูลจะยังคงอยู่ในระบบ
+              {workStatusToApply === WORK_STATUS.SUSPENDED
+                ? `ต้องการระงับผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์จนกว่าแอดมินจะเปิดใช้งานอีกครั้ง`
+                : `ต้องการซ่อนผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์ แต่เจ้าของยังจัดการผลงานได้`}
             </DialogDescription>
             <div className="space-y-2">
               <label htmlFor="hide-work-reason" className="text-sm font-medium">
-                เหตุผลในการซ่อน <span className="text-destructive">*</span>
+                เหตุผลในการ{workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'} <span className="text-destructive">*</span>
               </label>
               <Textarea
                 id="hide-work-reason"
@@ -489,7 +456,7 @@ export default function WorksPage() {
                   setHideReason(event.target.value)
                   if (hideReasonError) setHideReasonError(null)
                 }}
-                placeholder="ระบุเหตุผลที่จะแจ้งให้เจ้าของผลงานทราบ"
+                placeholder={`ระบุเหตุผลในการ${workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน`}
                 maxLength={1000}
                 disabled={hidingId !== null}
                 aria-invalid={Boolean(hideReasonError)}
@@ -506,7 +473,7 @@ export default function WorksPage() {
               ยกเลิก
             </Button>
             <Button variant="destructive" onClick={() => void hideWork()} disabled={hidingId !== null}>
-              {hidingId ? 'กำลังซ่อน...' : 'ซ่อนผลงาน'}
+              {hidingId ? 'กำลังบันทึก...' : `${workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน`}
             </Button>
           </DialogFooter>
         </DialogContent>

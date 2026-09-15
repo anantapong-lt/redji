@@ -1,5 +1,5 @@
 import { db } from '../../db'
-import { USER_ROLE, USER_STATUS, type UserStatus } from '../../models/user.model'
+import { USER_ROLE, USER_STATUS, WRITER_STATUS, type WriterStatus } from '../../models/user.model'
 import { WITHDRAWAL_STATUS } from '../../models/withdrawal.model'
 
 export interface AdminWriter {
@@ -9,7 +9,7 @@ export interface AdminWriter {
   email: string
   phone_number: string | null
   avatar_url: string | null
-  status: UserStatus
+  status: WriterStatus
   balance: string
   created_at: Date
   last_login_at: Date | null
@@ -23,13 +23,13 @@ export interface AdminWriter {
   net_revenue: string
 }
 
-export async function countAdminWriters(search: string, status: UserStatus | null) {
+export async function countAdminWriters(search: string, status: WriterStatus | null) {
   const [row] = await db<{ total: string }[]>`
     SELECT COUNT(*)::TEXT AS total
     FROM users
     WHERE role = ${USER_ROLE.WRITER}
       AND deleted_at IS NULL
-      AND (${status}::TEXT IS NULL OR users.status = ${status})
+      AND (${status}::TEXT IS NULL OR users.writer_status = ${status}::moderation_status)
       AND (
         ${search} = ''
         OR STRPOS(LOWER(email), LOWER(${search})) > 0
@@ -40,11 +40,11 @@ export async function countAdminWriters(search: string, status: UserStatus | nul
   return Number(row?.total ?? 0)
 }
 
-export function findAdminWriters(page: number, limit: number, search: string, status: UserStatus | null) {
+export function findAdminWriters(page: number, limit: number, search: string, status: WriterStatus | null) {
   return db<AdminWriter[]>`
     SELECT
       users.id, users.display_name, users.username, users.email, users.phone_number, users.avatar_url,
-      users.status, users.balance::TEXT, users.created_at, users.last_login_at,
+      users.writer_status AS status, users.balance::TEXT, users.created_at, users.last_login_at,
       (
         SELECT COUNT(*)::TEXT
         FROM stories
@@ -90,7 +90,7 @@ export function findAdminWriters(page: number, limit: number, search: string, st
     FROM users
     WHERE users.role = ${USER_ROLE.WRITER}
       AND users.deleted_at IS NULL
-      AND (${status}::TEXT IS NULL OR users.status = ${status})
+      AND (${status}::TEXT IS NULL OR users.writer_status = ${status}::moderation_status)
       AND (
         ${search} = ''
         OR STRPOS(LOWER(users.email), LOWER(${search})) > 0
@@ -102,17 +102,18 @@ export function findAdminWriters(page: number, limit: number, search: string, st
   `
 }
 
-export async function updateAdminWriterStatus(id: string, status: UserStatus, banReason: string | null): Promise<{ id: string; status: UserStatus } | null> {
-  const [writer] = await db<Array<{ id: string; status: UserStatus }>>`
+export async function updateAdminWriterStatus(id: string, status: WriterStatus, banReason: string | null): Promise<{ id: string; status: WriterStatus } | null> {
+  const [writer] = await db<Array<{ id: string; status: WriterStatus }>>`
     UPDATE users
-    SET status = ${status},
-        ban_reason = ${status === USER_STATUS.BANNED ? banReason : null},
-        banned_at = ${status === USER_STATUS.BANNED ? new Date() : null},
+    SET writer_status = ${status}::moderation_status,
+        status = ${status === WRITER_STATUS.SUSPENDED ? USER_STATUS.BANNED : USER_STATUS.ACTIVE},
+        ban_reason = ${status === WRITER_STATUS.SUSPENDED ? banReason : null},
+        banned_at = ${status === WRITER_STATUS.SUSPENDED ? new Date() : null},
         updated_at = NOW()
     WHERE id = ${id}
       AND role = ${USER_ROLE.WRITER}
       AND deleted_at IS NULL
-    RETURNING id, status
+    RETURNING id, writer_status AS status
   `
   return writer ?? null
 }

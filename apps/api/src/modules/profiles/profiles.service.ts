@@ -1,7 +1,8 @@
 import { db } from '../../db'
 import { deleteWriterCoverByUrl, uploadPublicCover } from '../writer/content/writer-cover.service'
 import { CHAPTER_STATUS, STORY_STATUS, type StoryStatus, type StoryType } from '../../models/story.model'
-import { USER_STATUS, type UserRole } from '../../models/user.model'
+import { USER_STATUS, WRITER_STATUS, type UserRole } from '../../models/user.model'
+import { MODERATION_STATUS } from '../../models/story.model'
 
 export interface ProfileSocialLinks {
   facebook?: string
@@ -55,6 +56,7 @@ async function findProfileStoryCounts(userId: string, role: UserRole): Promise<P
       WHERE creator_user_id = ${userId}
         AND status IN ('ongoing', 'completed')
         AND deleted_at IS NULL
+        AND moderation_status = ${MODERATION_STATUS.ACTIVE}
         AND EXISTS (
           SELECT 1 FROM chapters
           WHERE chapters.story_id = stories.id
@@ -75,7 +77,9 @@ async function findProfileStoryCounts(userId: string, role: UserRole): Promise<P
     WHERE story_favorites.user_id = ${userId}
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND story_creators.status = ${USER_STATUS.ACTIVE}
+      AND story_creators.writer_status = ${WRITER_STATUS.ACTIVE}
       AND story_creators.deleted_at IS NULL
       AND EXISTS (
         SELECT 1 FROM chapters
@@ -105,6 +109,7 @@ export async function findRandomWriterProfiles(limit = 5): Promise<RandomWriterP
       WHERE stories.creator_user_id = users.id
         AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
+        AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
         AND EXISTS (
           SELECT 1 FROM chapters
           WHERE chapters.story_id = stories.id
@@ -114,6 +119,7 @@ export async function findRandomWriterProfiles(limit = 5): Promise<RandomWriterP
     ) AS stories ON stories.story_count <> '0'
     WHERE users.role = 'writer'
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     ORDER BY RANDOM()
     LIMIT ${limit}
@@ -127,6 +133,7 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
     FROM users
     WHERE LOWER(username) = LOWER(${username})
       AND status = ${USER_STATUS.ACTIVE}
+      AND (role <> 'writer' OR writer_status = ${WRITER_STATUS.ACTIVE})
       AND deleted_at IS NULL
     LIMIT 1
   `
@@ -193,8 +200,10 @@ export async function findPublicProfileByUsername(username: string, type: StoryT
       ) AS ratings ON TRUE
       WHERE story_favorites.user_id = ${profile.id}
         AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
-        AND stories.deleted_at IS NULL
-        AND story_creators.status = ${USER_STATUS.ACTIVE}
+      AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
+      AND story_creators.status = ${USER_STATUS.ACTIVE}
+      AND story_creators.writer_status = ${WRITER_STATUS.ACTIVE}
         AND story_creators.deleted_at IS NULL
         AND stories.type = ${type}
       ORDER BY story_favorites.created_at DESC

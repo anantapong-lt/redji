@@ -12,8 +12,26 @@ export const USER_STATUS = {
 export const USER_ROLES = Object.values(USER_ROLE)
 export const USER_STATUSES = [USER_STATUS.ACTIVE, USER_STATUS.BANNED] as const
 
+export const WRITER_STATUS = {
+  ACTIVE: 'active',
+  HIDDEN: 'hidden',
+  SUSPENDED: 'suspended',
+} as const
+
+export const WRITER_STATUSES = [
+  WRITER_STATUS.ACTIVE,
+  WRITER_STATUS.HIDDEN,
+  WRITER_STATUS.SUSPENDED,
+] as const
+
+export const ADMIN_WRITER_STATUSES = [
+  WRITER_STATUS.ACTIVE,
+  WRITER_STATUS.SUSPENDED,
+] as const
+
 export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE]
 export type UserStatus = (typeof USER_STATUSES)[number]
+export type WriterStatus = (typeof WRITER_STATUSES)[number]
 
 export interface UserModel {
   id: string

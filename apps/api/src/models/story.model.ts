@@ -18,6 +18,12 @@ export const CHAPTER_STATUS = {
   HIDDEN: 'hidden',
 } as const
 
+export const MODERATION_STATUS = {
+  ACTIVE: 'active',
+  HIDDEN: 'hidden',
+  SUSPENDED: 'suspended',
+} as const
+
 export const STORY_TYPES = [
   STORY_TYPE.NOVEL,
   STORY_TYPE.MANGA,
@@ -38,6 +44,18 @@ export const CHAPTER_STATUSES = [
   CHAPTER_STATUS.HIDDEN,
 ] as const
 
+export const MODERATION_STATUSES = [
+  MODERATION_STATUS.ACTIVE,
+  MODERATION_STATUS.HIDDEN,
+  MODERATION_STATUS.SUSPENDED,
+] as const
+
+export const ADMIN_CONTENT_STATUSES = [
+  MODERATION_STATUS.ACTIVE,
+  MODERATION_STATUS.SUSPENDED,
+] as const
+
 export type StoryType = (typeof STORY_TYPES)[number]
 export type StoryStatus = (typeof STORY_STATUSES)[number]
 export type ChapterStatus = (typeof CHAPTER_STATUSES)[number]
+export type ModerationStatus = (typeof MODERATION_STATUSES)[number]

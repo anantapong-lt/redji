@@ -17,7 +17,8 @@ import { formatCoin } from '@/utils/format-coin'
 
 const USER_STATUS = {
   ACTIVE: 'active',
-  BANNED: 'banned',
+  HIDDEN: 'hidden',
+  SUSPENDED: 'suspended',
 } as const
 
 type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS]
@@ -51,7 +52,8 @@ interface WritersResponse {
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 const statusLabel: Record<UserStatus, string> = {
   [USER_STATUS.ACTIVE]: 'ใช้งาน',
-  [USER_STATUS.BANNED]: 'ถูกแบน',
+  [USER_STATUS.HIDDEN]: 'ซ่อน',
+  [USER_STATUS.SUSPENDED]: 'ระงับ',
 }
 
 function formatDate(value: string) {
@@ -103,7 +105,7 @@ export default function WritersPage() {
   async function submitStatusChange() {
     if (!statusChange || !accessToken || isChangingStatus) return
     const normalizedBanReason = banReason.trim()
-    if (statusChange.nextStatus === USER_STATUS.BANNED && !normalizedBanReason) {
+    if (statusChange.nextStatus !== USER_STATUS.ACTIVE && !normalizedBanReason) {
       setBanReasonError('กรุณาระบุเหตุผลในการแบนผู้เขียน')
       return
     }
@@ -121,12 +123,12 @@ export default function WritersPage() {
         credentials: 'include',
         body: JSON.stringify({
           status: statusChange.nextStatus,
-          ...(statusChange.nextStatus === USER_STATUS.BANNED ? { ban_reason: normalizedBanReason } : {}),
+          ...(statusChange.nextStatus !== USER_STATUS.ACTIVE ? { reason: normalizedBanReason } : {}),
         }),
       })
       const body = await response.json().catch(() => null) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถเปลี่ยนสถานะนักเขียนได้')
-      toast.success(statusChange.nextStatus === USER_STATUS.BANNED ? 'แบนผู้เขียนเรียบร้อยแล้ว' : 'ปลดแบนผู้เขียนเรียบร้อยแล้ว')
+      toast.success('เปลี่ยนสถานะนักเขียนเรียบร้อยแล้ว')
       setStatusChange(null)
       setBanReason('')
       await loadWriters()
@@ -140,7 +142,7 @@ export default function WritersPage() {
   return <main className="mx-auto w-full p-4 md:p-6">
     <div className="mb-6 flex flex-col gap-1"><h1 className="flex items-center gap-2 text-2xl font-semibold"><UsersRound className="size-6 text-primary" />นักเขียนทั้งหมด</h1></div>
     <Card>
-      <CardHeader className="gap-4 border-b"><div><CardTitle>{data ? `พบ ${data.pagination.total.toLocaleString('th-TH')} นักเขียน` : 'กำลังโหลดรายชื่อนักเขียน'}</CardTitle></div><div className="flex flex-col gap-2 sm:flex-row"><form className="flex flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setPage(1); setSubmittedSearch(search.trim()) }}><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาชื่อ Username หรืออีเมล" /><Button type="submit" variant="outline" size="icon" aria-label="ค้นหา"><Search /></Button></form><Select value={status} onValueChange={(value) => { setStatus(value as 'all' | UserStatus); setPage(1) }}><SelectTrigger className="w-full sm:w-40"><SelectValue>{() => status === 'all' ? 'ทุกสถานะ' : statusLabel[status]}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem><SelectItem value="active">ใช้งาน</SelectItem><SelectItem value="banned">ถูกแบน</SelectItem></SelectContent></Select></div></CardHeader>
+      <CardHeader className="gap-4 border-b"><div><CardTitle>{data ? `พบ ${data.pagination.total.toLocaleString('th-TH')} นักเขียน` : 'กำลังโหลดรายชื่อนักเขียน'}</CardTitle></div><div className="flex flex-col gap-2 sm:flex-row"><form className="flex flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setPage(1); setSubmittedSearch(search.trim()) }}><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาชื่อ Username หรืออีเมล" /><Button type="submit" variant="outline" size="icon" aria-label="ค้นหา"><Search /></Button></form><Select value={status} onValueChange={(value) => { setStatus(value as 'all' | UserStatus); setPage(1) }}><SelectTrigger className="w-full sm:w-40"><SelectValue>{() => status === 'all' ? 'ทุกสถานะ' : statusLabel[status]}</SelectValue></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem><SelectItem value="active">ใช้งาน</SelectItem><SelectItem value="hidden">ซ่อน</SelectItem><SelectItem value="suspended">ระงับ</SelectItem></SelectContent></Select></div></CardHeader>
       <CardContent className="p-0">
         {error ? (
           <div className="p-6 text-sm text-destructive">{error}</div>
@@ -171,7 +173,7 @@ export default function WritersPage() {
                 ))
               ) : data?.writers.length ? (
                 data.writers.map((writer) => {
-                  const nextStatus = writer.status === USER_STATUS.ACTIVE ? USER_STATUS.BANNED : USER_STATUS.ACTIVE
+                  const nextStatus = writer.status === USER_STATUS.ACTIVE ? USER_STATUS.SUSPENDED : USER_STATUS.ACTIVE
                   return (
                     <TableRow key={writer.id}>
                       <TableCell>
@@ -194,18 +196,33 @@ export default function WritersPage() {
                         <Badge variant={writer.status === USER_STATUS.ACTIVE ? 'secondary' : 'destructive'}>{statusLabel[writer.status]}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
+                        <Select
+                          value={writer.status}
+                          onValueChange={(value) => {
+                            if (value === writer.status) return
+                            setStatusChange({ writer, nextStatus: value as UserStatus })
+                            setBanReason('')
+                            setBanReasonError(null)
+                          }}
+                        >
+                          <SelectTrigger className="mb-2 h-8 w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={USER_STATUS.ACTIVE}>ใช้งาน</SelectItem>
+                            <SelectItem value={USER_STATUS.SUSPENDED}>ระงับ</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <Button
                           type="button"
                           size="sm"
-                          variant={nextStatus === USER_STATUS.BANNED ? 'destructive' : 'outline'}
+                          variant={nextStatus === USER_STATUS.SUSPENDED ? 'destructive' : 'outline'}
                           onClick={() => {
                             setStatusChange({ writer, nextStatus })
                             setBanReason('')
                             setBanReasonError(null)
                           }}
                         >
-                          {nextStatus === USER_STATUS.BANNED ? <Ban /> : <ShieldCheck />}
-                          {nextStatus === USER_STATUS.BANNED ? 'แบน' : 'ปลดแบน'}
+                          {nextStatus === USER_STATUS.SUSPENDED ? <Ban /> : <ShieldCheck />}
+                          {nextStatus === USER_STATUS.SUSPENDED ? 'ระงับ' : 'ใช้งาน'}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -229,23 +246,27 @@ export default function WritersPage() {
     }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{statusChange?.nextStatus === USER_STATUS.BANNED ? 'ยืนยันการแบนผู้เขียน' : 'ยืนยันการปลดแบนผู้เขียน'}</DialogTitle>
+          <DialogTitle>
+            {statusChange ? `ยืนยันการ${statusLabel[statusChange.nextStatus]}นักเขียน` : 'ยืนยันการเปลี่ยนสถานะนักเขียน'}
+          </DialogTitle>
           <DialogDescription>
-            {statusChange?.nextStatus === USER_STATUS.BANNED
-              ? `ผู้ใช้ ${statusChange?.writer.display_name ?? ''} และเนื้อหาของเขาจะไม่แสดงบนเว็บไซต์`
-              : `ผู้ใช้ ${statusChange?.writer.display_name ?? ''} และเนื้อหาจะกลับมาแสดงบนเว็บไซต์`}
+            {statusChange?.nextStatus === USER_STATUS.SUSPENDED
+              ? `บัญชี ${statusChange?.writer.display_name ?? ''} จะถูกระงับโดยแอดมิน ผู้ใช้ไม่สามารถเปิดใช้งานหรือปลดระงับบัญชีเองได้`
+              : statusChange?.nextStatus === USER_STATUS.HIDDEN
+                ? `ผู้ใช้ ${statusChange?.writer.display_name ?? ''} และผลงานจะไม่แสดงบนเว็บไซต์ แต่ยังจัดการบัญชีและผลงานของตนได้`
+                : `บัญชี ${statusChange?.writer.display_name ?? ''} จะกลับมาใช้งานและแสดงบนเว็บไซต์ได้ โดยมีเพียงแอดมินที่เปลี่ยนสถานะนี้ได้`}
           </DialogDescription>
-          {statusChange?.nextStatus === USER_STATUS.BANNED ? (
+          {statusChange?.nextStatus !== USER_STATUS.ACTIVE ? (
             <div className="space-y-2">
-              <label htmlFor="writer-ban-reason" className="text-sm font-medium">เหตุผลในการแบน <span className="text-destructive">*</span></label>
+              <label htmlFor="writer-status-reason" className="text-sm font-medium">เหตุผลในการเปลี่ยนสถานะ <span className="text-destructive">*</span></label>
               <Textarea
-                id="writer-ban-reason"
+                id="writer-status-reason"
                 value={banReason}
                 onChange={(event) => {
                   setBanReason(event.target.value)
                   if (banReasonError) setBanReasonError(null)
                 }}
-                placeholder="ระบุเหตุผลที่ต้องการแบนผู้เขียน"
+                placeholder="ระบุเหตุผลในการซ่อนหรือระงับนักเขียน"
                 maxLength={1000}
                 disabled={isChangingStatus}
                 aria-invalid={Boolean(banReasonError)}
@@ -258,11 +279,11 @@ export default function WritersPage() {
           <Button type="button" variant="outline" disabled={isChangingStatus} onClick={() => setStatusChange(null)}>ยกเลิก</Button>
           <Button
             type="button"
-            variant={statusChange?.nextStatus === USER_STATUS.BANNED ? 'destructive' : 'default'}
+            variant={statusChange?.nextStatus === USER_STATUS.SUSPENDED ? 'destructive' : 'default'}
             disabled={isChangingStatus}
             onClick={() => void submitStatusChange()}
           >
-            {isChangingStatus ? 'กำลังบันทึก...' : statusChange?.nextStatus === USER_STATUS.BANNED ? 'ยืนยันการแบน' : 'ยืนยันการปลดแบน'}
+            {isChangingStatus ? 'กำลังบันทึก...' : 'ยืนยันการเปลี่ยนสถานะ'}
           </Button>
         </DialogFooter>
       </DialogContent>
