@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Link2, Mail, ShieldCheck } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
+import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,12 +36,19 @@ export function AccountSecurityPanel() {
 
   const linked = Boolean(account?.google_linked_at)
 
+  useEffect(() => {
+    if (!linked) return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('google_linked') !== '1') return
+
+    url.searchParams.delete('google_linked')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    toast.success('เชื่อมบัญชี Google สำเร็จแล้ว', { duration: 2500 })
+  }, [linked, searchParams])
+
   return (
     <div className="min-w-0 space-y-4">
       {oauthError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{oauthError}</p>}
-      {searchParams.get('google_linked') === '1' && linked && (
-        <p role="status" className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary"><CheckCircle2 className="size-4 shrink-0" />เชื่อมบัญชี Google สำเร็จแล้ว</p>
-      )}
       {error ? (
         <div role="alert" className="space-y-3 rounded-2xl border border-border bg-card p-5">
           <p className="text-sm text-destructive">{error}</p>
