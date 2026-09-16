@@ -1,7 +1,7 @@
 import { status } from 'elysia'
 import type { adminWriterStatusBodySchema, adminWritersQuerySchema } from './admin-writers.schema'
 import { countAdminWriters, findAdminWriters, updateAdminWriterStatus } from './admin-writers.service'
-import { USER_STATUS } from '../../models/user.model'
+import { WRITER_STATUS } from '../../models/user.model'
 
 export async function getAdminWriters(query: typeof adminWritersQuerySchema.static) {
   try {
@@ -20,8 +20,8 @@ export async function getAdminWriters(query: typeof adminWritersQuerySchema.stat
 }
 
 export async function changeAdminWriterStatus(id: string, body: typeof adminWriterStatusBodySchema.static) {
-  const banReason = body.ban_reason?.trim() ?? ''
-  if (body.status === USER_STATUS.BANNED && !banReason) {
+  const banReason = body.reason?.trim() ?? ''
+  if (body.status !== WRITER_STATUS.ACTIVE && !banReason) {
     return status(400, { message: 'กรุณาระบุเหตุผลในการแบนผู้เขียน' })
   }
 

@@ -1,6 +1,6 @@
 import { db } from '../../db'
-import { CHAPTER_STATUS, STORY_STATUS, type StoryStatus, type StoryType } from '../../models/story.model'
-import { USER_STATUS } from '../../models/user.model'
+import { CHAPTER_STATUS, MODERATION_STATUS, STORY_STATUS, type StoryStatus, type StoryType } from '../../models/story.model'
+import { USER_STATUS, WRITER_STATUS } from '../../models/user.model'
 
 export interface PublicReaderChapter {
   id: string
@@ -120,7 +120,9 @@ export async function findPublicChapterForReading(
       AND chapters.published_at <= NOW()
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -635,7 +637,9 @@ export async function findPublicContentBySlug(
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -670,7 +674,9 @@ export async function getPublicContentFavoriteBySlug(
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -689,7 +695,9 @@ export async function addPublicContentFavorite(
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -715,7 +723,9 @@ export async function removePublicContentFavorite(
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -747,7 +757,9 @@ export async function ratePublicContentBySlug(
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -813,7 +825,9 @@ export async function findPublicChaptersBySlug(
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     LIMIT 1
   `
@@ -896,7 +910,9 @@ export async function listPublicContentForSitemap(): Promise<PublicContentSitema
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
       AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
       AND users.status = ${USER_STATUS.ACTIVE}
+      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
       AND users.deleted_at IS NULL
     ORDER BY stories.updated_at DESC, stories.id DESC
   `

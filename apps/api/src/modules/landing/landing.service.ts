@@ -1,6 +1,7 @@
 import { db } from '../../db'
 import { CHAPTER_STATUS, STORY_STATUS, type StoryType } from '../../models/story.model'
-import { USER_STATUS } from '../../models/user.model'
+import { USER_STATUS, WRITER_STATUS } from '../../models/user.model'
+import { MODERATION_STATUS } from '../../models/story.model'
 import type { LandingSection } from './landing.schema'
 
 interface LandingStory {
@@ -121,7 +122,9 @@ export async function getLandingStories(
       ) AS favorite_stats ON TRUE
       WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
+        AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
         AND users.status = ${USER_STATUS.ACTIVE}
+        AND users.writer_status = ${WRITER_STATUS.ACTIVE}
         AND users.deleted_at IS NULL
         AND (${search} = '' OR stories.title ILIKE ${searchPattern})
         AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)
@@ -157,7 +160,9 @@ export async function getLandingStories(
       INNER JOIN users ON users.id = stories.creator_user_id
       WHERE stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
         AND stories.deleted_at IS NULL
+        AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
         AND users.status = ${USER_STATUS.ACTIVE}
+        AND users.writer_status = ${WRITER_STATUS.ACTIVE}
         AND users.deleted_at IS NULL
         AND (${search} = '' OR stories.title ILIKE ${searchPattern})
         AND (${contentType}::story_type IS NULL OR stories.type = ${contentType}::story_type)

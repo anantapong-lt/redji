@@ -1,4 +1,6 @@
 import { db } from '../../db'
+import { MODERATION_STATUS } from '../../models/story.model'
+import { USER_STATUS, WRITER_STATUS } from '../../models/user.model'
 import type {
   ChapterPurchase,
   ExistingChapterPurchase,
@@ -56,10 +58,14 @@ export async function purchaseChapters(
           stories.creator_user_id AS writer_user_id
         FROM chapters
         INNER JOIN stories ON stories.id = chapters.story_id
+        INNER JOIN users AS writers ON writers.id = stories.creator_user_id
         WHERE chapters.id = ANY(${chapterIdArray})
           AND chapters.status = 'published'
           AND stories.status IN ('ongoing', 'completed')
           AND stories.deleted_at IS NULL
+          AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
+          AND writers.status = ${USER_STATUS.ACTIVE}
+          AND writers.writer_status = ${WRITER_STATUS.ACTIVE}
         ORDER BY chapters.id
         FOR UPDATE OF chapters
       `

@@ -1,17 +1,16 @@
 import { db } from '../../db'
-import type { StoryStatus, StoryType } from '../../models/story.model'
+import { MODERATION_STATUS, type ModerationStatus, type StoryType } from '../../models/story.model'
 import { NOTIFICATION_TYPE } from '../../models/notification.model'
 
 type AdminContentTypeFilter = StoryType | 'all'
-type AdminContentStatusFilter = StoryStatus | 'all'
-type AdminContentVisibilityFilter = 'visible' | 'hidden' | 'all'
+type AdminContentStatusFilter = ModerationStatus | 'all'
 
 export interface AdminContent {
   id: string
   title: string
   slug: string
   type: StoryType
-  status: StoryStatus
+  status: ModerationStatus
   cover_url: string | null
   total_views: string
   chapter_count: string
@@ -30,14 +29,13 @@ export async function findAdminContents(
   search: string,
   type: AdminContentTypeFilter,
   status: AdminContentStatusFilter,
-  visibility: AdminContentVisibilityFilter,
   genreId: string | null,
 ) {
   const offset = (page - 1) * limit
   const [contents, [count]] = await Promise.all([
     db<AdminContent[]>`
       SELECT
-        stories.id, stories.title, stories.slug, stories.type, stories.status, stories.deleted_at,
+        stories.id, stories.title, stories.slug, stories.type, stories.moderation_status AS status, stories.deleted_at,
         stories.cover_url, stories.total_views::TEXT,
         (SELECT COUNT(*)::TEXT FROM chapters WHERE chapters.story_id = stories.id) AS chapter_count,
         (
@@ -57,13 +55,8 @@ export async function findAdminContents(
       INNER JOIN genres AS primary_genre ON primary_genre.id = stories.primary_genre_id
       LEFT JOIN genres AS secondary_genre ON secondary_genre.id = stories.secondary_genre_id
       WHERE users.deleted_at IS NULL
-        AND (
-          ${visibility} = 'all'
-          OR (${visibility} = 'visible' AND stories.deleted_at IS NULL)
-          OR (${visibility} = 'hidden' AND stories.deleted_at IS NOT NULL)
-        )
         AND (${type}::TEXT = 'all' OR stories.type::TEXT = ${type}::TEXT)
-        AND (${status}::TEXT = 'all' OR stories.status::TEXT = ${status}::TEXT)
+        AND (${status}::TEXT = 'all' OR stories.moderation_status::TEXT = ${status}::TEXT)
         AND (${genreId}::UUID IS NULL OR stories.primary_genre_id = ${genreId} OR stories.secondary_genre_id = ${genreId})
         AND (
           ${search} = ''
@@ -80,13 +73,8 @@ export async function findAdminContents(
       FROM stories
       INNER JOIN users ON users.id = stories.creator_user_id
       WHERE users.deleted_at IS NULL
-        AND (
-          ${visibility} = 'all'
-          OR (${visibility} = 'visible' AND stories.deleted_at IS NULL)
-          OR (${visibility} = 'hidden' AND stories.deleted_at IS NOT NULL)
-        )
         AND (${type}::TEXT = 'all' OR stories.type::TEXT = ${type}::TEXT)
-        AND (${status}::TEXT = 'all' OR stories.status::TEXT = ${status}::TEXT)
+        AND (${status}::TEXT = 'all' OR stories.moderation_status::TEXT = ${status}::TEXT)
         AND (${genreId}::UUID IS NULL OR stories.primary_genre_id = ${genreId} OR stories.secondary_genre_id = ${genreId})
         AND (
           ${search} = ''
@@ -101,18 +89,17 @@ export async function findAdminContents(
   return { contents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }
 }
 
-export async function softDeleteAdminContent(contentId: string, reason: string): Promise<boolean> {
+export async function updateAdminContentStatus(contentId: string, status: ModerationStatus, reason: string | null): Promise<boolean> {
   return db.begin(async (transaction) => {
     const [content] = await transaction<Array<{ id: string; title: string; creator_user_id: string }>>`
       UPDATE stories
-      SET deleted_at = NOW(), updated_at = NOW()
+      SET moderation_status = ${status}::moderation_status, updated_at = NOW()
       WHERE id = ${contentId}
-        AND deleted_at IS NULL
       RETURNING id, title, creator_user_id
     `
     if (!content) return false
 
-    await transaction`
+    if (status !== MODERATION_STATUS.ACTIVE) await transaction`
       INSERT INTO notifications (user_id, type, title, message, target_url, data)
       VALUES (
         ${content.creator_user_id},
@@ -127,13 +114,10 @@ export async function softDeleteAdminContent(contentId: string, reason: string):
   })
 }
 
+export function softDeleteAdminContent(contentId: string, reason: string): Promise<boolean> {
+  return updateAdminContentStatus(contentId, MODERATION_STATUS.HIDDEN, reason)
+}
+
 export async function restoreAdminContentVisibility(contentId: string): Promise<boolean> {
-  const [content] = await db<{ id: string }[]>`
-    UPDATE stories
-    SET deleted_at = NULL, updated_at = NOW()
-    WHERE id = ${contentId}
-      AND deleted_at IS NOT NULL
-    RETURNING id
-  `
-  return Boolean(content)
+  return updateAdminContentStatus(contentId, MODERATION_STATUS.ACTIVE, null)
 }

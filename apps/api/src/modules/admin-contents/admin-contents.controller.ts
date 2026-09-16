@@ -1,6 +1,9 @@
 import { status } from 'elysia'
 import type { adminContentsQuerySchema, hideAdminContentBodySchema } from './admin-contents.schema'
 import { findAdminContents, restoreAdminContentVisibility, softDeleteAdminContent } from './admin-contents.service'
+import { updateAdminContentStatus } from './admin-contents.service'
+import type { adminContentStatusBodySchema } from './admin-contents.schema'
+import { MODERATION_STATUS } from '../../models/story.model'
 
 type AdminContentsQuery = typeof adminContentsQuerySchema.static
 
@@ -12,12 +15,25 @@ export async function getAdminContents(query: AdminContentsQuery) {
       query.search?.trim() ?? '',
       query.type ?? 'all',
       query.status ?? 'all',
-      query.visibility ?? 'visible',
       query.genre_id ?? null,
     )
   } catch (error) {
     console.error('Unable to load admin contents', error)
     return status(500, { message: 'ไม่สามารถโหลดรายการผลงานได้ กรุณาลองใหม่อีกครั้ง' })
+  }
+}
+
+export async function changeAdminContentStatus(contentId: string, body: typeof adminContentStatusBodySchema.static) {
+  const reason = body.reason?.trim() ?? ''
+  if (body.status !== MODERATION_STATUS.ACTIVE && !reason) {
+    return status(400, { message: 'กรุณาระบุเหตุผลในการเปลี่ยนสถานะผลงาน' })
+  }
+  try {
+    const changed = await updateAdminContentStatus(contentId, body.status, reason || null)
+    return changed ? { message: 'เปลี่ยนสถานะผลงานเรียบร้อยแล้ว' } : status(404, { message: 'ไม่พบผลงาน' })
+  } catch (error) {
+    console.error('Unable to update admin content status', error)
+    return status(500, { message: 'ไม่สามารถเปลี่ยนสถานะผลงานได้' })
   }
 }
 
