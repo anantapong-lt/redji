@@ -135,18 +135,19 @@ export async function queryWriterChapters(
   const offset = (input.page - 1) * input.limit
   const [chapters, [count]] = await Promise.all([
     db<WriterChapter[]>`
-      SELECT chapters.id, chapters.chapter_number::TEXT, chapters.title,
+      SELECT chapters.id, stories.slug AS story_slug, chapters.chapter_number::TEXT, chapters.title,
         chapters.price::TEXT, chapters.is_free,
         COUNT(chapter_purchases.id)::TEXT AS sales_count, chapters.status,
         chapters.published_at, chapters.created_at
       FROM chapters
+      INNER JOIN stories ON stories.id = chapters.story_id
       LEFT JOIN chapter_purchases ON chapter_purchases.chapter_id = chapters.id
       WHERE chapters.story_id = ${storyId}
         AND (
           ${search} = '' OR chapters.chapter_number::TEXT ILIKE ${searchPattern}
           OR chapters.title ILIKE ${searchPattern}
         )
-      GROUP BY chapters.id
+      GROUP BY chapters.id, stories.slug
       ORDER BY chapters.chapter_number DESC, chapters.id DESC
       LIMIT ${input.limit} OFFSET ${offset}
     `,

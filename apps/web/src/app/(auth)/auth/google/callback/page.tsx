@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
 
-export default function GoogleCallbackPage() {
+function GoogleCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refresh } = useAuth()
@@ -18,4 +18,12 @@ export default function GoogleCallbackPage() {
   }, [refresh, router, searchParams])
 
   return <p className="text-center text-sm text-muted-foreground">กำลังเข้าสู่ระบบด้วย Google...</p>
+}
+
+export default function GoogleCallbackPage() {
+  return (
+    <Suspense fallback={<p className="text-center text-sm text-muted-foreground">กำลังเข้าสู่ระบบด้วย Google...</p>}>
+      <GoogleCallbackContent />
+    </Suspense>
+  )
 }

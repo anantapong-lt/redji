@@ -48,6 +48,7 @@ export interface GetWriterChaptersInput {
 
 export interface WriterChapter {
   id: string
+  story_slug: string
   chapter_number: string
   title: string
   price: string

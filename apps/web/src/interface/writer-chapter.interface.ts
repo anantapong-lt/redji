@@ -28,6 +28,7 @@ export interface WriterChapterDetail extends Omit<CreatedWriterChapter, 'created
 
 export interface WriterChapter {
   id: string
+  story_slug: string
   chapter_number: string
   title: string
   price: string

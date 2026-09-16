@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeftIcon, CoinsIcon, PlusIcon, SearchIcon } from 'lucide-react'
+import { ArrowLeftIcon, PlusIcon, SearchIcon } from 'lucide-react'
+import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
@@ -391,13 +392,20 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
                   >
                     {chapter.title}
                   </Link>
+                  <Link
+                    href={`/content/${encodeURIComponent(chapter.story_slug)}/${encodeURIComponent(String(Number(chapter.chapter_number)))}`}
+                    className="mt-1 block w-fit text-xs text-muted-foreground hover:text-primary hover:underline"
+                    target='_blank'
+                  >
+                    {`content/${chapter.story_slug}/${String(Number(chapter.chapter_number))}`}
+                  </Link>
                 </TableCell>
                 <TableCell className="px-4 text-right tabular-nums">
                   {chapter.is_free ? (
                     <span className="font-semibold text-primary">ฟรี</span>
                   ) : (
                     <span className="inline-flex items-center gap-1">
-                      <CoinsIcon className="size-4 text-orange-500" />
+                      <GiTwoCoins className="size-4 text-orange-500" />
                       {formatPrice(chapter.price)}
                     </span>
                   )}
