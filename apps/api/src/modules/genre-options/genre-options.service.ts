@@ -29,8 +29,11 @@ function parseCachedGenreOptions(value: string): GenreOption[] | null {
 }
 
 export async function getGenreOptions(): Promise<GenreOption[]> {
+  let cacheAvailable = false
   try {
+    if (!cache.connected) await cache.connect()
     const cachedOptions = await cache.get(GENRE_OPTIONS_CACHE_KEY)
+    cacheAvailable = true
     if (cachedOptions) {
       const options = parseCachedGenreOptions(cachedOptions)
       if (options) return options
@@ -44,6 +47,8 @@ export async function getGenreOptions(): Promise<GenreOption[]> {
     FROM genres
     ORDER BY name ASC
   `
+
+  if (!cacheAvailable) return options
 
   try {
     await cache.send('SET', [

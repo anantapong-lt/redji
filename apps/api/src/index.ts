@@ -20,6 +20,7 @@ import { siteConfigRoutes } from './modules/site-config/site-config.routes'
 import { topupRoutes } from './modules/topup/topup.routes'
 import { publishScheduledChapters } from './modules/writer/chapter/writer-chapter.service'
 import { writerRoutes } from './modules/writer/writer.routes'
+import { writerChapterPageRoutes } from './modules/writer/chapter/writer-chapter-page.routes'
 import { writerBankAccountRoutes } from './modules/writer-bank-account/writer-bank-account.routes'
 import { writerWithdrawalRoutes } from './modules/writer-withdrawals/writer-withdrawals.routes'
 import { ttsAgentRoutes } from './modules/tts-agent/tts-agent.routes'
@@ -63,6 +64,7 @@ const app = new Elysia()
   .use(writerWithdrawalRoutes)
   .use(ttsAgentRoutes)
   .use(writerRoutes)
+  .use(writerChapterPageRoutes)
 
 app.listen({ port: env.PORT, maxRequestBodySize: 650 * 1024 * 1024 })
 

@@ -1,11 +1,28 @@
 import { S3Client } from 'bun'
 import { Buffer } from 'node:buffer'
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import { mkdir, rm } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
 import sharp from 'sharp'
 import { env } from '../../../config/env'
 
 const PAGE_WIDTH = 2400
 const PAGE_QUALITY = 85
 const PAGE_COMPRESSION_THRESHOLD_BYTES = 700 * 1024
+const LOCAL_KEY_PREFIX = 'local/'
+const LOCAL_KEY_PATTERN = /^local\/stories\/chapters\/[a-zA-Z0-9-]+\/\d+(?:\.\d+)?\/[a-f0-9-]+\.webp$/
+const ASSETS_DIRECTORY = resolve(import.meta.dir, '../../../../assets')
+
+function localPagePath(key: string): string {
+  if (!LOCAL_KEY_PATTERN.test(key)) throw new Error('Invalid local chapter page key')
+  return resolve(ASSETS_DIRECTORY, key.slice(LOCAL_KEY_PREFIX.length))
+}
+
+function localPageSignature(key: string, expires: string): string {
+  return createHmac('sha256', env.JWT_ACCESS_SECRET)
+    .update(`manga-page\n${key}\n${expires}`)
+    .digest('hex')
+}
 
 export interface UploadedChapterPage {
   key: string
@@ -44,11 +61,18 @@ export async function uploadWriterChapterPage(
   const { data, info } = await image
     .webp({ quality: PAGE_QUALITY })
     .toBuffer({ resolveWithObject: true })
-  const key = `stories/chapters/${storyId}/${chapterNumber}/${crypto.randomUUID()}.webp`
+  const storageKey = `stories/chapters/${storyId}/${chapterNumber}/${crypto.randomUUID()}.webp`
+  const key = env.LOCAL_UPLOAD ? `${LOCAL_KEY_PREFIX}${storageKey}` : storageKey
 
-  await createR2Client().write(key, new Blob([data], { type: 'image/webp' }), {
-    type: 'image/webp',
-  })
+  if (env.LOCAL_UPLOAD) {
+    const path = localPagePath(key)
+    await mkdir(dirname(path), { recursive: true })
+    await Bun.write(path, data)
+  } else {
+    await createR2Client().write(key, new Blob([data], { type: 'image/webp' }), {
+      type: 'image/webp',
+    })
+  }
 
   return {
     key,
@@ -58,6 +82,14 @@ export async function uploadWriterChapterPage(
 }
 
 export function createWriterChapterPageSignedUrl(key: string): string {
+  if (key.startsWith(LOCAL_KEY_PREFIX)) {
+    localPagePath(key)
+    const expires = String(Math.floor(Date.now() / 1000) + 5 * 60)
+    const url = new URL(`${env.API_ORIGIN.replace(/\/$/, '')}/assets/manga`)
+    url.search = new URLSearchParams({ key, expires, signature: localPageSignature(key, expires) }).toString()
+    return url.toString()
+  }
+
   return createR2Client().presign(key, {
     expiresIn: 5 * 60,
     method: 'GET',
@@ -65,5 +97,23 @@ export function createWriterChapterPageSignedUrl(key: string): string {
 }
 
 export async function deleteWriterChapterPage(key: string): Promise<void> {
+  if (key.startsWith(LOCAL_KEY_PREFIX)) {
+    await rm(localPagePath(key), { force: true })
+    return
+  }
+
   await createR2Client().delete(key)
+}
+
+export async function findLocalWriterChapterPage(key: string, expires: string, signature: string) {
+  if (
+    !LOCAL_KEY_PATTERN.test(key)
+    || !/^\d+$/.test(expires)
+    || Number(expires) <= Math.floor(Date.now() / 1000)
+    || !/^[a-f0-9]{64}$/.test(signature)
+    || !timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(localPageSignature(key, expires), 'hex'))
+  ) return null
+
+  const file = Bun.file(localPagePath(key), { type: 'image/webp' })
+  return await file.exists() ? file : null
 }
