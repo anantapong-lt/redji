@@ -13,7 +13,7 @@ export default async function ContentManagementLayout({
 
   return (
     <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto ">
         <ContentManagementTabs contentId={id} />
         {children}
       </div>
