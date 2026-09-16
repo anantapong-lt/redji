@@ -2,6 +2,9 @@
 node_modules/
 .bun/
 
+# Local manga chapter uploads
+/apps/api/assets/stories/chapters/
+
 # output
 out/
 dist/
