@@ -296,9 +296,11 @@ export function NavbarClient({
                         เติม{SITE_CONFIG.coinName}
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled className="py-2.5">
-                      <HistoryIcon />
-                      ประวัติการทำรายการ
+                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                      <Link href="/transactions">
+                        <HistoryIcon />
+                        ประวัติการทำรายการ
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -384,6 +386,7 @@ export function NavbarClient({
               </Link>
               {[
                 { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
+                ...(user ? [{ label: 'ประวัติทำรายการ', icon: HistoryIcon, href: '/transactions' }] : []),
                 { label: 'ค้นหานิยาย', icon: Search },
                 { label: user?.role === userRole.WRITER ? 'Writer Studio' : 'สมัครนักเขียน', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined, canApply: user?.role === userRole.USER },
               ].map(({ label, icon: Icon, href, canApply }) => canApply ? (

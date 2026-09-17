@@ -27,6 +27,16 @@ export interface CreatedTopup {
   }
 }
 
+export interface TopupHistory {
+  transactions: TopupTransaction[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 type TopupErrorStatus = 400 | 401 | 403 | 404 | 409 | 502
 
 export class TopupError extends Error {
@@ -408,6 +418,46 @@ export async function findTopupById(
   `
 
   return transaction ?? null
+}
+
+export async function findTopupHistory(
+  userId: string,
+  page: number,
+  limit: number,
+): Promise<TopupHistory> {
+  const [count] = await db<{ total: string }[]>`
+    SELECT COUNT(*)::TEXT AS total
+    FROM topup_transactions
+    WHERE user_id = ${userId}::UUID
+  `
+  const total = Number(count?.total ?? 0)
+  const totalPages = Math.ceil(total / limit)
+  const safePage = Math.min(page, Math.max(totalPages, 1))
+  const transactions = await db<TopupTransaction[]>`
+    SELECT
+      id,
+      requested_amount::TEXT,
+      base_coins::TEXT,
+      bonus_coins::TEXT,
+      credited_coins::TEXT,
+      CASE
+        WHEN status = ${TopupStatus.PENDING} AND expires_at IS NOT NULL AND expires_at <= NOW()
+          THEN ${TopupStatus.EXPIRED}::topup_transaction_status
+        ELSE status
+      END AS status,
+      expires_at,
+      paid_at,
+      created_at
+    FROM topup_transactions
+    WHERE user_id = ${userId}::UUID
+    ORDER BY created_at DESC, id DESC
+    LIMIT ${limit} OFFSET ${(safePage - 1) * limit}
+  `
+
+  return {
+    transactions,
+    pagination: { page: safePage, limit, total, totalPages },
+  }
 }
 
 export async function processTmweasyWebhook(

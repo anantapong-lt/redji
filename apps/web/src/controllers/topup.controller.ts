@@ -1,4 +1,4 @@
-import type { CreateTopupResponse, GetTopupResponse } from '@/interface/topup.interface'
+import type { CreateTopupResponse, GetTopupResponse, TopupHistoryResponse } from '@/interface/topup.interface'
 import { apiRequest } from '@/lib/api-client'
 
 export function createTopup(
@@ -20,4 +20,13 @@ export function getTopup(
   return apiRequest<GetTopupResponse>(`/topups/${encodeURIComponent(topupId)}`, {
     accessToken,
   })
+}
+
+export function getTopupHistory(
+  page: number,
+  limit: number,
+  accessToken: string,
+): Promise<TopupHistoryResponse> {
+  const query = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return apiRequest<TopupHistoryResponse>(`/topups?${query}`, { accessToken })
 }

@@ -11,3 +11,8 @@ export const bulkChapterPurchaseBodySchema = t.Object({
     uniqueItems: true,
   }),
 })
+
+export const chapterPurchaseHistoryQuerySchema = t.Object({
+  page: t.Optional(t.Numeric({ minimum: 1, maximum: 2147483647, multipleOf: 1 })),
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 50, multipleOf: 1 })),
+})

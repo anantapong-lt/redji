@@ -1,8 +1,10 @@
 import {
   ChapterPurchaseError,
+  findUserChapterPurchaseHistory,
   purchaseChapter,
   purchaseChapters,
 } from './chapter-purchase.service'
+import type { chapterPurchaseHistoryQuerySchema } from './chapter-purchase.schema'
 
 function purchaseErrorResponse(error: unknown) {
   if (error instanceof ChapterPurchaseError) {
@@ -31,5 +33,20 @@ export async function purchasePublicChapters(currentUserId: string, chapterIds: 
     return Response.json({ purchases }, { status: 201 })
   } catch (error) {
     return purchaseErrorResponse(error)
+  }
+}
+
+export async function getUserChapterPurchaseHistory(
+  currentUserId: string,
+  query: typeof chapterPurchaseHistoryQuerySchema.static,
+) {
+  try {
+    return await findUserChapterPurchaseHistory(currentUserId, query.page ?? 1, query.limit ?? 10)
+  } catch (error) {
+    console.error('Unable to load chapter purchase history', error)
+    return Response.json(
+      { message: 'ไม่สามารถโหลดประวัติการซื้อตอนได้ กรุณาลองใหม่อีกครั้ง' },
+      { status: 500 },
+    )
   }
 }

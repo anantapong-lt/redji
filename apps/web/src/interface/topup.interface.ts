@@ -37,3 +37,13 @@ export interface CreateTopupResponse {
 export interface GetTopupResponse {
   transaction: TopupTransaction
 }
+
+export interface TopupHistoryResponse {
+  transactions: TopupTransaction[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}

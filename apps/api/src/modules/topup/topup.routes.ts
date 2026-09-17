@@ -5,11 +5,13 @@ import {
   closeTopupSocket,
   createUserTopup,
   getUserTopup,
+  getUserTopupHistory,
   openTopupSocket,
   receiveTmweasyWebhook,
 } from './topup.controller'
 import {
   createTopupBodySchema,
+  topupHistoryQuerySchema,
   tmweasyWebhookBodySchema,
   topupParamsSchema,
 } from './topup.schema'
@@ -24,6 +26,11 @@ export const topupRoutes = new Elysia({ prefix: '/topups' })
       request,
     ),
     { auth: true, body: createTopupBodySchema },
+  )
+  .get(
+    '',
+    ({ currentUser, query }) => getUserTopupHistory(currentUser.id, query),
+    { auth: true, query: topupHistoryQuerySchema },
   )
   .post(
     '/tmweasy/webhook',

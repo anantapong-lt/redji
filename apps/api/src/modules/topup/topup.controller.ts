@@ -3,9 +3,11 @@ import { subscribeToTopupEvents } from './topup.events'
 import {
   createTopup,
   findTopupById,
+  findTopupHistory,
   processTmweasyWebhook,
   TopupError,
 } from './topup.service'
+import type { topupHistoryQuerySchema } from './topup.schema'
 
 interface TopupSocket {
   id: string
@@ -62,6 +64,17 @@ export async function getUserTopup(currentUserId: string, topupId: string) {
     }
 
     return { transaction }
+  } catch (error) {
+    return topupErrorResponse(error)
+  }
+}
+
+export async function getUserTopupHistory(
+  currentUserId: string,
+  query: typeof topupHistoryQuerySchema.static,
+) {
+  try {
+    return await findTopupHistory(currentUserId, query.page ?? 1, query.limit ?? 10)
   } catch (error) {
     return topupErrorResponse(error)
   }

@@ -8,6 +8,27 @@ import type {
   PurchasableChapter,
 } from '../../models/chapter-purchase.model'
 
+export interface UserChapterPurchase {
+  id: string
+  story_title: string
+  story_slug: string
+  cover_url: string | null
+  chapter_number: string
+  chapter_title: string
+  price: string
+  purchased_at: Date
+}
+
+export interface ChapterPurchaseHistory {
+  purchases: UserChapterPurchase[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 type PurchaseErrorStatus = 400 | 402 | 404 | 409
 
 export class ChapterPurchaseError extends Error {
@@ -36,6 +57,43 @@ export async function purchaseChapter(
   const [purchase] = await purchaseChapters(buyerUserId, [chapterId])
   if (!purchase) throw new Error('Unable to create chapter purchase')
   return purchase
+}
+
+export async function findUserChapterPurchaseHistory(
+  buyerUserId: string,
+  page: number,
+  limit: number,
+): Promise<ChapterPurchaseHistory> {
+  const [count] = await db<{ total: string }[]>`
+    SELECT COUNT(*)::TEXT AS total
+    FROM chapter_purchases
+    WHERE buyer_user_id = ${buyerUserId}::UUID
+  `
+  const total = Number(count?.total ?? 0)
+  const totalPages = Math.ceil(total / limit)
+  const safePage = Math.min(page, Math.max(totalPages, 1))
+  const purchases = await db<UserChapterPurchase[]>`
+    SELECT
+      chapter_purchases.id,
+      stories.title AS story_title,
+      stories.slug AS story_slug,
+      stories.cover_url,
+      chapters.chapter_number::TEXT,
+      chapters.title AS chapter_title,
+      chapter_purchases.price::TEXT,
+      chapter_purchases.purchased_at
+    FROM chapter_purchases
+    JOIN chapters ON chapters.id = chapter_purchases.chapter_id
+    JOIN stories ON stories.id = chapters.story_id
+    WHERE chapter_purchases.buyer_user_id = ${buyerUserId}::UUID
+    ORDER BY chapter_purchases.purchased_at DESC, chapter_purchases.id DESC
+    LIMIT ${limit} OFFSET ${(safePage - 1) * limit}
+  `
+
+  return {
+    purchases,
+    pagination: { page: safePage, limit, total, totalPages },
+  }
 }
 
 export async function purchaseChapters(
