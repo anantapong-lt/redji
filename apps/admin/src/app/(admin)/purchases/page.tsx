@@ -283,7 +283,7 @@ export default function PurchasesPage() {
               if (open) setStoryOptionsPage(1)
             }}>
               <PopoverTrigger
-                render={<Button id="purchase-story" type="button" variant="outline" className="w-full justify-start text-left font-normal"><span className="truncate">{selectedStory?.title ?? 'เลือกเรื่อง'}</span></Button>}
+                render={<Button id="purchase-story" type="button" variant="outline" className="w-full justify-start bg-transparent text-left font-normal"><span className="truncate">{selectedStory?.title ?? 'เลือกเรื่อง'}</span></Button>}
               />
               <PopoverContent align="start" className="w-[min(26rem,calc(100vw-2rem))] p-2">
                 <div className="relative">
@@ -326,7 +326,7 @@ export default function PurchasesPage() {
               if (open) setUserOptionsPage(1)
             }}>
               <PopoverTrigger
-                render={<Button id="purchase-users" type="button" variant="outline" className="w-full justify-start text-left font-normal"><span className="truncate">{selectedUsers.length ? `เลือกแล้ว ${selectedUsers.length} คน` : 'เลือกผู้ซื้อ'}</span></Button>}
+                render={<Button id="purchase-users" type="button" variant="outline" className="w-full justify-start bg-transparent text-left font-normal"><span className="truncate">{selectedUsers.length ? `เลือกแล้ว ${selectedUsers.length} คน` : 'เลือกผู้ซื้อ'}</span></Button>}
               />
               <PopoverContent align="start" className="w-[min(26rem,calc(100vw-2rem))] p-2">
                 <div className="relative">
@@ -396,7 +396,7 @@ export default function PurchasesPage() {
             <Popover>
               <PopoverTrigger
                 render={
-                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button type="button" variant="outline" className="w-full justify-start bg-transparent text-left font-normal">
                     <CalendarDays className="size-4" />
                     <span className="truncate">{dateRangeLabel(dateRange)}</span>
                   </Button>
@@ -440,7 +440,7 @@ export default function PurchasesPage() {
               </PopoverContent>
             </Popover>
           </div>
-          <Button type="button" variant="outline" onClick={clearFilters} disabled={!hasFilters}>
+          <Button type="button" variant="outline" className="bg-transparent" onClick={clearFilters} disabled={!hasFilters}>
             <X />
             ล้างตัวกรอง
           </Button>
