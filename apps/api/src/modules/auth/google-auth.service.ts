@@ -44,8 +44,17 @@ export async function getGoogleProfile(code: string, codeVerifier: string): Prom
       code_verifier: codeVerifier,
     }),
   })
-  const tokens = await tokenResponse.json().catch(() => null) as { access_token?: string } | null
-  if (!tokenResponse.ok || !tokens?.access_token) throw new GoogleAuthError('Google authorization could not be completed')
+  const tokens = await tokenResponse.json().catch(() => null) as {
+    access_token?: string; error?: string; error_description?: string
+  } | null
+  if (!tokenResponse.ok || !tokens?.access_token) {
+    console.error('Google OAuth token exchange failed', {
+      status: tokenResponse.status,
+      error: tokens?.error,
+      errorDescription: tokens?.error_description,
+    })
+    throw new GoogleAuthError('Google authorization could not be completed')
+  }
 
   const profileResponse = await fetch(GOOGLE_USERINFO_URL, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
