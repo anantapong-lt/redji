@@ -23,7 +23,7 @@ export function RisingAuthorsSection({ profiles }: { profiles: RandomWriterProfi
               >
                 <div className="relative size-9 shrink-0 overflow-hidden rounded-full border border-border bg-background">
                   {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="size-full object-cover transition-transform duration-200 group-hover:scale-110" />
+                    <img src={profile.avatar_url} alt="" loading="lazy" decoding="async" width={36} height={36} className="size-full object-cover transition-transform duration-200 group-hover:scale-110" />
                   ) : (
                     <span className="flex size-full items-center justify-center bg-primary text-xs font-bold text-primary-foreground">
                       {profile.display_name.trim().charAt(0) || profile.username.charAt(0)}

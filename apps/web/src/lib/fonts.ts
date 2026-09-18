@@ -17,6 +17,7 @@ export const notoSerifThai = Noto_Serif_Thai({
   weight: ['400', '700'],
   variable: '--font-noto-serif-thai',
   display: 'optional',
+  preload: false,
 })
 
 export const sarabun = Sarabun({
@@ -24,6 +25,7 @@ export const sarabun = Sarabun({
   weight: ['400', '700'],
   variable: '--font-sarabun',
   display: 'optional',
+  preload: false,
 })
 
 export const prompt = Prompt({
@@ -31,4 +33,5 @@ export const prompt = Prompt({
   weight: ['400', '700'],
   variable: '--font-prompt',
   display: 'optional',
+  preload: false,
 })
