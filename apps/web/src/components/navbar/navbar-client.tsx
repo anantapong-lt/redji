@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, ChevronDown, HistoryIcon, Home, LogIn, LogOut, Menu, PenLine, Search, ShieldCheck, UserRound, X } from 'lucide-react'
@@ -8,7 +9,6 @@ import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { getUnreadNotificationCount } from '@/controllers/notification.controller'
-import { NotificationBell, NotificationDetailDialog } from '@readji/shared/src/notification-bell'
 import { getBankConfigs, getWriterApplicationStatus } from '@/controllers/writer.controller'
 import { getMyProfile } from '@/controllers/profile.controller'
 import { Button } from '@/components/ui/button'
@@ -22,10 +22,30 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { userRole, type AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
-import { WriterApplicationDialog } from './writer-application-dialog'
 import type { UserNotification } from '@/interface/notification.interface'
 import type { BankConfig } from '@/interface/writer-bank-account.interface'
 import type { PublicFeatureConfig } from '@/lib/server-auth'
+
+const loadWriterApplicationDialog = () => import('./writer-application-dialog')
+const WriterApplicationDialog = dynamic(
+  () => loadWriterApplicationDialog().then((module) => module.WriterApplicationDialog),
+  { ssr: false },
+)
+const NotificationBell = dynamic(
+  () => import('@readji/shared/src/notification-bell').then((module) => module.NotificationBell),
+  {
+    ssr: false,
+    loading: () => (
+      <span className="readji-icon-button" aria-busy="true" aria-label="กำลังโหลดการแจ้งเตือน">
+        <Bell className="size-5" />
+      </span>
+    ),
+  },
+)
+const NotificationDetailDialog = dynamic(
+  () => import('@readji/shared/src/notification-bell').then((module) => module.NotificationDetailDialog),
+  { ssr: false },
+)
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
@@ -101,6 +121,7 @@ export function NavbarClient({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [readerNavbarVisible, setReaderNavbarVisible] = useState(true)
   const [writerApplicationOpen, setWriterApplicationOpen] = useState(false)
+  const writerApplicationLoadingRef = useRef(false)
   const [writerApplicationData, setWriterApplicationData] = useState<WriterApplicationData | null>(null)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(initialUnreadNotificationCount)
   const [selectedNotification, setSelectedNotification] = useState<UserNotification | null>(null)
@@ -146,17 +167,24 @@ export function NavbarClient({
   }
 
   async function openWriterApplicationDialog() {
-    if (!features?.writer_application) {
-      setWriterApplicationOpen(true)
-      return
-    }
-    if (!accessToken) return
+    if (writerApplicationLoadingRef.current) return
+    if (features?.writer_application && !accessToken) return
 
+    writerApplicationLoadingRef.current = true
+    const loadingToast = toast.loading('กำลังเตรียมข้อมูลสมัครนักเขียน...')
     try {
+      if (!features?.writer_application) {
+        await loadWriterApplicationDialog()
+        setWriterApplicationOpen(true)
+        return
+      }
+      if (!accessToken) return
+
       const [bankResult, statusResult, profileResult] = await Promise.all([
         getBankConfigs(accessToken),
         getWriterApplicationStatus(accessToken),
         getMyProfile(accessToken),
+        loadWriterApplicationDialog(),
       ])
       setWriterApplicationData({
         banks: bankResult.banks,
@@ -166,6 +194,9 @@ export function NavbarClient({
       setWriterApplicationOpen(true)
     } catch {
       toast.error('ไม่สามารถตรวจสอบข้อมูลสำหรับสมัครเป็นนักเขียนได้ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      writerApplicationLoadingRef.current = false
+      toast.dismiss(loadingToast)
     }
   }
 
@@ -476,16 +507,23 @@ export function NavbarClient({
         </div>
       )}
 
-      <WriterApplicationDialog
-        open={writerApplicationOpen}
-        onOpenChange={handleWriterApplicationOpenChange}
-        writerApplicationEnabled={features?.writer_application === true}
-        banks={writerApplicationData?.banks ?? []}
-        isPending={writerApplicationData?.isPending ?? false}
-        hasSocialLink={writerApplicationData?.hasSocialLink ?? false}
-      />
+      {writerApplicationOpen && (
+        <WriterApplicationDialog
+          open={writerApplicationOpen}
+          onOpenChange={handleWriterApplicationOpenChange}
+          writerApplicationEnabled={features?.writer_application === true}
+          banks={writerApplicationData?.banks ?? []}
+          isPending={writerApplicationData?.isPending ?? false}
+          hasSocialLink={writerApplicationData?.hasSocialLink ?? false}
+        />
+      )}
 
-      <NotificationDetailDialog notification={selectedNotification} onOpenChange={(open) => { if (!open) setSelectedNotification(null) }} />
+      {selectedNotification && (
+        <NotificationDetailDialog
+          notification={selectedNotification}
+          onOpenChange={(open) => { if (!open) setSelectedNotification(null) }}
+        />
+      )}
     </>
   )
 }
