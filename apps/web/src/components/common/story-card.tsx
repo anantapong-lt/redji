@@ -54,15 +54,13 @@ export function StoryCard({
             src={image}
             alt={`ปกเรื่อง ${title}`}
             fill
-            sizes="(min-width: 1536px) 147px, (min-width: 1024px) 180px, calc((100vw - 56px) / 4)"
+            sizes="(min-width: 1536px) 147px, (min-width: 1024px) 180px, (min-width: 768px) calc((100vw - 86px) / 3), calc((100vw - 54px) / 3)"
             quality={60}
             priority={eager}
             loading={eager ? 'eager' : 'lazy'}
             fetchPriority={eager ? 'high' : undefined}
             onLoad={() => setImageLoaded(true)}
-            className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${
-              eager ? 'opacity-100' : imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
+            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
           <span className="absolute bottom-1 left-1 rounded-xs bg-primary px-1 py-0.5 text-[8px] font-semibold text-primary-foreground shadow-sm lg:px-1.5 lg:text-[10px]">
             {episode}

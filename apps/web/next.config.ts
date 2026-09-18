@@ -93,9 +93,6 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@readji/shared'],
   experimental: {
     proxyClientMaxBodySize: '650mb',
-    // The generated stylesheet is small enough to keep on the critical path
-    // without paying for a separate render-blocking request.
-    inlineCss: true,
   },
   // ngrok's public development host is a different origin from localhost.
   // Allow it to load Next.js dev resources during this closed beta.
