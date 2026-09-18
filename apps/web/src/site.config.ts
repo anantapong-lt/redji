@@ -7,13 +7,18 @@ const getApiUrl = () => {
   return process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 }
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  || (process.env.NODE_ENV === 'production'
+    ? 'https://redji-web.vercel.app'
+    : 'http://localhost:3000')
+
 export const SITE_CONFIG = {
   type: 'novel' as 'novel' | 'manga',
   name: 'Readji',
   tagline: 'อ่านนิยายออนไลน์ฟรี',
   description: 'แหล่งรวมนิยายออนไลน์และการ์ตูนคุณภาพ อัปเดตทุกวัน',
   apiUrl: getApiUrl(),
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  siteUrl,
   adminUrl: process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002',
   pageSize: 24,
   coinName: SHARED_SITE_CONFIG.coinName,
