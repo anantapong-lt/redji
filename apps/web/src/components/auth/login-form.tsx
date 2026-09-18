@@ -118,7 +118,7 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
       <button
         type="button"
         onClick={signInWithGoogle}
-        className="flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 text-base font-medium text-black transition-colors hover:bg-muted"
+        className="flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 text-base font-medium text-black transition-colors hover:bg-muted"
       >
         <svg className="size-5" viewBox="0 0 24 24" aria-hidden="true">
           <path
