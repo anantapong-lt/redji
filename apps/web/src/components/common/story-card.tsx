@@ -34,10 +34,10 @@ export function StoryCard({
   const href = `/content/${encodeURIComponent(slug)}`
 
   return (
-    <article className="h-full min-w-0">
+    <article className="min-w-0 lg:h-full">
       <Link
         href={href}
-        className="group block h-full min-w-0 cursor-pointer overflow-hidden rounded-md border border-border/80 bg-card text-card-foreground shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-primary/40 hover:shadow-md"
+        className="group block min-w-0 cursor-pointer overflow-hidden rounded-md border border-border/80 bg-card text-card-foreground shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-primary/40 hover:shadow-md lg:h-full"
         aria-label={`อ่าน ${title}`}
       >
         <div className="relative aspect-[3/4] overflow-hidden bg-muted">
