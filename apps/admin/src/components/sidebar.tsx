@@ -28,7 +28,7 @@ export function Sidebar() {
   const initials = user?.display_name.trim().slice(0, 1).toUpperCase() ?? 'A'
 
   return <SidebarPrimitive>
-    <SidebarHeader><SidebarMenu><SidebarMenuItem><SidebarMenuButton size="lg"><div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"><ShieldCheck className="size-4" /></div><div className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-semibold">Readji Admin</span><span className="truncate text-xs text-sidebar-foreground/70">CONTROL CENTER</span></div></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarHeader>
+    <SidebarHeader><SidebarMenu><SidebarMenuItem><SidebarMenuButton size="lg"><div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"><ShieldCheck className="size-4" /></div><div className="grid flex-1 text-left text-sm leading-tight"><span className="truncate font-semibold">DopaHub Admin</span><span className="truncate text-xs text-sidebar-foreground/70">CONTROL CENTER</span></div></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarHeader>
     <SidebarContent>{navigation.map(({ label, items }) => <SidebarGroup key={label}><SidebarGroupLabel>{label}</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{items.map(({ href, label: itemLabel, icon: Icon }) => {
       const isActive = pathname === href
       return <SidebarMenuItem key={href}><SidebarMenuButton isActive={isActive} render={<Link href={href} />} className={isActive ? '!bg-primary !text-white hover:!bg-primary/90 [&_svg]:!text-white' : ''}><Icon />{itemLabel}</SidebarMenuButton></SidebarMenuItem>

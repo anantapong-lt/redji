@@ -201,7 +201,7 @@ export default function TransactionsPage() {
         ? {
             ...request,
             status: nextStatus,
-            processedBy: 'admin@readji.com',
+            processedBy: 'admin@dopahub.com',
             note: options.note?.trim() || statusNotes[nextStatus],
             transferProofName:
               nextStatus === WITHDRAWAL_STATUS.APPROVED ? (options.proofName ?? request.transferProofName) : request.transferProofName,

@@ -200,7 +200,7 @@ export function RegisterForm() {
             <button type="button" onClick={() => setTermsOpen(false)} aria-label="ปิด" className="absolute top-4 right-4 cursor-pointer text-muted-foreground hover:text-foreground">
               <X className="size-5" />
             </button>
-            <h2 id="terms-title" className="pr-8 text-lg font-semibold text-foreground">ข้อตกลงและเงื่อนไขการใช้และบริการเว็บไซต์ Readji.com</h2>
+            <h2 id="terms-title" className="pr-8 text-lg font-semibold text-foreground">ข้อตกลงและเงื่อนไขการใช้และบริการเว็บไซต์ DopaHub</h2>
             <div className="min-h-[200px]" />
           </div>
         </div>

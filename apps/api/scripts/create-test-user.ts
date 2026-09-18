@@ -1,6 +1,6 @@
 import { db } from '../src/db'
 
-const email = 'test@redji.local'
+const email = 'test@dopahub.local'
 const username = 'test_user'
 const password = 'Test1234!'
 

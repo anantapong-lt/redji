@@ -2,7 +2,7 @@ import { db } from '../src/db'
 
 const email = 'admin@gmail.com'
 const username = `admin_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
-const displayName = 'Readji Admin'
+const displayName = 'DopaHub Admin'
 const uppercaseCharacters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
 const lowercaseCharacters = 'abcdefghijkmnopqrstuvwxyz'
 const numberCharacters = '23456789'

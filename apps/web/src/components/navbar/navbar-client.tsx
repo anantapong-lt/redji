@@ -189,7 +189,7 @@ export function NavbarClient({
             <Link href="/" className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80">
               <span
                 role="img"
-                aria-label="Readji"
+                aria-label="DopaHub"
                 className="aspect-[1185/321] h-9 -translate-y-1 bg-gradient-to-r from-[#54252b] to-[#b56871] [mask-image:url(/readji-wordmark.png)] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-image:url(/readji-wordmark.png)] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]"
               />
             </Link>
@@ -356,7 +356,7 @@ export function NavbarClient({
             <div className="flex h-[4.35rem] shrink-0 items-center justify-between border-b border-border px-5">
               <span
                 role="img"
-                aria-label="Readji"
+                aria-label="DopaHub"
                 className="aspect-[1185/321] h-7 -translate-y-1 bg-gradient-to-r from-[#54252b] to-[#b56871] [mask-image:url(/readji-wordmark.png)] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-image:url(/readji-wordmark.png)] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]"
               />
               <button

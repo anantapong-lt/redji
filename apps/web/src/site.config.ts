@@ -14,7 +14,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
 export const SITE_CONFIG = {
   type: 'novel' as 'novel' | 'manga',
-  name: 'Readji',
+  name: 'DopaHub',
   tagline: 'อ่านนิยายออนไลน์ฟรี',
   description: 'แหล่งรวมนิยายออนไลน์และการ์ตูนคุณภาพ อัปเดตทุกวัน',
   apiUrl: getApiUrl(),

@@ -7,8 +7,8 @@ import { Toaster } from '@/components/ui/sonner'
 const geist = Geist({subsets:['latin'],variable:'--font-sans'})
 
 export const metadata: Metadata = {
-  title: 'Readji Admin',
-  description: 'Readji control center',
+  title: 'DopaHub Admin',
+  description: 'DopaHub control center',
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

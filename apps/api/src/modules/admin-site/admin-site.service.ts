@@ -21,7 +21,7 @@ export interface AdminSiteConfig {
 
 const initialAdminSiteConfig: AdminSiteConfig = {
   site: {
-    name: 'Readji',
+    name: 'DopaHub',
     tagline: '',
     description: '',
     site_url: 'http://localhost:3000',

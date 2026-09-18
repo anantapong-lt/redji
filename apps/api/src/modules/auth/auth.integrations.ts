@@ -64,11 +64,11 @@ export async function sendVerificationEmail(
     body: JSON.stringify({
       from: env.RESEND_FROM_EMAIL,
       to: [recipient],
-      subject: 'ยืนยันอีเมลสำหรับบัญชี Readji',
+      subject: 'ยืนยันอีเมลสำหรับบัญชี DopaHub',
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
           <h1 style="font-size:22px">ยืนยันอีเมลของคุณ</h1>
-          <p>กดปุ่มด้านล่างเพื่อเปิดใช้งานบัญชี Readji ลิงก์นี้มีอายุ ${env.EMAIL_VERIFICATION_TTL_HOURS} ชั่วโมง</p>
+          <p>กดปุ่มด้านล่างเพื่อเปิดใช้งานบัญชี DopaHub ลิงก์นี้มีอายุ ${env.EMAIL_VERIFICATION_TTL_HOURS} ชั่วโมง</p>
           <p>
             <a href="${verificationUrl.toString()}" style="display:inline-block;border-radius:8px;background:#7c3aed;padding:12px 20px;color:#fff;text-decoration:none">
               ยืนยันอีเมล
