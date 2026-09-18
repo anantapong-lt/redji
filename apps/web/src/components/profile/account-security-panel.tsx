@@ -13,7 +13,7 @@ import { PasswordInput } from '@/components/auth/form-inputs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAccountSecurity, unlinkGoogleAccount } from '@/controllers/auth.controller'
 import type { AccountSecurity } from '@/interface/account-security.interface'
-import { SITE_CONFIG } from '@/site.config'
+import { getApiUrl } from '@/site.config'
 import { ChangePasswordSection } from './change-password-section'
 import { PhoneVerificationSection } from './phone-verification-section'
 import { ApiError } from '@/lib/api-client'
@@ -121,7 +121,7 @@ export function AccountSecurityPanel({ initialAccount = null }: { initialAccount
               ) : (
                 <Button variant="outline" disabled={isConnecting} onClick={() => {
                   setIsConnecting(true)
-                  window.location.assign(new URL('/auth/google/link', SITE_CONFIG.apiUrl).toString())
+                  window.location.assign(getApiUrl('/auth/google/link'))
                 }}><FcGoogle className="size-5" />{isConnecting ? 'กำลังเชื่อมต่อ...' : 'เชื่อม Google'}</Button>
               )}
             </div>

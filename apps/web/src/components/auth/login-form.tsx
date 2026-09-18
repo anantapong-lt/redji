@@ -12,7 +12,7 @@ import { IconInput, PasswordInput } from './form-inputs'
 import { TurnstileWidget } from './turnstile-widget'
 import { ApiError } from '@/lib/api-client'
 import { userRole } from '@/interface/user.interface'
-import { SITE_CONFIG } from '@/site.config'
+import { getApiUrl } from '@/site.config'
 
 const loginSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
@@ -61,7 +61,7 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
 
   function signInWithGoogle() {
     const next = searchParams.get('next')
-    const url = new URL('/auth/google', SITE_CONFIG.apiUrl)
+    const url = new URL(getApiUrl('/auth/google'))
     if (next?.startsWith('/') && !next.startsWith('//')) url.searchParams.set('next', next)
     window.location.assign(url.toString())
   }

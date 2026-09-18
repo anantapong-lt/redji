@@ -12,7 +12,7 @@ import { PasswordStrengthIndicator } from './password-strength-indicator'
 import { TurnstileWidget } from './turnstile-widget'
 import { registerWithPassword } from '@/controllers/auth.controller'
 import { ApiError } from '@/lib/api-client'
-import { SITE_CONFIG } from '@/site.config'
+import { getApiUrl } from '@/site.config'
 
 const registerSchema = z
   .object({
@@ -88,7 +88,7 @@ export function RegisterForm() {
       setError('terms', { message: 'กรุณายอมรับข้อตกลงและเงื่อนไขการใช้และบริการ' })
       return
     }
-    window.location.assign(new URL('/auth/google/register', SITE_CONFIG.apiUrl).toString())
+    window.location.assign(getApiUrl('/auth/google/register'))
   }
 
   return (
