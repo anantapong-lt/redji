@@ -125,7 +125,7 @@ export function StoryResultsGrid({
   return (
     <>
       <StoryGrid
-        eagerFirst
+        eagerFirst={initialData.section === 'latest'}
         stories={gridStories}
         hasMore={pagination.hasNextPage}
         isLoadingMore={isLoadingMore}
