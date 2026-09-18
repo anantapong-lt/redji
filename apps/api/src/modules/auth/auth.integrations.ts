@@ -12,7 +12,7 @@ interface ResendResponse {
 
 async function verifyTurnstile(
   token: string | undefined,
-  expectedAction: 'register' | 'login',
+  expectedAction: 'register' | 'login' | 'phone_verification',
 ): Promise<boolean> {
   if (isDev) return true
   if (!env.TURNSTILE_SECRET_KEY || !token) return false
@@ -42,6 +42,10 @@ export function verifyRegistrationTurnstile(token: string | undefined): Promise<
 
 export function verifyLoginTurnstile(token: string | undefined): Promise<boolean> {
   return verifyTurnstile(token, 'login')
+}
+
+export function verifyPhoneVerificationTurnstile(token: string | undefined): Promise<boolean> {
+  return verifyTurnstile(token, 'phone_verification')
 }
 
 export async function sendVerificationEmail(

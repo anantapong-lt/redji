@@ -1,4 +1,5 @@
-import { changeAccountPassword, getAccountSecurity, requestPhoneVerification, unlinkGoogleAccount, verifyPhoneVerification } from './account-security.service'
+import { verifyPhoneVerificationTurnstile } from './auth.integrations'
+import { PhoneOtpProviderError, changeAccountPassword, getAccountSecurity, requestPhoneVerification, unlinkGoogleAccount, verifyPhoneVerification } from './account-security.service'
 import type { ChangePasswordBody, PhoneVerificationRequestBody, PhoneVerificationVerifyBody, UnlinkGoogleBody } from './auth.schema'
 
 function thaiPhoneNumber(phoneNumber: string): string {
@@ -60,12 +61,34 @@ export async function unlinkGoogleResponse(userId: string, body: UnlinkGoogleBod
 }
 
 export async function requestPhoneVerificationResponse(userId: string, body: PhoneVerificationRequestBody) {
+  if (!(await verifyPhoneVerificationTurnstile(body.turnstile_token))) {
+    return Response.json({ message: 'กรุณายืนยัน Cloudflare Turnstile ก่อนขอรหัส OTP', field: 'turnstile_token' }, { status: 400 })
+  }
+
   try {
     const result = await requestPhoneVerification(userId, thaiPhoneNumber(body.phone_number))
     if (result === 'inactive') return Response.json({ message: 'บัญชีนี้ไม่สามารถเข้าใช้งานได้' }, { status: 403 })
     if (result === 'phone_in_use') return Response.json({ message: 'เบอร์มือถือถูกใช้งานกับบัญชีอื่นแล้ว', field: 'phone_number' }, { status: 409 })
     return { message: 'ส่งรหัส OTP แล้ว กรุณากรอกเพื่อยืนยันเบอร์มือถือ' }
-  } catch {
+  } catch (error) {
+    if (error instanceof PhoneOtpProviderError) {
+      if (error.reason === 'not_configured') {
+        return Response.json({ message: 'ยังไม่ได้ตั้งค่า App Key หรือ App Secret สำหรับ SMS OTP', field: 'phone_number' }, { status: 503 })
+      }
+      if (error.reason === 'rejected') {
+        if (error.providerStatus === 402 || error.providerStatus === 423) {
+          return Response.json({ message: 'เครดิต SMS OTP ไม่เพียงพอ กรุณาเติมเครดิตใน ThaiBulkSMS', field: 'phone_number' }, { status: 402 })
+        }
+        if (error.providerStatus === 429) {
+          return Response.json({ message: 'ขอรหัส OTP บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่', field: 'phone_number' }, { status: 429 })
+        }
+        if (error.providerStatus === 401 || error.providerStatus === 403) {
+          return Response.json({ message: 'การตั้งค่า ThaiBulkSMS OTP ไม่ถูกต้องหรือยังไม่ได้เปิดสิทธิ์ใช้งาน', field: 'phone_number' }, { status: 503 })
+        }
+        return Response.json({ message: 'ThaiBulkSMS ปฏิเสธคำขอ OTP กรุณาตรวจสอบเบอร์โทรและการเปิดใช้งาน SMS OTP', field: 'phone_number' }, { status: 400 })
+      }
+      return Response.json({ message: 'ระบบส่ง OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง' }, { status: 503 })
+    }
     return Response.json({ message: 'ไม่สามารถส่งรหัส OTP ได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }
@@ -78,7 +101,10 @@ export async function verifyPhoneVerificationResponse(userId: string, body: Phon
     if (result === 'expired') return Response.json({ message: 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่' }, { status: 400 })
     if (result === 'invalid_otp') return Response.json({ message: 'รหัส OTP ไม่ถูกต้อง', field: 'otp' }, { status: 400 })
     return { message: 'ยืนยันเบอร์มือถือสำเร็จแล้ว', phone_number: thaiPhoneNumber(body.phone_number) }
-  } catch {
+  } catch (error) {
+    if (error instanceof PhoneOtpProviderError) {
+      return Response.json({ message: 'ระบบยืนยัน OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง' }, { status: 503 })
+    }
     return Response.json({ message: 'ไม่สามารถยืนยันเบอร์มือถือได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }

@@ -1,11 +1,57 @@
 import { db } from '../../db'
+import { env } from '../../config/env'
 import type { GoogleProfile } from './auth.service'
 
-const MOCK_PHONE_OTP = '123456'
 const PHONE_OTP_TTL_MINUTES = 10
 
-function hashPhoneOtp(value: string): string {
-  return new Bun.CryptoHasher('sha256').update(value).digest('hex')
+export class PhoneOtpProviderError extends Error {
+  constructor(
+    public readonly reason: 'not_configured' | 'unavailable' | 'rejected',
+    public readonly providerStatus?: number,
+  ) {
+    super(reason)
+  }
+}
+
+function thaiBulkSmsCredentials() {
+  if (!env.THAIBULKSMS_OTP_KEY || !env.THAIBULKSMS_OTP_SECRET) {
+    throw new PhoneOtpProviderError('not_configured')
+  }
+  return { key: env.THAIBULKSMS_OTP_KEY, secret: env.THAIBULKSMS_OTP_SECRET }
+}
+
+async function thaiBulkSmsOtpRequest(path: '/v2/otp/request' | '/v2/otp/verify', fields: Record<string, string>) {
+  const credentials = thaiBulkSmsCredentials()
+  const body = new URLSearchParams({ ...credentials, ...fields })
+
+  try {
+    const response = await fetch(`https://otp.thaibulksms.com${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    })
+    const payload: unknown = await response.json().catch(() => null)
+    return { ok: response.ok, status: response.status, payload }
+  } catch (error) {
+    if (error instanceof PhoneOtpProviderError) throw error
+    throw new PhoneOtpProviderError('unavailable')
+  }
+}
+
+async function requestThaiBulkSmsOtp(phoneNumber: string): Promise<string> {
+  const msisdn = phoneNumber.startsWith('+') ? phoneNumber.slice(1) : phoneNumber
+  const { ok, status, payload } = await thaiBulkSmsOtpRequest('/v2/otp/request', { msisdn })
+  if (!ok) throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status)
+  if (!payload || typeof payload !== 'object' || !('status' in payload) || payload.status !== 'success' || !('token' in payload) || typeof payload.token !== 'string' || !payload.token) {
+    throw new PhoneOtpProviderError('unavailable')
+  }
+  return payload.token
+}
+
+async function verifyThaiBulkSmsOtp(token: string, otp: string): Promise<boolean> {
+  const { ok, payload } = await thaiBulkSmsOtpRequest('/v2/otp/verify', { token, pin: otp })
+  return Boolean(ok && payload && typeof payload === 'object' && 'status' in payload && payload.status === 'success')
 }
 
 export async function getAccountSecurity(userId: string) {
@@ -49,12 +95,14 @@ export async function requestPhoneVerification(userId: string, phoneNumber: stri
   `
   if (owner) return 'phone_in_use'
 
+  const providerToken = await requestThaiBulkSmsOtp(phoneNumber)
+
   await db`
-    INSERT INTO phone_verification_requests (user_id, phone_number, otp_hash, expires_at)
-    VALUES (${userId}, ${phoneNumber}, ${hashPhoneOtp(MOCK_PHONE_OTP)}, NOW() + (${PHONE_OTP_TTL_MINUTES} * INTERVAL '1 minute'))
+    INSERT INTO phone_verification_requests (user_id, phone_number, provider_token, expires_at)
+    VALUES (${userId}, ${phoneNumber}, ${providerToken}, NOW() + (${PHONE_OTP_TTL_MINUTES} * INTERVAL '1 minute'))
     ON CONFLICT (user_id) DO UPDATE SET
       phone_number = EXCLUDED.phone_number,
-      otp_hash = EXCLUDED.otp_hash,
+      provider_token = EXCLUDED.provider_token,
       expires_at = EXCLUDED.expires_at,
       updated_at = NOW()
   `
@@ -68,18 +116,20 @@ export async function verifyPhoneVerification(
 ): Promise<'verified' | 'inactive' | 'invalid_otp' | 'expired' | 'phone_in_use'> {
   try {
     return await db.begin(async (transaction) => {
-      const [request] = await transaction<{ otp_hash: string; expires_at: Date }[]>`
-        SELECT otp_hash, expires_at
+      const [request] = await transaction<{ provider_token: string; expires_at: Date }[]>`
+        SELECT provider_token, expires_at
         FROM phone_verification_requests
         WHERE user_id = ${userId} AND phone_number = ${phoneNumber}
         LIMIT 1
         FOR UPDATE
       `
-      if (!request || request.otp_hash !== hashPhoneOtp(otp)) return 'invalid_otp'
+      if (!request) return 'invalid_otp'
       if (new Date(request.expires_at).getTime() <= Date.now()) {
         await transaction`DELETE FROM phone_verification_requests WHERE user_id = ${userId}`
         return 'expired'
       }
+
+      if (!(await verifyThaiBulkSmsOtp(request.provider_token, otp))) return 'invalid_otp'
 
       const updated = await transaction<{ id: string }[]>`
         UPDATE users

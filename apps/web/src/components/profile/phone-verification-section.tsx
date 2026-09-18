@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { useAuth } from '@/components/auth/auth-provider'
 import { requestPhoneVerification, verifyPhoneVerification } from '@/controllers/auth.controller'
 import { ApiError } from '@/lib/api-client'
@@ -37,6 +38,9 @@ export function PhoneVerificationSection({
   const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileKey, setTurnstileKey] = useState(0)
+  const turnstileRequired = process.env.NODE_ENV !== 'development'
   const otpInputs = useRef<Array<HTMLInputElement | null>>([])
   const pendingPhone = pendingPhoneNumber ?? (verified ? phoneNumber : null)
 
@@ -59,10 +63,14 @@ export function PhoneVerificationSection({
       setError('กรุณากรอกเบอร์มือถือไทย 10 หลัก ที่ขึ้นต้นด้วย 06, 08 หรือ 09')
       return
     }
+    if (turnstileRequired && !turnstileToken) {
+      setError('กรุณายืนยัน Cloudflare Turnstile ก่อนขอรหัส OTP')
+      return
+    }
     setError(null)
     setIsSending(true)
     try {
-      const result = await requestPhoneVerification(phone, accessToken)
+      const result = await requestPhoneVerification(phone, accessToken, turnstileToken ?? undefined)
       onRequested(`+66${phone.slice(1)}`)
       setOtp('')
       setPhoneDialogOpen(false)
@@ -73,6 +81,8 @@ export function PhoneVerificationSection({
       setError(cause instanceof Error ? cause.message : 'ไม่สามารถส่งรหัส OTP ได้')
     } finally {
       setIsSending(false)
+      setTurnstileToken(null)
+      setTurnstileKey((current) => current + 1)
     }
   }
 
@@ -128,8 +138,9 @@ export function PhoneVerificationSection({
           <DialogHeader><DialogTitle>เพิ่มเบอร์มือถือ</DialogTitle><DialogDescription>รองรับเฉพาะเบอร์มือถือไทยที่ขึ้นต้นด้วย 06, 08 หรือ 09</DialogDescription></DialogHeader>
           <div className="space-y-3">
             <Input value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="tel" autoComplete="tel-national" placeholder="เช่น 0812345678" maxLength={10} disabled={isSending} aria-invalid={Boolean(error)} className="h-11" />
+            <TurnstileWidget key={turnstileKey} action="phone_verification" onTokenChange={setTurnstileToken} />
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-            <DialogFooter><Button type="button" variant="outline" disabled={isSending} onClick={() => closePhoneDialog(false)}>ยกเลิก</Button><Button type="button" disabled={isSending || !phone} onClick={() => void requestOtp()}>{isSending ? 'กำลังส่ง...' : 'ส่ง OTP'}</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" disabled={isSending} onClick={() => closePhoneDialog(false)}>ยกเลิก</Button><Button type="button" disabled={isSending || !phone || (turnstileRequired && !turnstileToken)} onClick={() => void requestOtp()}>{isSending ? 'กำลังส่ง...' : 'ส่ง OTP'}</Button></DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
@@ -138,7 +149,7 @@ export function PhoneVerificationSection({
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>กรอกรหัส OTP</DialogTitle><DialogDescription>กรอกรหัส 6 หลักที่ได้รับเพื่อยืนยันเบอร์มือถือ</DialogDescription></DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-xl bg-muted/60 p-4"><p className="flex items-center gap-2 text-sm text-muted-foreground"><MessageSquareText className="size-4" />ส่ง OTP ไปที่</p><p className="mt-1 font-semibold">{pendingPhone && displayPhone(pendingPhone)}</p><p className="mt-1 text-xs text-muted-foreground">สำหรับการทดสอบ ใช้รหัส <span className="font-medium text-foreground">123456</span></p></div>
+            <div className="rounded-xl bg-muted/60 p-4"><p className="flex items-center gap-2 text-sm text-muted-foreground"><MessageSquareText className="size-4" />ส่ง OTP ไปที่</p><p className="mt-1 font-semibold">{pendingPhone && displayPhone(pendingPhone)}</p></div>
             <div><p id="otp-label" className="mb-2 text-sm font-medium">กรอกรหัส OTP 6 หลัก</p><div role="group" aria-labelledby="otp-label" className="flex gap-2 sm:gap-3">{Array.from({ length: 6 }, (_, index) => <Input key={index} ref={(element) => { otpInputs.current[index] = element }} value={otp[index] ?? ''} onChange={(event) => applyOtp(index, event.target.value)} onPaste={(event) => { event.preventDefault(); applyOtp(index, event.clipboardData.getData('text')) }} onKeyDown={(event) => { if (event.key === 'Backspace' && !otp[index] && index > 0) otpInputs.current[index - 1]?.focus() }} inputMode="numeric" autoComplete={index === 0 ? 'one-time-code' : 'off'} pattern="[0-9]*" maxLength={6} disabled={isVerifying} aria-label={`หลักที่ ${index + 1}`} className="h-12 min-w-0 flex-1 px-0 text-center text-lg font-semibold" />)}</div></div>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <DialogFooter><Button type="button" variant="outline" disabled={isVerifying} onClick={() => { closeOtpDialog(false); setPhoneDialogOpen(true) }}>เปลี่ยนเบอร์</Button><Button type="button" disabled={isVerifying || otp.length !== 6} onClick={() => void verifyOtp()}>{isVerifying ? 'กำลังยืนยัน...' : 'ยืนยัน OTP'}</Button></DialogFooter>

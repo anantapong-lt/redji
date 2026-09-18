@@ -77,6 +77,8 @@ export const env = {
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL?.trim() ?? '',
   EMAIL_VERIFICATION_TTL_HOURS: positiveInteger('EMAIL_VERIFICATION_TTL_HOURS', 24),
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY?.trim() ?? '',
+  THAIBULKSMS_OTP_KEY: process.env.THAIBULKSMS_OTP_KEY?.trim() ?? '',
+  THAIBULKSMS_OTP_SECRET: process.env.THAIBULKSMS_OTP_SECRET?.trim() ?? '',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID?.trim() ?? '',
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET?.trim() ?? '',
   GOOGLE_OAUTH_CALLBACK_URL: process.env.GOOGLE_OAUTH_CALLBACK_URL?.trim() ?? '',

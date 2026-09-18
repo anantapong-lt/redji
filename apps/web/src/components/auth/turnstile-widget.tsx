@@ -30,7 +30,7 @@ export function TurnstileWidget({
   action,
   onTokenChange,
 }: {
-  action: 'register' | 'login'
+  action: 'register' | 'login' | 'phone_verification'
   onTokenChange: (token: string | null) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)

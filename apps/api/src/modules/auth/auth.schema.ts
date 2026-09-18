@@ -16,6 +16,7 @@ export type UnlinkGoogleBody = typeof unlinkGoogleBodySchema.static
 
 export const phoneVerificationRequestBodySchema = t.Object({
   phone_number: t.String({ pattern: '^0[689][0-9]{8}$', maxLength: 10 }),
+  turnstile_token: t.Optional(t.String({ maxLength: 2048 })),
 }, { additionalProperties: false })
 
 export type PhoneVerificationRequestBody = typeof phoneVerificationRequestBodySchema.static
