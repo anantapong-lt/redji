@@ -11,11 +11,15 @@ export function googleOAuthEnabled(): boolean {
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)
 }
 
+function googleCallbackUrl(): string {
+  return env.GOOGLE_OAUTH_CALLBACK_URL || new URL('/auth/google/callback', env.API_ORIGIN).toString()
+}
+
 export async function createGoogleAuthorizationUrl(state: string, codeVerifier: string): Promise<string> {
   if (!googleOAuthEnabled()) throw new GoogleAuthError('Google sign-in is not configured')
   const url = new URL(GOOGLE_AUTHORIZATION_URL)
   url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID)
-  url.searchParams.set('redirect_uri', new URL('/auth/google/callback', env.API_ORIGIN).toString())
+  url.searchParams.set('redirect_uri', googleCallbackUrl())
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', 'openid email profile')
   url.searchParams.set('state', state)
@@ -35,7 +39,7 @@ export async function getGoogleProfile(code: string, codeVerifier: string): Prom
       code,
       client_id: env.GOOGLE_CLIENT_ID,
       client_secret: env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: new URL('/auth/google/callback', env.API_ORIGIN).toString(),
+      redirect_uri: googleCallbackUrl(),
       grant_type: 'authorization_code',
       code_verifier: codeVerifier,
     }),

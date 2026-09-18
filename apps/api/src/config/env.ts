@@ -79,6 +79,7 @@ export const env = {
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY?.trim() ?? '',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID?.trim() ?? '',
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET?.trim() ?? '',
+  GOOGLE_OAUTH_CALLBACK_URL: process.env.GOOGLE_OAUTH_CALLBACK_URL?.trim() ?? '',
   LOCAL_UPLOAD: (process.env.local_upload ?? process.env.LOCAL_UPLOAD)?.trim().toLowerCase() === 'true',
   R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID?.trim() ?? '',
   R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID?.trim() ?? '',
