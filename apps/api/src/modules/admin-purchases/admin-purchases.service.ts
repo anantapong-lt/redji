@@ -30,18 +30,20 @@ export interface AdminPurchaseUser {
   avatar_url: string | null
 }
 
-function purchaseFilters(storyId: string | null, userIds: string[], dateFrom: string | null, dateTo: string | null) {
+function purchaseFilters(storyId: string | null, userIds: string[], writerIds: string[], dateFrom: string | null, dateTo: string | null) {
   return {
     storyId,
     userIds,
+    writerIds,
     dateFrom,
     dateTo,
   }
 }
 
-export async function countAdminPurchases(storyId: string | null, userIds: string[], dateFrom: string | null, dateTo: string | null) {
-  const filters = purchaseFilters(storyId, userIds, dateFrom, dateTo)
+export async function countAdminPurchases(storyId: string | null, userIds: string[], writerIds: string[], dateFrom: string | null, dateTo: string | null) {
+  const filters = purchaseFilters(storyId, userIds, writerIds, dateFrom, dateTo)
   const userIdArray = db.array(filters.userIds, 'UUID')
+  const writerIdArray = db.array(filters.writerIds, 'UUID')
   const [row] = await db<{ total: string }[]>`
     SELECT COUNT(*)::TEXT AS total
     FROM chapter_purchases
@@ -51,6 +53,10 @@ export async function countAdminPurchases(storyId: string | null, userIds: strin
       AND (
         ${filters.userIds.length} = 0
         OR chapter_purchases.buyer_user_id = ANY(${userIdArray})
+      )
+      AND (
+        ${filters.writerIds.length} = 0
+        OR chapter_purchases.writer_user_id = ANY(${writerIdArray})
       )
       AND (
         ${filters.dateFrom}::DATE IS NULL
@@ -69,11 +75,13 @@ export function findAdminPurchases(
   limit: number,
   storyId: string | null,
   userIds: string[],
+  writerIds: string[],
   dateFrom: string | null,
   dateTo: string | null,
 ) {
-  const filters = purchaseFilters(storyId, userIds, dateFrom, dateTo)
+  const filters = purchaseFilters(storyId, userIds, writerIds, dateFrom, dateTo)
   const userIdArray = db.array(filters.userIds, 'UUID')
+  const writerIdArray = db.array(filters.writerIds, 'UUID')
   return db<AdminPurchase[]>`
     SELECT
       chapter_purchases.id,
@@ -99,6 +107,10 @@ export function findAdminPurchases(
       AND (
         ${filters.userIds.length} = 0
         OR chapter_purchases.buyer_user_id = ANY(${userIdArray})
+      )
+      AND (
+        ${filters.writerIds.length} = 0
+        OR chapter_purchases.writer_user_id = ANY(${writerIdArray})
       )
       AND (
         ${filters.dateFrom}::DATE IS NULL
@@ -144,6 +156,27 @@ export async function findAdminPurchaseUsers(search: string, page: number, limit
         SELECT 1
         FROM chapter_purchases
         WHERE chapter_purchases.buyer_user_id = users.id
+      )
+      AND (
+        ${search} = ''
+        OR STRPOS(LOWER(users.display_name), LOWER(${search})) > 0
+        OR STRPOS(LOWER(users.username), LOWER(${search})) > 0
+      )
+    ORDER BY users.display_name ASC, users.id ASC
+    LIMIT ${limit} OFFSET ${(page - 1) * limit}
+  `
+}
+
+export async function findAdminPurchaseWriters(search: string, page: number, limit: number) {
+  return db<AdminPurchaseUser[]>`
+    SELECT users.id, users.display_name, users.username, users.avatar_url
+    FROM users
+    WHERE users.role = ${USER_ROLE.WRITER}
+      AND users.deleted_at IS NULL
+      AND EXISTS (
+        SELECT 1
+        FROM chapter_purchases
+        WHERE chapter_purchases.writer_user_id = users.id
       )
       AND (
         ${search} = ''

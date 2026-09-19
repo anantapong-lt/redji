@@ -108,7 +108,7 @@ export async function updateAdminWriterStatus(id: string, status: WriterStatus, 
     SET writer_status = ${status}::moderation_status,
         status = ${status === WRITER_STATUS.SUSPENDED ? USER_STATUS.BANNED : USER_STATUS.ACTIVE},
         ban_reason = ${status === WRITER_STATUS.SUSPENDED ? banReason : null},
-        banned_at = ${status === WRITER_STATUS.SUSPENDED ? new Date() : null},
+        banned_at = ${status === WRITER_STATUS.SUSPENDED ? new Date().toISOString() : null},
         updated_at = NOW()
     WHERE id = ${id}
       AND role = ${USER_ROLE.WRITER}

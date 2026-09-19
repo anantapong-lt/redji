@@ -101,6 +101,15 @@ export default function PurchasesPage() {
   const [hasMoreUsers, setHasMoreUsers] = useState(false)
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const isLoadingUsersRef = useRef(false)
+  const [selectedWriters, setSelectedWriters] = useState<UserOption[]>([])
+  const [writerPickerOpen, setWriterPickerOpen] = useState(false)
+  const [writerSearch, setWriterSearch] = useState('')
+  const [appliedWriterSearch, setAppliedWriterSearch] = useState('')
+  const [writerOptions, setWriterOptions] = useState<UserOption[]>([])
+  const [writerOptionsPage, setWriterOptionsPage] = useState(1)
+  const [hasMoreWriters, setHasMoreWriters] = useState(false)
+  const [isLoadingWriters, setIsLoadingWriters] = useState(false)
+  const isLoadingWritersRef = useRef(false)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [startCalendarMonth, setStartCalendarMonth] = useState(() => new Date())
   const [endCalendarMonth, setEndCalendarMonth] = useState(() => {
@@ -130,6 +139,14 @@ export default function PurchasesPage() {
     }, 300)
     return () => window.clearTimeout(timer)
   }, [userSearch])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedWriterSearch(writerSearch.trim())
+      setWriterOptionsPage(1)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [writerSearch])
 
   useEffect(() => {
     setPage(1)
@@ -212,11 +229,50 @@ export default function PurchasesPage() {
   }, [accessToken, appliedUserSearch, userOptionsPage, userPickerOpen])
 
   useEffect(() => {
+    if (!accessToken || !writerPickerOpen) return
+    const controller = new AbortController()
+    const query = new URLSearchParams({
+      page: String(writerOptionsPage),
+      limit: '20',
+    })
+    if (appliedWriterSearch) query.set('search', appliedWriterSearch)
+
+    isLoadingWritersRef.current = true
+    setIsLoadingWriters(true)
+    void fetch(`${apiUrl}/admin/purchases/writers?${query}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const body = await response.json() as UserOptionsResponse | { message?: string }
+        if (!response.ok) throw new Error('Unable to load writers')
+        if (!controller.signal.aborted) {
+          const result = body as UserOptionsResponse
+          setWriterOptions((current) => writerOptionsPage === 1 ? result.users : [...current, ...result.users])
+          setHasMoreWriters(result.pagination.hasNextPage)
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted && writerOptionsPage === 1) setWriterOptions([])
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          isLoadingWritersRef.current = false
+          setIsLoadingWriters(false)
+        }
+      })
+
+    return () => controller.abort()
+  }, [accessToken, appliedWriterSearch, writerOptionsPage, writerPickerOpen])
+
+  useEffect(() => {
     if (!accessToken) return
     const controller = new AbortController()
     const query = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) })
     if (selectedStory) query.set('story_id', selectedStory.id)
     if (selectedUsers.length) query.set('user_ids', selectedUsers.map((user) => user.id).join(','))
+    if (selectedWriters.length) query.set('writer_ids', selectedWriters.map((writer) => writer.id).join(','))
     if (dateFrom) query.set('date_from', dateFrom)
     if (dateTo) query.set('date_to', dateTo)
 
@@ -242,7 +298,7 @@ export default function PurchasesPage() {
       })
 
     return () => controller.abort()
-  }, [accessToken, selectedStory, selectedUsers, dateFrom, dateTo, page, reloadKey])
+  }, [accessToken, selectedStory, selectedUsers, selectedWriters, dateFrom, dateTo, page, reloadKey])
 
   function clearFilters() {
     setSelectedStory(null)
@@ -255,11 +311,16 @@ export default function PurchasesPage() {
     setAppliedUserSearch('')
     setUserOptions([])
     setUserOptionsPage(1)
+    setSelectedWriters([])
+    setWriterSearch('')
+    setAppliedWriterSearch('')
+    setWriterOptions([])
+    setWriterOptionsPage(1)
     setDateRange(undefined)
     setPage(1)
   }
 
-  const hasFilters = Boolean(selectedStory || selectedUsers.length || dateRange?.from)
+  const hasFilters = Boolean(selectedStory || selectedUsers.length || selectedWriters.length || dateRange?.from)
 
   return (
     <main className="space-y-6 p-4 md:p-6">
@@ -275,7 +336,7 @@ export default function PurchasesPage() {
       </div>
 
       <Card>
-        <CardContent className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem_auto] md:items-end">
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_18rem_auto] md:items-end">
           <div className="space-y-2">
             <Label htmlFor="purchase-story">เรื่อง</Label>
             <Popover open={storyPickerOpen} onOpenChange={(open) => {
@@ -387,6 +448,49 @@ export default function PurchasesPage() {
                   })}
                   {!isLoadingUsers && userOptions.length === 0 && <p className="px-3 py-8 text-center text-sm text-muted-foreground">ไม่พบผู้ซื้อที่มีประวัติการซื้อ</p>}
                   {isLoadingUsers && <div className="flex items-center justify-center gap-2 px-3 py-3 text-sm text-muted-foreground"><RefreshCw className="size-4 animate-spin" />กำลังโหลด...</div>}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="purchase-writers">นักเขียน</Label>
+            <Popover open={writerPickerOpen} onOpenChange={(open) => {
+              setWriterPickerOpen(open)
+              if (open) setWriterOptionsPage(1)
+            }}>
+              <PopoverTrigger
+                render={<Button id="purchase-writers" type="button" variant="outline" className="w-full justify-start bg-transparent text-left font-normal"><span className="truncate">{selectedWriters.length ? `เลือกแล้ว ${selectedWriters.length} คน` : 'เลือกนักเขียน'}</span></Button>}
+              />
+              <PopoverContent align="start" className="w-[min(26rem,calc(100vw-2rem))] p-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={writerSearch} onChange={(event) => setWriterSearch(event.target.value)} placeholder="ค้นหาชื่อหรือ username" className="pl-8" autoFocus />
+                </div>
+                {selectedWriters.length > 0 && (
+                  <div className="flex flex-wrap gap-1 border-b py-2">
+                    {selectedWriters.map((writer) => (
+                      <button key={writer.id} type="button" onClick={() => { setSelectedWriters((current) => current.filter((selected) => selected.id !== writer.id)); setPage(1) }} className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs font-medium hover:bg-accent/70">
+                        @{writer.username}<X className="size-3" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-2 max-h-64 overflow-y-auto" onScroll={(event) => {
+                  const target = event.currentTarget
+                  if (hasMoreWriters && !isLoadingWritersRef.current && target.scrollHeight - target.scrollTop - target.clientHeight < 64) setWriterOptionsPage((current) => current + 1)
+                }}>
+                  {writerOptions.map((writer) => {
+                    const isSelected = selectedWriters.some((selected) => selected.id === writer.id)
+                    return (
+                      <button key={writer.id} type="button" onClick={() => { setSelectedWriters((current) => isSelected ? current.filter((selected) => selected.id !== writer.id) : [...current, writer]); setPage(1) }} className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm hover:bg-accent ${isSelected ? 'bg-accent' : ''}`}>
+                        {writer.avatar_url ? <img src={writer.avatar_url} alt="" className="size-8 shrink-0 rounded-full object-cover" /> : <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{writer.username.slice(0, 1).toUpperCase()}</span>}
+                        <span className="min-w-0 flex-1"><span className="block truncate font-medium">{writer.display_name}</span><span className="block truncate text-xs text-muted-foreground">@{writer.username}</span></span>
+                        {isSelected && <span className="text-xs font-medium text-primary">เลือกแล้ว</span>}
+                      </button>
+                    )
+                  })}
+                  {!isLoadingWriters && writerOptions.length === 0 && <p className="px-3 py-8 text-center text-sm text-muted-foreground">ไม่พบนักเขียนที่มีประวัติการขาย</p>}
+                  {isLoadingWriters && <div className="flex items-center justify-center gap-2 px-3 py-3 text-sm text-muted-foreground"><RefreshCw className="size-4 animate-spin" />กำลังโหลด...</div>}
                 </div>
               </PopoverContent>
             </Popover>

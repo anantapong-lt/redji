@@ -562,6 +562,7 @@ export interface RichTextEditorProps {
   initialContent?: string
   name?: string
   onChange?: (html: string) => void
+  contentClassName?: string
 }
 
 interface EditorButtonProps {
@@ -600,6 +601,7 @@ export function RichTextEditor({
   initialContent = '',
   name = 'content',
   onChange,
+  contentClassName,
 }: RichTextEditorProps) {
   const [html, setHtml] = useState(initialContent)
   const editor = useEditor({
@@ -617,7 +619,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         id,
-        class: 'min-h-96 whitespace-pre-wrap px-4 py-3 text-sm leading-7 outline-none [tab-size:4]',
+        class: `min-h-96 whitespace-pre-wrap px-4 py-3 text-sm leading-7 outline-none [tab-size:4] ${contentClassName ?? ''}`,
       },
       transformPastedHTML: normalizePastedHtml,
       transformPasted: normalizePastedSlice,

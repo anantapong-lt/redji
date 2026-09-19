@@ -1,6 +1,6 @@
 import { status } from 'elysia'
-import type { adminPurchaseStoriesQuerySchema, adminPurchaseUsersQuerySchema, adminPurchasesQuerySchema } from './admin-purchases.schema'
-import { countAdminPurchases, findAdminPurchases, findAdminPurchaseStories, findAdminPurchaseUsers } from './admin-purchases.service'
+import type { adminPurchaseStoriesQuerySchema, adminPurchaseUsersQuerySchema, adminPurchaseWritersQuerySchema, adminPurchasesQuerySchema } from './admin-purchases.schema'
+import { countAdminPurchases, findAdminPurchases, findAdminPurchaseStories, findAdminPurchaseUsers, findAdminPurchaseWriters } from './admin-purchases.service'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -20,13 +20,16 @@ export async function getAdminPurchases(query: typeof adminPurchasesQuerySchema.
   const userIds = parseUserIds(query.user_ids)
   if (!userIds) return status(400, { message: 'ข้อมูลผู้ใช้สำหรับตัวกรองไม่ถูกต้อง' })
 
+  const writerIds = parseUserIds(query.writer_ids)
+  if (!writerIds) return status(400, { message: 'ข้อมูลนักเขียนสำหรับตัวกรองไม่ถูกต้อง' })
+
   try {
     const limit = query.limit ?? 20
     const storyId = query.story_id ?? null
-    const total = await countAdminPurchases(storyId, userIds, dateFrom, dateTo)
+    const total = await countAdminPurchases(storyId, userIds, writerIds, dateFrom, dateTo)
     const totalPages = Math.max(1, Math.ceil(total / limit))
     const page = Math.min(query.page ?? 1, totalPages)
-    const purchases = await findAdminPurchases(page, limit, storyId, userIds, dateFrom, dateTo)
+    const purchases = await findAdminPurchases(page, limit, storyId, userIds, writerIds, dateFrom, dateTo)
     return { purchases, pagination: { page, limit, total, totalPages } }
   } catch (error) {
     console.error('Unable to load admin purchases', error)
@@ -43,6 +46,18 @@ export async function getAdminPurchaseUsers(query: typeof adminPurchaseUsersQuer
   } catch (error) {
     console.error('Unable to load admin purchase users', error)
     return status(500, { message: 'ไม่สามารถโหลดรายการผู้ใช้งานได้' })
+  }
+}
+
+export async function getAdminPurchaseWriters(query: typeof adminPurchaseWritersQuerySchema.static) {
+  try {
+    const page = query.page ?? 1
+    const limit = query.limit ?? 20
+    const writers = await findAdminPurchaseWriters(query.search?.trim() ?? '', page, limit)
+    return { users: writers, pagination: { page, limit, hasNextPage: writers.length === limit } }
+  } catch (error) {
+    console.error('Unable to load admin purchase writers', error)
+    return status(500, { message: 'ไม่สามารถโหลดรายชื่อนักเขียนได้' })
   }
 }
 

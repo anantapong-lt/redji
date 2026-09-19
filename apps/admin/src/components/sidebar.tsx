@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Banknote, BarChart3, BookOpen, ClipboardCheck, Flag, LayoutTemplate, LogOut, PenSquare, ReceiptText, ShieldCheck, UserCog, Users } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, ClipboardCheck, FileText, Flag, LayoutTemplate, LogOut, PenSquare, ReceiptText, ShieldCheck, UserCog, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { NotificationBell } from '@readji/shared/src/notification-bell'
 import { useAdminAuth } from '@/components/admin-auth-provider'
@@ -16,7 +16,7 @@ const navigation = [
   { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงานทั้งหมด', icon: BookOpen }] },
   { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }, { href: '/writer-applications', label: 'คำขอเป็นนักเขียน', icon: ClipboardCheck }] },
   { label: 'การเงิน', items: [{ href: '/transactions', label: 'คำขอถอน', icon: Banknote }, { href: '/purchases', label: 'ประวัติการซื้อ', icon: ReceiptText }] },
-  { label: 'ระบบ', items: [{ href: '/site', label: 'ตั้งค่าเว็บไซต์', icon: LayoutTemplate }] },
+  { label: 'ระบบ', items: [{ href: '/site', label: 'ตั้งค่าเว็บไซต์', icon: LayoutTemplate }, { href: '/agreements', label: 'จัดการข้อตกลงการใช้งาน', icon: FileText }] },
 ] as const
 
 export function Sidebar() {

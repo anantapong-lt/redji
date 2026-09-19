@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Ban, ChevronLeft, ChevronRight, Search, ShieldCheck, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -192,21 +193,16 @@ export default function WritersPage() {
                       <TableCell className="text-right tabular-nums">{formatCoin(writer.balance)}</TableCell>
                       <TableCell>{formatDate(writer.created_at)}</TableCell>
                       <TableCell className="align-middle">
-                        <Select
-                          value={writer.status}
-                          onValueChange={(value) => {
-                            if (value === writer.status) return
-                            setStatusChange({ writer, nextStatus: value as UserStatus })
-                            setBanReason('')
-                            setBanReasonError(null)
-                          }}
+                        <Badge
+                          variant="outline"
+                          className={writer.status === USER_STATUS.ACTIVE
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : writer.status === USER_STATUS.SUSPENDED
+                              ? 'border-red-200 bg-red-50 text-red-700'
+                              : 'border-amber-200 bg-amber-50 text-amber-700'}
                         >
-                          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={USER_STATUS.ACTIVE}>ใช้งาน</SelectItem>
-                            <SelectItem value={USER_STATUS.SUSPENDED}>ระงับ</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          {statusLabel[writer.status]}
+                        </Badge>
                       </TableCell>
                       <TableCell className="align-middle text-right">
                         <Button
