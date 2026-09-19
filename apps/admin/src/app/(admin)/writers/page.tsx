@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { Ban, ChevronLeft, ChevronRight, Search, ShieldCheck, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -192,10 +191,7 @@ export default function WritersPage() {
                       <TableCell className="text-right tabular-nums">{formatCoin(writer.net_revenue)}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatCoin(writer.balance)}</TableCell>
                       <TableCell>{formatDate(writer.created_at)}</TableCell>
-                      <TableCell>
-                        <Badge variant={writer.status === USER_STATUS.ACTIVE ? 'secondary' : 'destructive'}>{statusLabel[writer.status]}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="align-middle">
                         <Select
                           value={writer.status}
                           onValueChange={(value) => {
@@ -205,12 +201,14 @@ export default function WritersPage() {
                             setBanReasonError(null)
                           }}
                         >
-                          <SelectTrigger className="mb-2 h-8 w-28"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value={USER_STATUS.ACTIVE}>ใช้งาน</SelectItem>
                             <SelectItem value={USER_STATUS.SUSPENDED}>ระงับ</SelectItem>
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                      <TableCell className="align-middle text-right">
                         <Button
                           type="button"
                           size="sm"

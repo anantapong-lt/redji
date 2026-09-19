@@ -124,10 +124,15 @@ export function NavbarClient({
   const [writerApplicationData, setWriterApplicationData] = useState<WriterApplicationData | null>(null)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(initialUnreadNotificationCount)
   const [selectedNotification, setSelectedNotification] = useState<UserNotification | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
   const pathname = usePathname()
   const { accessToken, logout, status, user: clientUser } = useAuth()
-  const user = status === 'loading' ? initialUser : clientUser
+  const user = !hasHydrated || status === 'loading' ? initialUser : clientUser
   const isReaderPage = /^\/content\/[^/]+\/[^/]+$/.test(pathname)
+
+  useEffect(() => {
+    setHasHydrated(true)
+  }, [])
 
   useEffect(() => {
     if (!isReaderPage) {
@@ -250,7 +255,7 @@ export function NavbarClient({
               />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
             <div className="ml-1 flex min-w-[150px] shrink-0 items-center justify-end gap-2">
-              {status === 'loading' && !user ? (
+              {(!hasHydrated || status === 'loading') && !user ? (
                 <div className="h-10 w-32 animate-pulse rounded-full bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
               ) : user ? (
                 <DropdownMenu modal={false}>
@@ -435,7 +440,7 @@ export function NavbarClient({
             </nav>
 
             <div className="shrink-0 space-y-2 border-t border-border p-4">
-              {status === 'loading' && !user ? (
+              {(!hasHydrated || status === 'loading') && !user ? (
                 <div className="h-12 w-full animate-pulse rounded-xl bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
               ) : user ? (
                 <>
