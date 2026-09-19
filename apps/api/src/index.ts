@@ -6,6 +6,7 @@ import { adminUsersRoutes } from './modules/admin-users/admin-users.routes'
 import { adminWriterApplicationRoutes } from './modules/admin-writer-applications/admin-writer-applications.routes'
 import { adminWritersRoutes } from './modules/admin-writers/admin-writers.routes'
 import { adminPurchasesRoutes } from './modules/admin-purchases/admin-purchases.routes'
+import { adminTopupsRoutes } from './modules/admin-topups/admin-topups.routes'
 import { adminContentsRoutes } from './modules/admin-contents/admin-contents.routes'
 import { adminDashboardRoutes } from './modules/admin-dashboard/admin-dashboard.routes'
 import { adminSiteRoutes } from './modules/admin-site/admin-site.routes'
@@ -50,6 +51,7 @@ const app = new Elysia()
   .use(adminWriterApplicationRoutes)
   .use(adminWritersRoutes)
   .use(adminPurchasesRoutes)
+  .use(adminTopupsRoutes)
   .use(adminContentsRoutes)
   .use(adminDashboardRoutes)
   .use(adminSiteRoutes)
