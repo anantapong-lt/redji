@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Search, ShoppingBag, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Download, RefreshCw, Search, ShoppingBag, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
+import { toast } from 'sonner'
 import type { DateRange } from 'react-day-picker'
 import { th } from 'react-day-picker/locale'
 import { useAdminAuth } from '@/components/admin-auth-provider'
@@ -119,6 +120,7 @@ export default function PurchasesPage() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<PurchaseResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const dateFrom = dateRange?.from ? toDateValue(dateRange.from) : ''
@@ -320,6 +322,63 @@ export default function PurchasesPage() {
     setPage(1)
   }
 
+  async function exportFilteredPurchases() {
+    if (!accessToken || isExporting) return
+
+    setIsExporting(true)
+    try {
+      const purchases: Purchase[] = []
+      let exportPage = 1
+      let totalPages = 1
+
+      do {
+        const query = new URLSearchParams({ page: String(exportPage), limit: '100' })
+        if (selectedStory) query.set('story_id', selectedStory.id)
+        if (selectedUsers.length) query.set('user_ids', selectedUsers.map((user) => user.id).join(','))
+        if (selectedWriters.length) query.set('writer_ids', selectedWriters.map((writer) => writer.id).join(','))
+        if (dateFrom) query.set('date_from', dateFrom)
+        if (dateTo) query.set('date_to', dateTo)
+
+        const response = await fetch(`${apiUrl}/admin/purchases?${query}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          credentials: 'include',
+        })
+        const body = await response.json() as PurchaseResponse | { message?: string }
+        if (!response.ok) throw new Error('message' in body ? body.message : 'ไม่สามารถส่งออกข้อมูลได้')
+
+        const result = body as PurchaseResponse
+        purchases.push(...result.purchases)
+        totalPages = result.pagination.totalPages
+        exportPage += 1
+      } while (exportPage <= totalPages)
+
+      const XLSX = await import('xlsx')
+      const worksheet = XLSX.utils.json_to_sheet(purchases.map((purchase) => ({
+        เรื่อง: purchase.story_title,
+        ตอน: `${Number(purchase.chapter_number)} ${purchase.chapter_title}`,
+        ผู้ซื้อ: purchase.buyer_display_name,
+        'Username ผู้ซื้อ': purchase.buyer_username,
+        นักเขียน: purchase.writer_display_name,
+        'Username นักเขียน': purchase.writer_username,
+        ราคา: Number(purchase.price),
+        วันที่ซื้อ: dateTime.format(new Date(purchase.purchased_at)),
+      })))
+      worksheet['!cols'] = [
+        { wch: 36 }, { wch: 32 }, { wch: 24 }, { wch: 24 },
+        { wch: 24 }, { wch: 24 }, { wch: 12 }, { wch: 24 },
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'ประวัติการซื้อ')
+      XLSX.writeFile(workbook, `ประวัติการซื้อ-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      toast.success(`ส่งออก ${purchases.length.toLocaleString('th-TH')} รายการแล้ว`)
+    } catch (exportError) {
+      toast.error(exportError instanceof Error ? exportError.message : 'ไม่สามารถส่งออกข้อมูลได้')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const hasFilters = Boolean(selectedStory || selectedUsers.length || selectedWriters.length || dateRange?.from)
 
   return (
@@ -336,7 +395,7 @@ export default function PurchasesPage() {
       </div>
 
       <Card>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_18rem_auto] md:items-end">
+        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(11rem,1.2fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(12rem,1fr)_auto_auto] md:items-end">
           <div className="space-y-2">
             <Label htmlFor="purchase-story">เรื่อง</Label>
             <Popover open={storyPickerOpen} onOpenChange={(open) => {
@@ -544,7 +603,11 @@ export default function PurchasesPage() {
               </PopoverContent>
             </Popover>
           </div>
-          <Button type="button" variant="outline" className="bg-transparent" onClick={clearFilters} disabled={!hasFilters}>
+          <Button type="button" variant="outline" className="whitespace-nowrap bg-transparent px-3" onClick={() => void exportFilteredPurchases()} disabled={isExporting}>
+            <Download />
+            {isExporting ? 'กำลังส่งออก...' : 'Export Excel'}
+          </Button>
+          <Button type="button" variant="outline" className="whitespace-nowrap bg-transparent px-3" onClick={clearFilters} disabled={!hasFilters}>
             <X />
             ล้างตัวกรอง
           </Button>
