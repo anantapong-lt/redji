@@ -13,6 +13,8 @@ import {
   unlinkGoogleBodySchema,
   phoneVerificationRequestBodySchema,
   phoneVerificationVerifyBodySchema,
+  registrationPhoneRequestBodySchema,
+  registrationPhoneVerifyBodySchema,
   googleCallbackQuerySchema,
   loginBodySchema,
   registerBodySchema,
@@ -26,6 +28,7 @@ import {
   validateAuthSession,
 } from './auth.service'
 import { beginGoogleAuthentication, finishGoogleAuthentication } from './google-auth.controller'
+import { requestRegistrationPhoneResponse, startRegistrationPhoneResponse, verifyRegistrationPhoneResponse } from './registration-phone.controller'
 import { accountSecurityResponse, accountSecuritySessionResponse, changePasswordResponse, requestPhoneVerificationResponse, unlinkGoogleResponse, verifyPhoneVerificationResponse } from './account-security.controller'
 import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
 import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
@@ -77,6 +80,15 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .post('/security/phone/verify', ({ currentUser, body }) => verifyPhoneVerificationResponse(currentUser.id, body), {
     auth: true,
     body: phoneVerificationVerifyBodySchema,
+  })
+  .post('/registration/phone/request', ({ body }) => requestRegistrationPhoneResponse(body), {
+    body: registrationPhoneRequestBodySchema,
+  })
+  .post('/registration/phone/start', ({ body }) => startRegistrationPhoneResponse(body), {
+    body: registrationPhoneRequestBodySchema,
+  })
+  .post('/registration/phone/verify', ({ body }) => verifyRegistrationPhoneResponse(body), {
+    body: registrationPhoneVerifyBodySchema,
   })
   .get('/google/callback', ({ cookie, query, refreshJwt, currentUser }) => finishGoogleAuthentication(
     query,

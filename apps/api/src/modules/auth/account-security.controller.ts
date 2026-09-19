@@ -73,19 +73,19 @@ export async function requestPhoneVerificationResponse(userId: string, body: Pho
   } catch (error) {
     if (error instanceof PhoneOtpProviderError) {
       if (error.reason === 'not_configured') {
-        return Response.json({ message: 'ยังไม่ได้ตั้งค่า App Key หรือ App Secret สำหรับ SMS OTP', field: 'phone_number' }, { status: 503 })
+        return Response.json({ message: 'ยังไม่ได้ตั้งค่า BoostSMS API Key สำหรับ SMS OTP', field: 'phone_number' }, { status: 503 })
       }
       if (error.reason === 'rejected') {
         if (error.providerStatus === 402 || error.providerStatus === 423) {
-          return Response.json({ message: 'เครดิต SMS OTP ไม่เพียงพอ กรุณาเติมเครดิตใน ThaiBulkSMS', field: 'phone_number' }, { status: 402 })
+          return Response.json({ message: 'เครดิต SMS OTP ไม่เพียงพอ กรุณาเติมเครดิตใน BoostSMS', field: 'phone_number' }, { status: 402 })
         }
         if (error.providerStatus === 429) {
           return Response.json({ message: 'ขอรหัส OTP บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่', field: 'phone_number' }, { status: 429 })
         }
         if (error.providerStatus === 401 || error.providerStatus === 403) {
-          return Response.json({ message: 'การตั้งค่า ThaiBulkSMS OTP ไม่ถูกต้องหรือยังไม่ได้เปิดสิทธิ์ใช้งาน', field: 'phone_number' }, { status: 503 })
+          return Response.json({ message: 'การตั้งค่า BoostSMS API Key ไม่ถูกต้องหรือยังไม่ได้เปิดสิทธิ์ใช้งาน', field: 'phone_number' }, { status: 503 })
         }
-        return Response.json({ message: 'ThaiBulkSMS ปฏิเสธคำขอ OTP กรุณาตรวจสอบเบอร์โทรและการเปิดใช้งาน SMS OTP', field: 'phone_number' }, { status: 400 })
+        return Response.json({ message: 'BoostSMS ปฏิเสธคำขอ OTP กรุณาตรวจสอบเบอร์โทรและการเปิดใช้งาน SMS OTP', field: 'phone_number' }, { status: 400 })
       }
       return Response.json({ message: 'ระบบส่ง OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง' }, { status: 503 })
     }

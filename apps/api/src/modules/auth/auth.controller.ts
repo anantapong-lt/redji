@@ -6,7 +6,6 @@ import {
 import {
   sendVerificationEmail,
   verifyLoginTurnstile,
-  verifyRegistrationTurnstile,
 } from './auth.integrations'
 import { isFeatureEnabled } from '../site-config/site-config.service'
 
@@ -30,6 +29,8 @@ export async function registerWithEmail(body: {
   email: string
   password: string
   turnstile_token?: string
+  registration_phone_verification_id: string
+  registration_phone_verification_token: string
 }) {
   if (!(await isFeatureEnabled('registration'))) {
     return Response.json(
@@ -38,18 +39,13 @@ export async function registerWithEmail(body: {
     )
   }
 
-  if (!(await verifyRegistrationTurnstile(body.turnstile_token))) {
-    return Response.json(
-      { message: 'ไม่สามารถยืนยัน Cloudflare Turnstile ได้ กรุณาลองใหม่อีกครั้ง', field: 'turnstile_token' },
-      { status: 400 },
-    )
-  }
-
   try {
     const registration = await createEmailRegistration(
       body.email,
       body.username,
       body.password,
+      body.registration_phone_verification_id,
+      body.registration_phone_verification_token,
     )
 
     try {

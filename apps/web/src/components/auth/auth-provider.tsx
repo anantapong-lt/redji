@@ -16,6 +16,7 @@ import {
 } from '@/controllers/auth.controller'
 import type { AuthSession } from '@/interface/auth-session.interface'
 import type { AuthUser } from '@/interface/user.interface'
+import { PhoneVerificationGate } from './phone-verification-gate'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -95,7 +96,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refresh,
   }), [login, logout, refresh, session, status])
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <PhoneVerificationGate
+        accessToken={value.accessToken}
+        user={value.user}
+        onVerified={refresh}
+      />
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthContextValue {

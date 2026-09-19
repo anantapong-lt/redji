@@ -118,7 +118,10 @@ export async function finishGoogleAuthentication(
       return redirectToWeb(SECURITY_PATH, { oauth_error: messages[result] })
     }
     // Existing emails require an explicit link by the authenticated account owner.
-    const result = await authenticateWithGoogle(profile, await isFeatureEnabled('registration'))
+    const result = await authenticateWithGoogle(
+      profile,
+      savedState.mode === 'register' && await isFeatureEnabled('registration'),
+    )
     if ('status' in result) {
       if (result.status === 'email_exists') {
         return redirectToWeb('/login', {

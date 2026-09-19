@@ -4,23 +4,41 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Lock, X } from 'lucide-react'
+import { z } from 'zod/v3'
+import { Lock, Phone } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { IconInput, PasswordInput } from './form-inputs'
 import { PasswordStrengthIndicator } from './password-strength-indicator'
 import { TurnstileWidget } from './turnstile-widget'
-import { registerWithPassword } from '@/controllers/auth.controller'
+import { PhoneVerificationDialog } from './phone-verification-dialog'
+import {
+  registerWithPassword,
+  requestRegistrationPhoneVerification,
+  startRegistrationPhoneVerification,
+  verifyRegistrationPhoneVerification,
+} from '@/controllers/auth.controller'
 import { ApiError } from '@/lib/api-client'
 import { getApiUrl } from '@/site.config'
 
 const registerSchema = z
   .object({
-    u_name: z.string().min(3, 'ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร').max(30, 'ชื่อผู้ใช้งานต้องไม่เกิน 30 ตัวอักษร'),
+    u_name: z
+      .string()
+      .min(3, 'ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร')
+      .max(30, 'ชื่อผู้ใช้งานต้องไม่เกิน 30 ตัวอักษร'),
     email: z.string().email('อีเมลไม่ถูกต้อง'),
+    phone_number: z.string().regex(/^0[689][0-9]{8}$/, 'กรุณากรอกเบอร์มือถือไทย 10 หลัก'),
     password: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร').max(72),
     password_confirm: z.string(),
-    terms: z.boolean().refine((value) => value, 'กรุณายอมรับข้อตกลงและเงื่อนไขการใช้และบริการ'),
+    terms: z.boolean().refine(Boolean, 'กรุณายอมรับข้อตกลงและเงื่อนไขการใช้บริการ'),
   })
   .refine((data) => data.password === data.password_confirm, {
     message: 'รหัสผ่านไม่ตรงกัน',
@@ -31,95 +49,144 @@ type RegisterValues = z.infer<typeof registerSchema>
 
 export function RegisterForm() {
   const [termsOpen, setTermsOpen] = useState(false)
+  const [otpDialogOpen, setOtpDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [turnstileKey, setTurnstileKey] = useState(0)
+  const [verificationId, setVerificationId] = useState<string | null>(null)
+  const [pendingRegistration, setPendingRegistration] = useState<RegisterValues | null>(null)
+  const [isSending, setIsSending] = useState(false)
   const turnstileRequired = process.env.NODE_ENV !== 'development'
   const {
     control,
     register,
     handleSubmit,
-    getValues,
+    setValue,
+    trigger,
     watch,
     setError,
+    clearErrors,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { terms: false },
-  })
+  } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { terms: false } })
+  const phoneNumber = watch('phone_number')
   const password = watch('password')
+  const termsAccepted = watch('terms')
 
-  async function onSubmit(values: RegisterValues) {
-    setSuccessMessage('')
+  function resetOtp() {
+    setVerificationId(null)
+    setOtpDialogOpen(false)
+  }
 
+  function fillMockRegistration() {
+    const suffix = Date.now().toString().slice(-6)
+    setValue('u_name', `demo_${suffix}`, { shouldValidate: true })
+    setValue('email', `demo.${suffix}@example.test`, { shouldValidate: true })
+    setValue('phone_number', '0900000000', { shouldValidate: true })
+    setValue('password', 'DemoPass123!', { shouldValidate: true })
+    setValue('password_confirm', 'DemoPass123!', { shouldValidate: true })
+    setValue('terms', true, { shouldValidate: true })
+    clearErrors()
+    resetOtp()
+  }
+
+  async function startOtp(phone: string) {
     if (turnstileRequired && !turnstileToken) {
-      setError('root', { message: 'กรุณายืนยัน Cloudflare Turnstile' })
+      setError('root', { message: 'กรุณายืนยัน Cloudflare Turnstile ก่อนสมัครสมาชิก' })
       return
     }
-
+    setIsSending(true)
+    clearErrors('root')
     try {
-      const result = await registerWithPassword({
-        username: values.u_name,
-        email: values.email,
-        password: values.password,
-        ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
-      })
-      setSuccessMessage(result.message)
+      const result = await startRegistrationPhoneVerification(phone, turnstileToken ?? undefined)
+      setVerificationId(result.verification_id)
+      setOtpDialogOpen(true)
     } catch (error) {
-      if (error instanceof ApiError && error.field === 'email') {
-        setError('email', { message: error.message })
-      } else if (error instanceof ApiError && error.field === 'username') {
-        setError('u_name', { message: error.message })
-      } else {
-        setError('root', {
-          message: error instanceof ApiError
-            ? error.message
-            : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
-        })
-      }
+      setError('phone_number', { message: error instanceof ApiError ? error.message : 'ไม่สามารถส่งรหัส OTP ได้' })
     } finally {
       setTurnstileToken(null)
-      setTurnstileKey((current) => current + 1)
+      setTurnstileKey((value) => value + 1)
+      setIsSending(false)
     }
   }
 
-  function registerWithGoogle() {
-    if (!getValues('terms')) {
-      setError('terms', { message: 'กรุณายอมรับข้อตกลงและเงื่อนไขการใช้และบริการ' })
-      return
-    }
+  async function onSubmit(values: RegisterValues) {
+    setSuccessMessage('')
+    setPendingRegistration(values)
+    await startOtp(values.phone_number)
+  }
+
+  async function registerWithGoogle() {
+    if (!(await trigger('terms'))) return
     window.location.assign(getApiUrl('/auth/google/register'))
+  }
+
+  async function requestDialogOtp(phone: string, token: string | undefined) {
+    const result = await requestRegistrationPhoneVerification(phone, token)
+    setVerificationId(result.verification_id)
+  }
+
+  async function verifyDialogOtp(_phone: string, otp: string) {
+    if (!verificationId || !pendingRegistration) throw new Error('ไม่พบคำขอยืนยันเบอร์มือถือ')
+    const result = await verifyRegistrationPhoneVerification(verificationId, otp)
+    const registration = await registerWithPassword({
+      username: pendingRegistration.u_name,
+      email: pendingRegistration.email,
+      password: pendingRegistration.password,
+      registration_phone_verification_id: verificationId,
+      registration_phone_verification_token: result.verification_token,
+    })
+    setOtpDialogOpen(false)
+    setSuccessMessage(registration.message)
   }
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" aria-busy={isSubmitting}>
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" aria-busy={isSubmitting || isSending}>
+        {process.env.NODE_ENV === 'development' && (
+          <div className="flex justify-end gap-3 text-xs">
+            <button type="button" onClick={fillMockRegistration} className="text-muted-foreground underline underline-offset-2 hover:text-foreground">กรอกข้อมูลตัวอย่าง</button>
+            <button type="button" onClick={() => setOtpDialogOpen(true)} className="text-muted-foreground underline underline-offset-2 hover:text-foreground">ดูตัวอย่าง Dialog OTP</button>
+          </div>
+        )}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">ชื่อผู้ใช้งาน</label>
-          <IconInput placeholder="กรอกชื่อบัญชีผู้ใช้งาน" autoComplete="username" {...register('u_name')} />
+          <label className="mb-1.5 block text-sm font-medium">ชื่อผู้ใช้งาน</label>
+          <IconInput autoComplete="username" {...register('u_name')} />
           {errors.u_name && <p className="mt-1 text-xs text-destructive">{errors.u_name.message}</p>}
         </div>
-
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">อีเมล</label>
-          <IconInput type="email" placeholder="กรอกอีเมลลงในช่องนี้" autoComplete="email" {...register('email')} />
+          <label className="mb-1.5 block text-sm font-medium">อีเมล</label>
+          <IconInput type="email" autoComplete="email" {...register('email')} />
           {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
         </div>
-
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">รหัสผ่าน</label>
-          <PasswordInput icon={<Lock className="size-4" />} placeholder="รหัสผ่าน" autoComplete="new-password" {...register('password')} />
+          <label className="mb-1.5 block text-sm font-medium">เบอร์มือถือ</label>
+          <IconInput
+            icon={<Phone className="size-4" />}
+            placeholder="0812345678"
+            inputMode="tel"
+            autoComplete="tel"
+            {...register('phone_number', { onChange: resetOtp })}
+          />
+          {errors.phone_number && <p className="mt-1 text-xs text-destructive">{errors.phone_number.message}</p>}
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">รหัสผ่าน</label>
+          <PasswordInput icon={<Lock className="size-4" />} autoComplete="new-password" {...register('password')} />
           <PasswordStrengthIndicator password={password} />
           {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
         </div>
-
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">ยืนยันรหัสผ่าน</label>
-          <PasswordInput icon={<Lock className="size-4" />} placeholder="ยืนยันรหัสผ่าน" autoComplete="new-password" {...register('password_confirm')} />
-          {errors.password_confirm && <p className="mt-1 text-xs text-destructive">{errors.password_confirm.message}</p>}
+          <label className="mb-1.5 block text-sm font-medium">ยืนยันรหัสผ่าน</label>
+          <PasswordInput
+            icon={<Lock className="size-4" />}
+            autoComplete="new-password"
+            {...register('password_confirm')}
+          />
+          {errors.password_confirm && (
+            <p className="mt-1 text-xs text-destructive">{errors.password_confirm.message}</p>
+          )}
         </div>
-
-        <div className="flex items-center justify-center gap-1.5 text-sm text-foreground">
+        <div className="flex items-center justify-center gap-1.5 text-sm">
           <Controller
             name="terms"
             control={control}
@@ -128,83 +195,79 @@ export function RegisterForm() {
                 id="accept-terms"
                 checked={field.value}
                 onCheckedChange={(checked) => field.onChange(checked === true)}
-                onBlur={field.onBlur}
-                ref={field.ref}
-                aria-invalid={Boolean(errors.terms)}
-                aria-label="ยอมรับข้อตกลงและเงื่อนไขการใช้และบริการ"
               />
             )}
           />
-          <span className="select-none">ยอมรับ</span>
-          <button type="button" onClick={() => setTermsOpen(true)} className="cursor-pointer text-blue-600 underline underline-offset-2 hover:text-blue-700">
-            ข้อตกลงและเงื่อนไขการใช้และบริการ
+          <span>ยอมรับ</span>
+          <button type="button" onClick={() => setTermsOpen(true)} className="text-blue-600 underline">
+            ข้อตกลงและเงื่อนไข
           </button>
         </div>
         {errors.terms && <p className="-mt-2 text-center text-xs text-destructive">{errors.terms.message}</p>}
-
-        <TurnstileWidget
-          key={turnstileKey}
-          action="register"
-          onTokenChange={setTurnstileToken}
-        />
-
+        <TurnstileWidget key={turnstileKey} action="register" onTokenChange={setTurnstileToken} />
         <button
           type="submit"
-          disabled={isSubmitting || (turnstileRequired && !turnstileToken)}
-          className="h-11 w-full cursor-pointer rounded-lg bg-primary px-4 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={!termsAccepted || isSubmitting || isSending || (turnstileRequired && !turnstileToken)}
+          className="h-11 w-full rounded-lg bg-primary px-4 text-base font-medium text-primary-foreground disabled:opacity-60"
         >
-          {isSubmitting ? 'กำลังสมัครสมาชิก...' : 'สมัครสมาชิก'}
+          {isSending ? 'กำลังส่ง OTP...' : 'สมัครสมาชิก'}
         </button>
-
-        <div className="flex items-center gap-3" aria-hidden="true">
+        <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
           <span className="text-xs text-muted-foreground">หรือ</span>
           <div className="h-px flex-1 bg-border" />
         </div>
-
         <button
           type="button"
-          onClick={registerWithGoogle}
-          className="flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 text-base font-medium text-foreground transition-colors hover:bg-muted"
+          onClick={() => void registerWithGoogle()}
+          disabled={!termsAccepted}
+          className="h-11 w-full rounded-lg border border-border bg-background px-4 text-base font-medium hover:bg-muted disabled:opacity-60"
         >
-          <svg className="size-5" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.41Z" />
-            <path fill="#34A853" d="M12 22c2.7 0 4.98-.9 6.63-2.43l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z" />
-            <path fill="#FBBC05" d="M6.39 13.86A6 6 0 0 1 6.07 12c0-.65.11-1.28.32-1.86V7.52H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.48l3.35-2.62Z" />
-            <path fill="#EA4335" d="M12 6.01c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.64 9.64 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.62C7.18 7.77 9.39 6.01 12 6.01Z" />
-          </svg>
           สมัครสมาชิกด้วย Google
         </button>
-
         {errors.root?.message && (
           <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
             {errors.root.message}
           </p>
         )}
-
         {successMessage && (
           <p role="status" className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm text-primary">
             {successMessage}
           </p>
         )}
-
         <div className="flex justify-end">
-          <Link href="/login" className="text-sm text-primary hover:underline">กลับไปหน้าเข้าสู่ระบบ</Link>
+          <Link href="/login" className="text-sm text-primary hover:underline">
+            กลับไปหน้าเข้าสู่ระบบ
+          </Link>
         </div>
       </form>
-
-      {termsOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/35 p-4" role="dialog" aria-modal="true" aria-labelledby="terms-title">
-          <button type="button" aria-label="ปิดข้อตกลง" onClick={() => setTermsOpen(false)} className="absolute inset-0" />
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-xl">
-            <button type="button" onClick={() => setTermsOpen(false)} aria-label="ปิด" className="absolute top-4 right-4 cursor-pointer text-muted-foreground hover:text-foreground">
-              <X className="size-5" />
+      <PhoneVerificationDialog
+        open={otpDialogOpen}
+        initialPhoneNumber={phoneNumber}
+        initialOtpSent={Boolean(verificationId)}
+        onOpenChange={setOtpDialogOpen}
+        onRequestOtp={(phone, token) => requestDialogOtp(phone, token)}
+        onVerifyOtp={verifyDialogOtp}
+      />
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ข้อตกลงและเงื่อนไขการใช้บริการ</DialogTitle>
+            <DialogDescription>
+              การสมัครสมาชิกถือว่าคุณยอมรับข้อตกลงและเงื่อนไขการใช้บริการของเว็บไซต์
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setTermsOpen(false)}
+              className="h-10 rounded-lg bg-primary px-4 text-primary-foreground"
+            >
+              ปิด
             </button>
-            <h2 id="terms-title" className="pr-8 text-lg font-semibold text-foreground">ข้อตกลงและเงื่อนไขการใช้และบริการเว็บไซต์ DopaHub</h2>
-            <div className="min-h-[200px]" />
-          </div>
-        </div>
-      )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

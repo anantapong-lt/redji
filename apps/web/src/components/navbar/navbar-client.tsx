@@ -8,7 +8,6 @@ import { Bell, ChevronDown, HistoryIcon, Home, LogIn, LogOut, Menu, PenLine, Sea
 import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
-import { getUnreadNotificationCount } from '@/controllers/notification.controller'
 import { getBankConfigs, getWriterApplicationStatus } from '@/controllers/writer.controller'
 import { getMyProfile } from '@/controllers/profile.controller'
 import { Button } from '@/components/ui/button'
@@ -148,18 +147,6 @@ export function NavbarClient({
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [isReaderPage])
-
-  useEffect(() => {
-    if (!accessToken) {
-      if (status !== 'loading') setUnreadNotificationCount(0)
-      return
-    }
-    let active = true
-    void getUnreadNotificationCount(accessToken)
-      .then(({ count }) => { if (active) setUnreadNotificationCount(count) })
-      .catch(() => { if (active) setUnreadNotificationCount(0) })
-    return () => { active = false }
-  }, [accessToken, pathname])
 
   async function handleLogout() {
     await logout()

@@ -13,22 +13,21 @@ export class PhoneOtpProviderError extends Error {
   }
 }
 
-function thaiBulkSmsCredentials() {
-  if (!env.THAIBULKSMS_OTP_KEY || !env.THAIBULKSMS_OTP_SECRET) {
+function boostSmsApiKey() {
+  if (!env.BOOST_SMS_API_KEY) {
     throw new PhoneOtpProviderError('not_configured')
   }
-  return { key: env.THAIBULKSMS_OTP_KEY, secret: env.THAIBULKSMS_OTP_SECRET }
+  return env.BOOST_SMS_API_KEY
 }
 
-async function thaiBulkSmsOtpRequest(path: '/v2/otp/request' | '/v2/otp/verify', fields: Record<string, string>) {
-  const credentials = thaiBulkSmsCredentials()
-  const body = new URLSearchParams({ ...credentials, ...fields })
+async function boostSmsOtpRequest(path: '/api/v1/otp/send' | '/api/v1/otp/verify', body: Record<string, string>) {
+  const apiKey = boostSmsApiKey()
 
   try {
-    const response = await fetch(`https://otp.thaibulksms.com${path}`, {
+    const response = await fetch(`https://app.boost-sms.com${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),
     })
     const payload: unknown = await response.json().catch(() => null)
@@ -39,19 +38,19 @@ async function thaiBulkSmsOtpRequest(path: '/v2/otp/request' | '/v2/otp/verify',
   }
 }
 
-async function requestThaiBulkSmsOtp(phoneNumber: string): Promise<string> {
-  const msisdn = phoneNumber.startsWith('+') ? phoneNumber.slice(1) : phoneNumber
-  const { ok, status, payload } = await thaiBulkSmsOtpRequest('/v2/otp/request', { msisdn })
+async function requestBoostSmsOtp(phoneNumber: string): Promise<string> {
+  const phone = phoneNumber.startsWith('+66') ? `0${phoneNumber.slice(3)}` : phoneNumber
+  const { ok, status, payload } = await boostSmsOtpRequest('/api/v1/otp/send', { phone, purpose: 'verify' })
   if (!ok) throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status)
-  if (!payload || typeof payload !== 'object' || !('status' in payload) || payload.status !== 'success' || !('token' in payload) || typeof payload.token !== 'string' || !payload.token) {
+  if (!payload || typeof payload !== 'object' || !('ref' in payload) || typeof payload.ref !== 'string' || !payload.ref) {
     throw new PhoneOtpProviderError('unavailable')
   }
-  return payload.token
+  return payload.ref
 }
 
-async function verifyThaiBulkSmsOtp(token: string, otp: string): Promise<boolean> {
-  const { ok, payload } = await thaiBulkSmsOtpRequest('/v2/otp/verify', { token, pin: otp })
-  return Boolean(ok && payload && typeof payload === 'object' && 'status' in payload && payload.status === 'success')
+async function verifyBoostSmsOtp(ref: string, otp: string): Promise<boolean> {
+  const { ok, payload } = await boostSmsOtpRequest('/api/v1/otp/verify', { ref, code: otp })
+  return Boolean(ok && payload && typeof payload === 'object' && 'valid' in payload && payload.valid === true && 'verified' in payload && payload.verified === true)
 }
 
 export async function getAccountSecurity(userId: string) {
@@ -95,7 +94,7 @@ export async function requestPhoneVerification(userId: string, phoneNumber: stri
   `
   if (owner) return 'phone_in_use'
 
-  const providerToken = await requestThaiBulkSmsOtp(phoneNumber)
+  const providerToken = await requestBoostSmsOtp(phoneNumber)
 
   await db`
     INSERT INTO phone_verification_requests (user_id, phone_number, provider_token, expires_at)
@@ -129,7 +128,7 @@ export async function verifyPhoneVerification(
         return 'expired'
       }
 
-      if (!(await verifyThaiBulkSmsOtp(request.provider_token, otp))) return 'invalid_otp'
+      if (!(await verifyBoostSmsOtp(request.provider_token, otp))) return 'invalid_otp'
 
       const updated = await transaction<{ id: string }[]>`
         UPDATE users

@@ -51,6 +51,29 @@ export interface RegisterWithPasswordInput {
   email: string
   password: string
   turnstile_token?: string
+  registration_phone_verification_id: string
+  registration_phone_verification_token: string
+}
+
+export function requestRegistrationPhoneVerification(phoneNumber: string, turnstileToken?: string): Promise<{ message: string; verification_id: string; expires_in: number }> {
+  return apiRequest('/auth/registration/phone/request', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber, ...(turnstileToken ? { turnstile_token: turnstileToken } : {}) }),
+  })
+}
+
+export function startRegistrationPhoneVerification(phoneNumber: string, turnstileToken?: string): Promise<{ message: string; verification_id: string; expires_in: number }> {
+  return apiRequest('/auth/registration/phone/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber, ...(turnstileToken ? { turnstile_token: turnstileToken } : {}) }),
+  })
+}
+
+export function verifyRegistrationPhoneVerification(verificationId: string, otp: string): Promise<{ message: string; verification_token: string }> {
+  return apiRequest('/auth/registration/phone/verify', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ verification_id: verificationId, otp }),
+  })
 }
 
 export function registerWithPassword(

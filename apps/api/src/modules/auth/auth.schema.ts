@@ -28,8 +28,20 @@ export const phoneVerificationVerifyBodySchema = t.Object({
 
 export type PhoneVerificationVerifyBody = typeof phoneVerificationVerifyBodySchema.static
 
+export const registrationPhoneRequestBodySchema = t.Object({
+  phone_number: t.String({ pattern: '^0[689][0-9]{8}$', maxLength: 10 }),
+  turnstile_token: t.Optional(t.String({ maxLength: 2048 })),
+}, { additionalProperties: false })
+
+export const registrationPhoneVerifyBodySchema = t.Object({
+  verification_id: t.String({ format: 'uuid' }),
+  otp: t.String({ pattern: '^[0-9]{6}$', maxLength: 6 }),
+}, { additionalProperties: false })
+
 export const googleAuthQuerySchema = t.Object(
-  { next: t.Optional(t.String({ maxLength: 2048 })) },
+  {
+    next: t.Optional(t.String({ maxLength: 2048 })),
+  },
   { additionalProperties: false },
 )
 
@@ -53,6 +65,8 @@ export const registerBodySchema = t.Object(
     username: t.String({ minLength: 3, maxLength: 30 }),
     email: t.String({ format: 'email', maxLength: 320 }),
     password: t.String({ minLength: 8, maxLength: 72 }),
+    registration_phone_verification_id: t.String({ format: 'uuid' }),
+    registration_phone_verification_token: t.String({ minLength: 64, maxLength: 128 }),
     turnstile_token: t.Optional(t.String({ maxLength: 2048 })),
   },
   { additionalProperties: false },

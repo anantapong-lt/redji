@@ -9,6 +9,8 @@ export interface AuthUser {
   email: string
   username: string
   display_name: string
+  phone_number: string | null
+  phone_verified: boolean
   avatar_url: string | null
   balance: string
   role: userRole

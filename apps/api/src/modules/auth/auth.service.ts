@@ -1,6 +1,7 @@
 import { db } from '../../db'
 import { env } from '../../config/env'
 import type { UserModel } from '../../models/user.model'
+import { consumeRegistrationPhoneVerification } from './registration-phone.service'
 
 interface UserWithPassword extends UserModel {
   password_hash: string
@@ -8,8 +9,8 @@ interface UserWithPassword extends UserModel {
 
 export type AuthenticatedUser = Pick<
   UserModel,
-  'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'balance' | 'role' | 'status'
->
+  'id' | 'email' | 'username' | 'display_name' | 'phone_number' | 'avatar_url' | 'balance' | 'role' | 'status'
+> & { phone_verified: boolean }
 
 export type AuthenticationResult =
   | { status: 'authenticated'; user: AuthenticatedUser }
@@ -30,7 +31,7 @@ export class RegistrationError extends Error {
   constructor(
     message: string,
     readonly statusCode: RegistrationErrorStatus,
-    readonly field?: 'email' | 'username',
+    readonly field?: 'email' | 'username' | 'phone_number',
   ) {
     super(message)
     this.name = 'RegistrationError'
@@ -61,6 +62,8 @@ export async function createEmailRegistration(
   email: string,
   username: string,
   password: string,
+  registrationPhoneVerificationId: string,
+  registrationPhoneVerificationToken: string,
 ): Promise<{ email: string; verificationToken: string }> {
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedUsername = username.trim()
@@ -74,6 +77,13 @@ export async function createEmailRegistration(
 
   try {
     await db.begin(async (transaction) => {
+      const phoneNumber = await consumeRegistrationPhoneVerification(
+        transaction,
+        registrationPhoneVerificationId,
+        registrationPhoneVerificationToken,
+      )
+      if (!phoneNumber) throw new RegistrationError('กรุณายืนยันเบอร์มือถือก่อนสมัครสมาชิก', 400, 'phone_number')
+
       const [existingUser] = await transaction<{ email_exists: boolean; username_exists: boolean }[]>`
         SELECT
           EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER(${normalizedEmail})) AS email_exists,
@@ -98,6 +108,8 @@ export async function createEmailRegistration(
           username,
           display_name,
           password_hash,
+          phone_number,
+          phone_verified_at,
           verification_token_hash,
           expires_at
         ) VALUES (
@@ -105,6 +117,8 @@ export async function createEmailRegistration(
           ${normalizedUsername},
           ${normalizedUsername},
           ${passwordHash},
+          ${phoneNumber},
+          NOW(),
           ${hashTokenId(verificationToken)},
           NOW() + (${env.EMAIL_VERIFICATION_TTL_HOURS} * INTERVAL '1 hour')
         )
@@ -112,6 +126,8 @@ export async function createEmailRegistration(
           username = EXCLUDED.username,
           display_name = EXCLUDED.display_name,
           password_hash = EXCLUDED.password_hash,
+          phone_number = EXCLUDED.phone_number,
+          phone_verified_at = EXCLUDED.phone_verified_at,
           verification_token_hash = EXCLUDED.verification_token_hash,
           expires_at = EXCLUDED.expires_at,
           updated_at = NOW()
@@ -139,9 +155,11 @@ export async function verifyEmailRegistration(token: string): Promise<void> {
         username: string
         display_name: string
         password_hash: string
+        phone_number: string | null
+        phone_verified_at: Date | null
         expires_at: Date
       }[]>`
-        SELECT id, email, username, display_name, password_hash, expires_at
+        SELECT id, email, username, display_name, password_hash, phone_number, phone_verified_at, expires_at
         FROM email_registration_requests
         WHERE verification_token_hash = ${tokenHash}
         LIMIT 1
@@ -159,12 +177,14 @@ export async function verifyEmailRegistration(token: string): Promise<void> {
       }
 
       const [user] = await transaction<{ id: string }[]>`
-        INSERT INTO users (email, username, display_name, email_verified_at)
+        INSERT INTO users (email, username, display_name, email_verified_at, phone_number, phone_verified_at)
         VALUES (
           ${registration.email},
           ${registration.username},
           ${registration.display_name},
-          NOW()
+          NOW(),
+          ${registration.phone_number},
+          ${registration.phone_verified_at}
         )
         RETURNING id
       `
@@ -194,6 +214,8 @@ export async function findActiveUserById(id: string): Promise<AuthenticatedUser 
       email,
       username,
       display_name,
+      phone_number,
+      phone_verified_at IS NOT NULL AS phone_verified,
       avatar_url,
       balance,
       role,
@@ -317,6 +339,8 @@ export async function authenticateWithPassword(
       email: user.email,
       username: user.username,
       display_name: user.display_name,
+      phone_number: user.phone_number,
+      phone_verified: user.phone_verified_at !== null,
       avatar_url: user.avatar_url,
       balance: user.balance,
       role: user.role,
@@ -336,7 +360,7 @@ function generatedUsername(email: string, attempt: number): string {
   return `${usernameBase(email).slice(0, 30 - suffix.length)}${suffix}`
 }
 
-/** Finds a Google account or creates it as an already verified account. */
+/** Finds a Google account or creates it with its Google email already verified. */
 export async function authenticateWithGoogle(
   profile: GoogleProfile,
   allowRegistration: boolean,
@@ -347,7 +371,9 @@ export async function authenticateWithGoogle(
     try {
       return await db.begin(async (transaction) => {
         const [linkedUser] = await transaction<AuthenticatedUser[]>`
-          SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.balance, u.role, u.status
+          SELECT u.id, u.email, u.username, u.display_name, u.phone_number,
+            u.phone_verified_at IS NOT NULL AS phone_verified,
+            u.avatar_url, u.balance, u.role, u.status
           FROM user_oauth_accounts AS oauth
           INNER JOIN users AS u ON u.id = oauth.user_id
           WHERE oauth.provider = 'google'
@@ -364,7 +390,9 @@ export async function authenticateWithGoogle(
         }
 
         const [emailUser] = await transaction<AuthenticatedUser[]>`
-          SELECT id, email, username, display_name, avatar_url, balance, role, status
+          SELECT id, email, username, display_name, phone_number,
+            phone_verified_at IS NOT NULL AS phone_verified,
+            avatar_url, balance, role, status
           FROM users
           WHERE LOWER(email) = ${email} AND deleted_at IS NULL
           LIMIT 1
@@ -381,7 +409,9 @@ export async function authenticateWithGoogle(
         const [newUser] = await transaction<AuthenticatedUser[]>`
           INSERT INTO users (email, username, display_name, avatar_url, email_verified_at, last_login_at)
           VALUES (${email}, ${generatedUsername(email, attempt)}, ${profile.name.slice(0, 100) || email}, ${profile.picture ?? null}, NOW(), NOW())
-          RETURNING id, email, username, display_name, avatar_url, balance, role, status
+          RETURNING id, email, username, display_name, phone_number,
+            phone_verified_at IS NOT NULL AS phone_verified,
+            avatar_url, balance, role, status
         `
         if (!newUser) throw new Error('Unable to create Google user')
         await transaction`
