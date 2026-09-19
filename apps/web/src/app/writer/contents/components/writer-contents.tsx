@@ -97,6 +97,16 @@ function SystemSuspensionLock({ content }: { content: WriterContent }) {
   )
 }
 
+function ContentStatusBadge({ content, className }: { content: WriterContent; className?: string }) {
+  const isSuspended = content.moderation_status === 'suspended'
+
+  return (
+    <Badge className={className} variant={isSuspended ? 'destructive' : statusVariant(content.status)}>
+      {isSuspended ? 'ล็อค' : statusLabels[content.status]}
+    </Badge>
+  )
+}
+
 function ManageContentMenu({ contentId }: { contentId: string }) {
   return (
     <DropdownMenu>
@@ -293,15 +303,18 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 )}
 
                 {!hasError && contents.map((content) => (
-              <article key={content.id} className="border-b p-3 last:border-b-0">
+              <article
+                key={content.id}
+                className={`border-b p-3 last:border-b-0 ${
+                  content.moderation_status === 'suspended' ? 'bg-destructive/10' : ''
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="flex min-w-0 items-start gap-1.5 text-sm font-semibold break-words">
                     <span>{content.title}</span>
                     <SystemSuspensionLock content={content} />
                   </h2>
-                  <Badge className="shrink-0" variant={statusVariant(content.status)}>
-                    {statusLabels[content.status]}
-                  </Badge>
+                  <ContentStatusBadge content={content} className="shrink-0" />
                 </div>
 
                 <dl className="mt-3 grid grid-cols-3 gap-2">
@@ -391,7 +404,9 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
               {showResolvedState && !hasError && contents.map((content) => (
                 <TableRow
                   key={content.id}
-                  className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
+                  className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity} ${
+                    content.moderation_status === 'suspended' ? 'bg-destructive/10 hover:bg-destructive/15' : ''
+                  }`}
                 >
                   <TableCell className="p-0">
                     <Link
@@ -436,9 +451,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     <LatestChapter content={content} />
                   </TableCell>
                   <TableCell className="px-3 py-2">
-                    <Badge variant={statusVariant(content.status)}>
-                      {statusLabels[content.status]}
-                    </Badge>
+                    <ContentStatusBadge content={content} />
                   </TableCell>
                   <TableCell className="px-3 py-2">{formatDate(content.created_at)}</TableCell>
                   <TableCell className="px-3 py-2 text-right">
