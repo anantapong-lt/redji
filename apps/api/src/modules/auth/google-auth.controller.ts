@@ -120,7 +120,7 @@ export async function finishGoogleAuthentication(
     // Existing emails require an explicit link by the authenticated account owner.
     const result = await authenticateWithGoogle(
       profile,
-      savedState.mode === 'register' && await isFeatureEnabled('registration'),
+      await isFeatureEnabled('registration'),
     )
     if ('status' in result) {
       if (result.status === 'email_exists') {

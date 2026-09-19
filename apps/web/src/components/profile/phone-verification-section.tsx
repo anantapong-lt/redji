@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { CheckCircle2, MessageSquareText, Phone } from 'lucide-react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -43,6 +44,7 @@ export function PhoneVerificationSection({
   const turnstileRequired = process.env.NODE_ENV !== 'development'
   const otpInputs = useRef<Array<HTMLInputElement | null>>([])
   const pendingPhone = pendingPhoneNumber ?? (verified ? phoneNumber : null)
+  const displayedPhone = pendingPhoneNumber ?? phoneNumber
 
   function closePhoneDialog(open: boolean) {
     setPhoneDialogOpen(open)
@@ -129,8 +131,8 @@ export function PhoneVerificationSection({
   return (
     <section aria-labelledby="phone-verification-heading" className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 items-center gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted"><Phone className="size-5 text-muted-foreground" /></span><div><h2 id="phone-verification-heading" className="font-bold">เบอร์มือถือ</h2><p className="text-sm text-muted-foreground">{pendingPhone ? `${displayPhone(pendingPhone)} · รอการยืนยัน` : 'ยังไม่ได้เพิ่มเบอร์มือถือ'}</p></div></div>
-        {pendingPhone ? <Button type="button" onClick={() => { setError(null); setOtpDialogOpen(true); requestAnimationFrame(() => otpInputs.current[0]?.focus()) }} className="self-start sm:self-auto">ยืนยันเบอร์</Button> : <Button type="button" onClick={() => { setError(null); setPhoneDialogOpen(true) }} className="self-start sm:self-auto"><Phone className="size-4" />เพิ่มเบอร์มือถือ</Button>}
+        <div className="flex min-w-0 flex-1 items-center gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted"><Phone className="size-5 text-muted-foreground" /></span><div><h2 id="phone-verification-heading" className="font-bold">เบอร์มือถือ</h2><p className="text-sm text-muted-foreground">{displayedPhone ? displayPhone(displayedPhone) : 'ยังไม่ได้เพิ่มเบอร์มือถือ'}</p></div></div>
+        <Badge variant="outline">ยังไม่ได้ยืนยัน</Badge>
       </div>
 
       <Dialog open={phoneDialogOpen} onOpenChange={closePhoneDialog}>
