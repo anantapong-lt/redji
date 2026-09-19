@@ -67,8 +67,8 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/stats',
-    ({ currentUser, query }) => getWriterStatsResponse(currentUser.id, query.period),
-    { auth: USER_ROLE.WRITER, query: writerDashboardQuerySchema },
+    ({ currentUser, query }) => getWriterStatsResponse(currentUser, query.period, query.content_id),
+    { auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN], query: writerDashboardQuerySchema },
   )
   .get(
     '/contents',

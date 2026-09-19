@@ -121,8 +121,11 @@ export function getWriterPurchases(
 export function getWriterStats(
   period: WriterDashboardPeriod,
   accessToken: string,
+  contentId?: string,
 ): Promise<WriterDashboardData> {
-  return apiRequest<WriterDashboardData>(`/writer/stats?period=${period}`, {
+  const query = new URLSearchParams({ period })
+  if (contentId) query.set('content_id', contentId)
+  return apiRequest<WriterDashboardData>(`/writer/stats?${query}`, {
     accessToken,
   })
 }

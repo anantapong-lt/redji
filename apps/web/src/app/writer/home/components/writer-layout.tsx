@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { NotificationBell, NotificationDetailDialog, type NotificationItem } from '@readji/shared/src/notification-bell'
 import {
   Banknote,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { useAuth } from '@/components/auth/auth-provider'
-import type { AuthUser } from '@/interface/user.interface'
+import { userRole, type AuthUser } from '@/interface/user.interface'
 import { SITE_CONFIG } from '@/site.config'
 
 const writerNavigation = [
@@ -51,6 +51,7 @@ function DisabledNavigationItem({
 
 export function WriterLayout({ children, user }: { children: ReactNode; user: AuthUser }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { accessToken } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null)
@@ -66,6 +67,28 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(user.balance))
+  const pathContentId = /^\/writer\/content\/([^/]+)/.exec(pathname)?.[1]
+  const selectedContentId = pathContentId ?? searchParams.get('content_id') ?? undefined
+  const navigationItems = user.role === userRole.SUPER_ADMIN
+    ? [
+        {
+          href: selectedContentId
+            ? `/writer?content_id=${encodeURIComponent(selectedContentId)}`
+            : '/writer',
+          label: 'แดชบอร์ด',
+          icon: BarChart3,
+          enabled: Boolean(selectedContentId),
+        },
+        {
+          href: selectedContentId
+            ? `/writer/content/${encodeURIComponent(selectedContentId)}`
+            : `${SITE_CONFIG.adminUrl}/works`,
+          label: 'ผลงาน',
+          icon: BookOpen,
+          enabled: true,
+        },
+      ]
+    : writerNavigation
 
   return (
     <div className="min-h-screen bg-background md:flex">
@@ -124,7 +147,7 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
 
         <nav className="mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3" aria-label="เมนูนักเขียน">
           <div className="space-y-0.5">
-            {writerNavigation.map(({ enabled, href, icon: Icon, label }) => {
+            {navigationItems.map(({ enabled, href, icon: Icon, label }) => {
               const basePath = href.split('?')[0].replace(/\/$/, '')
               const isActive = pathname === basePath
                 || (basePath !== '/writer' && pathname.startsWith(`${basePath}/`))

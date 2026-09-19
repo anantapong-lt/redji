@@ -66,9 +66,13 @@ export async function importWriterMangaChaptersResponse(
 }
 
 export async function getWriterStatsResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   period: WriterDashboardPeriod = 'today',
+  contentId?: string,
 ) {
+  const userId = contentId
+    ? (await resolveWriterContentAccess(currentUser, contentId)).creatorUserId
+    : currentUser.id
   const [stats, activity, topStories] = await Promise.all([
     getWriterStats(userId),
     getWriterDashboardActivity(userId, period),
