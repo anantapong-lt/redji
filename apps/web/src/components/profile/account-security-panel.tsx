@@ -8,7 +8,14 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { PasswordInput } from '@/components/auth/form-inputs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAccountSecurity, unlinkGoogleAccount } from '@/controllers/auth.controller'
@@ -36,11 +43,15 @@ export function AccountSecurityPanel({ initialAccount = null }: { initialAccount
     let cancelled = false
     setError(null)
     getAccountSecurity(accessToken)
-      .then(({ account: result }) => { if (!cancelled) setAccount(result) })
+      .then(({ account: result }) => {
+        if (!cancelled) setAccount(result)
+      })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'ไม่สามารถโหลดข้อมูลความปลอดภัยได้')
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [accessToken, retry])
 
   const linked = Boolean(account?.google_linked_at)
@@ -69,7 +80,7 @@ export function AccountSecurityPanel({ initialAccount = null }: { initialAccount
     setUnlinkError(null)
     try {
       const result = await unlinkGoogleAccount(currentPassword, accessToken)
-      setAccount((current) => current ? { ...current, google_email: null, google_linked_at: null } : current)
+      setAccount((current) => (current ? { ...current, google_email: null, google_linked_at: null } : current))
       handleUnlinkDialog(false)
       toast.success(result.message, { duration: 2500 })
     } catch (cause) {
@@ -81,11 +92,20 @@ export function AccountSecurityPanel({ initialAccount = null }: { initialAccount
 
   return (
     <div className="min-w-0 space-y-4">
-      {oauthError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">{oauthError}</p>}
+      {oauthError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          {oauthError}
+        </p>
+      )}
       {error ? (
         <div role="alert" className="space-y-3 rounded-2xl border border-border bg-card p-5">
           <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>ลองใหม่</Button>
+          <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
+            ลองใหม่
+          </Button>
         </div>
       ) : !account ? (
         <div role="status" aria-label="กำลังโหลดข้อมูลความปลอดภัย" className="space-y-4">
@@ -94,55 +114,134 @@ export function AccountSecurityPanel({ initialAccount = null }: { initialAccount
         </div>
       ) : (
         <>
-          <section aria-label="อีเมลบัญชี" className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted"><Mail className="size-5 text-muted-foreground" /></span>
+          <section
+            aria-label="อีเมลบัญชี"
+            className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-5 shadow-sm"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+              <Mail className="size-5 text-muted-foreground" />
+            </span>
             <div className="min-w-0 flex-1">
               <h3 className="font-bold">อีเมล</h3>
               <p className="break-all text-sm text-muted-foreground">{account.email}</p>
             </div>
-            <Badge variant={account.email_verified ? 'secondary' : 'outline'}>{account.email_verified ? 'ยืนยันแล้ว' : 'ยังไม่ได้ยืนยัน'}</Badge>
+            <Badge variant={account.email_verified ? 'secondary' : 'outline'}>
+              {account.email_verified ? 'ยืนยันแล้ว' : 'ยังไม่ได้ยืนยัน'}
+            </Badge>
           </section>
-          <PhoneVerificationSection phoneNumber={account.phone_number} pendingPhoneNumber={account.pending_phone_number} verified={account.phone_verified} onRequested={(phoneNumber) => setAccount((current) => current ? { ...current, pending_phone_number: phoneNumber } : current)} onVerified={(phoneNumber) => setAccount((current) => current ? { ...current, phone_number: phoneNumber, phone_verified: true, pending_phone_number: null } : current)} />
-          <section aria-labelledby="linked-accounts-heading" className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
-            <h2 id="linked-accounts-heading" className="text-lg font-bold">บัญชีที่เชื่อมต่อ</h2>
-            <p className="mt-1 text-sm text-muted-foreground">จัดการบัญชีที่ใช้เข้าสู่ระบบ</p>
+          <PhoneVerificationSection
+            phoneNumber={account.phone_number}
+            pendingPhoneNumber={account.pending_phone_number}
+            verified={account.phone_verified}
+            onRequested={(phoneNumber) =>
+              setAccount((current) => (current ? { ...current, pending_phone_number: phoneNumber } : current))
+            }
+            onVerified={(phoneNumber) =>
+              setAccount((current) =>
+                current
+                  ? { ...current, phone_number: phoneNumber, phone_verified: true, pending_phone_number: null }
+                  : current,
+              )
+            }
+          />
+          <section
+            aria-labelledby="linked-accounts-heading"
+            className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6"
+          >
+            <h2 id="linked-accounts-heading" className="text-lg font-bold">
+              บัญชีที่เชื่อมต่อ
+            </h2>
             <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background"><FcGoogle className="size-6" /></span>
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background">
+                  <FcGoogle className="size-6" />
+                </span>
                 <div className="min-w-0">
                   <h3 className="font-semibold">Google</h3>
-                  <p className="break-all text-sm text-muted-foreground">{linked ? account.google_email : 'ยังไม่ได้เชื่อมต่อ'}</p>
+                  <p className="break-all text-sm text-muted-foreground">
+                    {linked ? account.google_email : 'ยังไม่ได้เชื่อมต่อ'}
+                  </p>
                 </div>
               </div>
               {linked ? (
-                <Button variant="outline" className="self-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:self-auto" disabled={!account.has_password} onClick={() => handleUnlinkDialog(true)}>
+                <Button
+                  variant="outline"
+                  className="self-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:self-auto"
+                  disabled={!account.has_password}
+                  onClick={() => handleUnlinkDialog(true)}
+                >
                   ยกเลิกการเชื่อมต่อ
                 </Button>
               ) : (
-                <Button variant="outline" disabled={isConnecting} onClick={() => {
-                  setIsConnecting(true)
-                  window.location.assign(getApiUrl('/auth/google/link'))
-                }}><FcGoogle className="size-5" />{isConnecting ? 'กำลังเชื่อมต่อ...' : 'เชื่อม Google'}</Button>
+                <Button
+                  variant="outline"
+                  disabled={isConnecting}
+                  onClick={() => {
+                    setIsConnecting(true)
+                    window.location.assign(getApiUrl('/auth/google/link'))
+                  }}
+                >
+                  <FcGoogle className="size-5" />
+                  {isConnecting ? 'กำลังเชื่อมต่อ...' : 'เชื่อม Google'}
+                </Button>
               )}
             </div>
-            {!linked && <p className="mt-5 flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs leading-5 text-muted-foreground"><Link2 className="mt-0.5 size-4 shrink-0" />เลือกบัญชี Google ที่ใช้อีเมลเดียวกับบัญชีนี้ เมื่อเชื่อมต่อแล้ว คุณจะเข้าสู่ระบบด้วย Google ได้</p>}
+            {!linked && (
+              <p className="mt-5 flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs leading-5 text-muted-foreground">
+                <Link2 className="mt-0.5 size-4 shrink-0" />
+                เลือกบัญชี Google ที่ใช้อีเมลเดียวกับบัญชีนี้ เมื่อเชื่อมต่อแล้ว คุณจะเข้าสู่ระบบด้วย Google ได้
+              </p>
+            )}
           </section>
-          <ChangePasswordSection hasPassword={account.has_password} />
+          <ChangePasswordSection
+            hasPassword={account.has_password}
+            onPasswordSet={() => setAccount((current) => (current ? { ...current, has_password: true } : current))}
+          />
           <Dialog open={unlinkDialogOpen} onOpenChange={handleUnlinkDialog}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>ยกเลิกการเชื่อมต่อ Google</DialogTitle>
-                <DialogDescription>กรอกรหัสผ่านเพื่อยืนยันการยกเลิกการเชื่อมต่อกับ {account.google_email}</DialogDescription>
+                <DialogDescription>
+                  กรอกรหัสผ่านเพื่อยืนยันการยกเลิกการเชื่อมต่อกับ {account.google_email}
+                </DialogDescription>
               </DialogHeader>
-              <form onSubmit={(event) => { event.preventDefault(); void unlinkGoogle() }} className="space-y-3">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void unlinkGoogle()
+                }}
+                className="space-y-3"
+              >
                 <div>
-                  <label htmlFor="unlink-google-password" className="mb-1.5 block text-sm font-medium">รหัสผ่าน</label>
-                  <PasswordInput id="unlink-google-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" disabled={isUnlinking} aria-invalid={Boolean(unlinkError)} />
+                  <label htmlFor="unlink-google-password" className="mb-1.5 block text-sm font-medium">
+                    รหัสผ่าน
+                  </label>
+                  <PasswordInput
+                    id="unlink-google-password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    autoComplete="current-password"
+                    disabled={isUnlinking}
+                    aria-invalid={Boolean(unlinkError)}
+                  />
                 </div>
-                {unlinkError && <p role="alert" className="text-sm text-destructive">{unlinkError}</p>}
+                {unlinkError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {unlinkError}
+                  </p>
+                )}
                 <DialogFooter>
-                  <Button type="button" variant="outline" disabled={isUnlinking} onClick={() => handleUnlinkDialog(false)}>ยกเลิก</Button>
-                  <Button type="submit" variant="destructive" disabled={isUnlinking || !currentPassword}>{isUnlinking ? 'กำลังยกเลิก...' : 'ยืนยันการยกเลิก'}</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isUnlinking}
+                    onClick={() => handleUnlinkDialog(false)}
+                  >
+                    ยกเลิก
+                  </Button>
+                  <Button type="submit" variant="destructive" disabled={isUnlinking || !currentPassword}>
+                    {isUnlinking ? 'กำลังยกเลิก...' : 'ยืนยันการยกเลิก'}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>

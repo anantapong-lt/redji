@@ -179,6 +179,33 @@ export async function changeAccountPassword(
   return updated.length === 1 ? 'changed' : 'conflict'
 }
 
+export async function setAccountPassword(
+  userId: string,
+  newPassword: string,
+): Promise<'set' | 'already_set' | 'inactive'> {
+  const passwordHash = await Bun.password.hash(newPassword)
+
+  return db.begin(async (transaction) => {
+    const [user] = await transaction<{ id: string }[]>`
+      SELECT id
+      FROM users
+      WHERE id = ${userId} AND status = 'active'
+        AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+      LIMIT 1
+      FOR UPDATE
+    `
+    if (!user) return 'inactive'
+
+    const inserted = await transaction<{ user_id: string }[]>`
+      INSERT INTO user_password_credentials (user_id, password_hash)
+      VALUES (${userId}, ${passwordHash})
+      ON CONFLICT (user_id) DO NOTHING
+      RETURNING user_id
+    `
+    return inserted.length === 1 ? 'set' : 'already_set'
+  })
+}
+
 export async function unlinkGoogleAccount(
   userId: string,
   currentPassword: string,

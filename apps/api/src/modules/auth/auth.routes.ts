@@ -10,6 +10,7 @@ import {
 import {
   googleAuthQuerySchema,
   changePasswordBodySchema,
+  setPasswordBodySchema,
   unlinkGoogleBodySchema,
   phoneVerificationRequestBodySchema,
   phoneVerificationVerifyBodySchema,
@@ -29,7 +30,7 @@ import {
 } from './auth.service'
 import { beginGoogleAuthentication, finishGoogleAuthentication } from './google-auth.controller'
 import { requestRegistrationPhoneResponse, startRegistrationPhoneResponse, verifyRegistrationPhoneResponse } from './registration-phone.controller'
-import { accountSecurityResponse, accountSecuritySessionResponse, changePasswordResponse, requestPhoneVerificationResponse, unlinkGoogleResponse, verifyPhoneVerificationResponse } from './account-security.controller'
+import { accountSecurityResponse, accountSecuritySessionResponse, changePasswordResponse, requestPhoneVerificationResponse, setPasswordResponse, unlinkGoogleResponse, verifyPhoneVerificationResponse } from './account-security.controller'
 import { agentLoginResponse, agentRefreshResponse } from './agent-auth.controller'
 import { agentLoginBodySchema, agentRefreshBodySchema } from '../tts-agent/tts-agent.schema'
 
@@ -68,6 +69,10 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .post('/security/password', ({ currentUser, body }) => changePasswordResponse(currentUser.id, body), {
     auth: true,
     body: changePasswordBodySchema,
+  })
+  .post('/security/password/set', ({ currentUser, body }) => setPasswordResponse(currentUser.id, body), {
+    auth: true,
+    body: setPasswordBodySchema,
   })
   .post('/security/google/unlink', ({ currentUser, body }) => unlinkGoogleResponse(currentUser.id, body), {
     auth: true,

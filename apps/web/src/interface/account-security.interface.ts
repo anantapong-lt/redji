@@ -19,3 +19,8 @@ export interface ChangePasswordInput {
   new_password: string
   confirm_password: string
 }
+
+export interface SetPasswordInput {
+  new_password: string
+  confirm_password: string
+}

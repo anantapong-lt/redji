@@ -1,6 +1,6 @@
 import { verifyPhoneVerificationTurnstile } from './auth.integrations'
-import { PhoneOtpProviderError, changeAccountPassword, getAccountSecurity, requestPhoneVerification, unlinkGoogleAccount, verifyPhoneVerification } from './account-security.service'
-import type { ChangePasswordBody, PhoneVerificationRequestBody, PhoneVerificationVerifyBody, UnlinkGoogleBody } from './auth.schema'
+import { PhoneOtpProviderError, changeAccountPassword, getAccountSecurity, requestPhoneVerification, setAccountPassword, unlinkGoogleAccount, verifyPhoneVerification } from './account-security.service'
+import type { ChangePasswordBody, PhoneVerificationRequestBody, PhoneVerificationVerifyBody, SetPasswordBody, UnlinkGoogleBody } from './auth.schema'
 
 function thaiPhoneNumber(phoneNumber: string): string {
   return `+66${phoneNumber.slice(1)}`
@@ -39,6 +39,25 @@ export async function changePasswordResponse(userId: string, body: ChangePasswor
     return { message: 'เปลี่ยนรหัสผ่านสำเร็จแล้ว' }
   } catch {
     return Response.json({ message: 'ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
+  }
+}
+
+export async function setPasswordResponse(userId: string, body: SetPasswordBody) {
+  if (body.new_password !== body.confirm_password) {
+    return Response.json({ message: 'ยืนยันรหัสผ่านไม่ตรงกัน', field: 'confirm_password' }, { status: 400 })
+  }
+
+  try {
+    const result = await setAccountPassword(userId, body.new_password)
+    if (result === 'inactive') {
+      return Response.json({ message: 'บัญชีนี้ไม่สามารถเข้าใช้งานได้' }, { status: 403 })
+    }
+    if (result === 'already_set') {
+      return Response.json({ message: 'บัญชีนี้มีรหัสผ่านอยู่แล้ว กรุณาใช้เมนูเปลี่ยนรหัสผ่าน' }, { status: 409 })
+    }
+    return { message: 'ตั้งรหัสผ่านสำเร็จแล้ว' }
+  } catch {
+    return Response.json({ message: 'ไม่สามารถตั้งรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง' }, { status: 500 })
   }
 }
 

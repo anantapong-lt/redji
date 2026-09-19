@@ -8,6 +8,13 @@ export const changePasswordBodySchema = t.Object({
 
 export type ChangePasswordBody = typeof changePasswordBodySchema.static
 
+export const setPasswordBodySchema = t.Object({
+  new_password: t.String({ minLength: 8, maxLength: 72 }),
+  confirm_password: t.String({ minLength: 8, maxLength: 72 }),
+}, { additionalProperties: false })
+
+export type SetPasswordBody = typeof setPasswordBodySchema.static
+
 export const unlinkGoogleBodySchema = t.Object({
   current_password: t.String({ minLength: 1, maxLength: 128 }),
 }, { additionalProperties: false })
