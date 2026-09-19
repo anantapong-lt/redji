@@ -8,7 +8,7 @@ export default async function WriterRootLayout({ children }: { children: React.R
   const user = await getServerAuthUser()
 
   if (!user) redirect('/login?next=/writer')
-  if (user.role !== userRole.WRITER) redirect('/')
+  if (user.role !== userRole.WRITER && user.role !== userRole.SUPER_ADMIN) redirect('/')
 
   return (
     <WriterLayout user={user}>

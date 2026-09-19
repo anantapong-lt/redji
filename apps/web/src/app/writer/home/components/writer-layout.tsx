@@ -136,8 +136,12 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
                   href={href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   aria-current={isActive ? 'page' : undefined}
-                  className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent data-[active]:bg-sidebar-primary data-[active]:text-white"
+                  className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
                   data-active={isActive || undefined}
+                  style={isActive ? {
+                    backgroundColor: 'var(--sidebar-primary)',
+                    color: 'var(--sidebar-primary-foreground)',
+                  } : undefined}
                 >
                   <Icon className="size-4 shrink-0" strokeWidth={1.8} />
                   <span>{label}</span>

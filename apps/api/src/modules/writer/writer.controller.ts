@@ -5,6 +5,8 @@ import {
   createWriterChapter,
   getWriterChapter,
   getWriterChapters,
+  importWriterChaptersResponse as importWriterChaptersForOwner,
+  importWriterMangaChaptersResponse as importWriterMangaChaptersForOwner,
   updateWriterChapter,
   WriterChapterError,
 } from './chapter/writer-chapter.controller'
@@ -22,12 +24,46 @@ import type {
   updateWriterContentBodySchema,
 } from './content/writer-content.schema'
 import type {
+  importChaptersBodySchema,
+  importMangaChaptersBodySchema,
   createWriterChapterBodySchema,
   updateWriterChapterBodySchema,
   writerChaptersQuerySchema,
   bulkUpdateChapterPriceBodySchema,
   bulkUpdateChapterStatusBodySchema,
 } from './chapter/writer-chapter.schema'
+import type { AuthenticatedUser } from '../auth/auth.service'
+import { resolveWriterContentAccess } from './writer-access.service'
+
+type WriterContentActor = Pick<AuthenticatedUser, 'id' | 'role'>
+
+export async function importWriterChaptersResponse(
+  currentUser: WriterContentActor,
+  contentId: string,
+  body: typeof importChaptersBodySchema.static,
+) {
+  const access = await resolveWriterContentAccess(currentUser, contentId)
+  return importWriterChaptersForOwner(
+    access.creatorUserId,
+    contentId,
+    body,
+    access.canManageModeratedContent,
+  )
+}
+
+export async function importWriterMangaChaptersResponse(
+  currentUser: WriterContentActor,
+  contentId: string,
+  body: typeof importMangaChaptersBodySchema.static,
+) {
+  const access = await resolveWriterContentAccess(currentUser, contentId)
+  return importWriterMangaChaptersForOwner(
+    access.creatorUserId,
+    contentId,
+    body,
+    access.canManageModeratedContent,
+  )
+}
 
 export async function getWriterStatsResponse(
   userId: string,
@@ -73,11 +109,18 @@ export async function createWriterContentResponse(
 }
 
 export async function getWriterContentResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
 ) {
   try {
-    return { story: await getWriterContent(userId, contentId) }
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    return {
+      story: await getWriterContent(
+        access.creatorUserId,
+        contentId,
+        access.canManageModeratedContent,
+      ),
+    }
   } catch (error) {
     if (error instanceof CreateWriterContentError) {
       return status(error.statusCode, {
@@ -92,12 +135,18 @@ export async function getWriterContentResponse(
 }
 
 export async function createWriterChapterResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   body: typeof createWriterChapterBodySchema.static,
 ) {
   try {
-    const chapter = await createWriterChapter(userId, contentId, body)
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    const chapter = await createWriterChapter(
+      access.creatorUserId,
+      contentId,
+      body,
+      access.canManageModeratedContent,
+    )
     return status(201, { chapter })
   } catch (error) {
     if (error instanceof WriterChapterError) {
@@ -110,13 +159,21 @@ export async function createWriterChapterResponse(
 }
 
 export async function getWriterChapterResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   chapterId: string,
 ) {
   try {
+    const access = await resolveWriterContentAccess(currentUser, contentId)
     return Response.json(
-      { chapter: await getWriterChapter(userId, contentId, chapterId) },
+      {
+        chapter: await getWriterChapter(
+          access.creatorUserId,
+          contentId,
+          chapterId,
+          access.canManageModeratedContent,
+        ),
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     )
   } catch (error) {
@@ -130,17 +187,19 @@ export async function getWriterChapterResponse(
 }
 
 export async function updateWriterChapterResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   chapterId: string,
   body: typeof updateWriterChapterBodySchema.static,
 ) {
   try {
+    const access = await resolveWriterContentAccess(currentUser, contentId)
     const chapter = await updateWriterChapter(
-      userId,
+      access.creatorUserId,
       contentId,
       chapterId,
       body,
+      access.canManageModeratedContent,
     )
     return { chapter }
   } catch (error) {
@@ -154,12 +213,18 @@ export async function updateWriterChapterResponse(
 }
 
 export async function updateWriterContentResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   body: typeof updateWriterContentBodySchema.static,
 ) {
   try {
-    const story = await updateWriterContent(userId, contentId, body)
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    const story = await updateWriterContent(
+      access.creatorUserId,
+      contentId,
+      body,
+      access.canManageModeratedContent,
+    )
     return { story }
   } catch (error) {
     if (error instanceof CreateWriterContentError) {
@@ -175,16 +240,17 @@ export async function updateWriterContentResponse(
 }
 
 export async function getWriterChaptersResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   query: typeof writerChaptersQuerySchema.static,
 ) {
   try {
-    return await getWriterChapters(userId, contentId, {
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    return await getWriterChapters(access.creatorUserId, contentId, {
       search: query.search,
       page: query.page ?? 1,
       limit: query.limit ?? 10,
-    })
+    }, access.canManageModeratedContent)
   } catch (error) {
     if (error instanceof WriterChapterError) {
       return status(error.statusCode, { message: error.message })
@@ -196,12 +262,13 @@ export async function getWriterChaptersResponse(
 }
 
 export async function bulkUpdateChapterPriceResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   body: typeof bulkUpdateChapterPriceBodySchema.static,
 ) {
   try {
-    const updatedCount = await bulkUpdateChapterPrice(userId, contentId, body)
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    const updatedCount = await bulkUpdateChapterPrice(access.creatorUserId, contentId, body)
     return { updated_count: updatedCount }
   } catch (error) {
     if (error instanceof WriterChapterError) {
@@ -214,12 +281,13 @@ export async function bulkUpdateChapterPriceResponse(
 }
 
 export async function bulkUpdateChapterStatusResponse(
-  userId: string,
+  currentUser: WriterContentActor,
   contentId: string,
   body: typeof bulkUpdateChapterStatusBodySchema.static,
 ) {
   try {
-    const updatedCount = await bulkUpdateChapterStatus(userId, contentId, body)
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    const updatedCount = await bulkUpdateChapterStatus(access.creatorUserId, contentId, body)
     return { updated_count: updatedCount }
   } catch (error) {
     if (error instanceof WriterChapterError) {

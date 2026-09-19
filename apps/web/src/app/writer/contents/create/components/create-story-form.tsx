@@ -17,6 +17,7 @@ import { LoaderCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { createWriterContent, updateWriterContent } from '@/controllers/writer.controller'
+import { userRole } from '@/interface/user.interface'
 import { ApiError } from '@/lib/api-client'
 import { createStorySchema } from '../create-story.schema'
 
@@ -50,7 +51,7 @@ interface CreateStoryFormProps {
 
 export function CreateStoryForm({ cancelHref, children, contentId }: CreateStoryFormProps) {
   const router = useRouter()
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
   const formRef = useRef<HTMLFormElement>(null)
   const initialSnapshotRef = useRef<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -162,6 +163,7 @@ export function CreateStoryForm({ cancelHref, children, contentId }: CreateStory
       initialSnapshotRef.current = getFormSnapshot(form)
       setIsDirty(false)
       toast.success(contentId ? 'แก้ไขเนื้อหาเรียบร้อยแล้ว' : 'บันทึกเนื้อหาเรียบร้อยแล้ว')
+      if (contentId && user?.role === userRole.SUPER_ADMIN) return
       router.push(
         contentId
           ? '/writer/contents?tab=novel'

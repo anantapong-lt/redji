@@ -259,7 +259,14 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
               className="h-11 rounded-xl bg-white pl-9"
             />
           </form>
-          <Button asChild className="h-11 rounded-xl px-5 font-bold">
+          <Button
+            asChild
+            className="h-11 rounded-xl px-5 font-bold"
+            style={{
+              backgroundColor: 'var(--primary)',
+              color: 'var(--primary-foreground)',
+            }}
+          >
             <Link href={`/writer/content/${contentId}/chapters/create`}>
               <PlusIcon />
               สร้างตอน

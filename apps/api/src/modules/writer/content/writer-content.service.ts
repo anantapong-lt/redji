@@ -25,6 +25,7 @@ export interface WriterContentRecordInput {
 export async function findWriterContent(
   creatorUserId: string,
   contentId: string,
+  includeLocked = false,
 ): Promise<WriterContentDetail | undefined> {
   const [story] = await db<WriterContentDetail[]>`
     SELECT id, title, slug, synopsis, cover_url, cover_blur_data_url, type, status, age_rating,
@@ -33,7 +34,7 @@ export async function findWriterContent(
     WHERE id = ${contentId}
       AND creator_user_id = ${creatorUserId}
       AND deleted_at IS NULL
-      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
+      AND (${includeLocked} OR moderation_status <> ${MODERATION_STATUS.LOCKED})
     LIMIT 1
   `
   return story
@@ -147,6 +148,7 @@ export async function updateWriterContentRecord(
   creatorUserId: string,
   contentId: string,
   input: WriterContentRecordInput,
+  includeLocked = false,
 ): Promise<CreatedStory | undefined> {
   const [story] = await db<CreatedStory[]>`
     UPDATE stories
@@ -158,7 +160,7 @@ export async function updateWriterContentRecord(
     WHERE id = ${contentId}
       AND creator_user_id = ${creatorUserId}
       AND deleted_at IS NULL
-      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
+      AND (${includeLocked} OR moderation_status <> ${MODERATION_STATUS.LOCKED})
     RETURNING id, type, slug, cover_url, cover_blur_data_url
   `
   return story

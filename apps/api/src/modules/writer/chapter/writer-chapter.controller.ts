@@ -12,10 +12,13 @@ import type { importChaptersBodySchema, importMangaChaptersBodySchema } from './
 import { insertImportedChapters, insertImportedMangaChapters } from './writer-chapter.service'
 
 export async function importWriterChaptersResponse(
-  userId: string, storyId: string, body: typeof importChaptersBodySchema.static,
+  userId: string,
+  storyId: string,
+  body: typeof importChaptersBodySchema.static,
+  includeLocked = false,
 ) {
   try {
-    const type = await requireOwnedStoryType(userId, storyId)
+    const type = await requireOwnedStoryType(userId, storyId, includeLocked)
     if (type !== STORY_TYPE.NOVEL) throw new WriterChapterError('การนำเข้า TXT รองรับเฉพาะนิยาย', 400)
     if (body.chapters.reduce((total, row) => total + Buffer.byteLength(row.content, 'utf8'), 0) > 100 * 1024 * 1024) {
       throw new WriterChapterError('เนื้อหารวมหลังแตกไฟล์ต้องไม่เกิน 100MB', 400)
@@ -58,11 +61,14 @@ export async function importWriterChaptersResponse(
 }
 
 export async function importWriterMangaChaptersResponse(
-  userId: string, storyId: string, body: typeof importMangaChaptersBodySchema.static,
+  userId: string,
+  storyId: string,
+  body: typeof importMangaChaptersBodySchema.static,
+  includeLocked = false,
 ) {
   const uploadedPages: UploadedChapterPage[] = []
   try {
-    const type = await requireOwnedStoryType(userId, storyId)
+    const type = await requireOwnedStoryType(userId, storyId, includeLocked)
     if (type !== STORY_TYPE.MANGA) throw new WriterChapterError('การนำเข้า ZIP รูปภาพรองรับเฉพาะการ์ตูน', 400)
 
     const parsed: unknown = body.chapters
@@ -254,8 +260,8 @@ function sanitizeNovelHtml(html: string): string {
     })
 }
 
-async function requireOwnedStoryType(creatorUserId: string, storyId: string) {
-  const storyType = await findOwnedStoryType(creatorUserId, storyId)
+async function requireOwnedStoryType(creatorUserId: string, storyId: string, includeLocked = false) {
+  const storyType = await findOwnedStoryType(creatorUserId, storyId, includeLocked)
   if (!storyType) throw new WriterChapterError('ไม่พบผลงานที่ต้องการจัดการ', 404)
   return storyType
 }
@@ -335,8 +341,9 @@ export async function getWriterChapter(
   creatorUserId: string,
   storyId: string,
   chapterId: string,
+  includeLocked = false,
 ) {
-  const storyType = await requireOwnedStoryType(creatorUserId, storyId)
+  const storyType = await requireOwnedStoryType(creatorUserId, storyId, includeLocked)
   const chapter = await findWriterChapter(storyId, chapterId, storyType)
   if (!chapter) throw new WriterChapterError('ไม่พบตอนที่ต้องการแก้ไข', 404)
   return {
@@ -352,8 +359,9 @@ export async function getWriterChapters(
   creatorUserId: string,
   storyId: string,
   input: GetWriterChaptersInput,
+  includeLocked = false,
 ): Promise<WriterChaptersResult> {
-  await requireOwnedStoryType(creatorUserId, storyId)
+  await requireOwnedStoryType(creatorUserId, storyId, includeLocked)
   return queryWriterChapters(storyId, input)
 }
 
@@ -361,8 +369,9 @@ export async function createWriterChapter(
   creatorUserId: string,
   storyId: string,
   input: CreateWriterChapterInput,
+  includeLocked = false,
 ): Promise<CreatedWriterChapter> {
-  const storyType = await requireOwnedStoryType(creatorUserId, storyId)
+  const storyType = await requireOwnedStoryType(creatorUserId, storyId, includeLocked)
   const writeInput = normalizeChapterInput(storyType, input)
   const images = input.images ?? []
   if (storyType === STORY_TYPE.MANGA && images.length === 0) {
@@ -391,8 +400,9 @@ export async function updateWriterChapter(
   storyId: string,
   chapterId: string,
   input: UpdateWriterChapterInput,
+  includeLocked = false,
 ): Promise<CreatedWriterChapter> {
-  const storyType = await requireOwnedStoryType(creatorUserId, storyId)
+  const storyType = await requireOwnedStoryType(creatorUserId, storyId, includeLocked)
   const existing = await findWriterChapter(storyId, chapterId, storyType)
   if (!existing) throw new WriterChapterError('ไม่พบตอนที่ต้องการแก้ไข', 404)
   const writeInput = normalizeChapterInput(existing.story_type, input, existing.published_at)

@@ -62,7 +62,7 @@ export const authMiddleware = new Elysia({ name: 'auth-middleware' })
         return { currentUser: await findActiveUserById(refreshPayload.sub) ?? null }
       },
     }) : {},
-    auth: (requiredRole: true | UserRole) => ({
+    auth: (requiredRole: true | UserRole | UserRole[]) => ({
       async resolve({ accessJwt, request, status }) {
         const token = bearerToken(request.headers.get('authorization'))
         const payload = token ? await accessJwt.verify(token) : false
@@ -76,7 +76,11 @@ export const authMiddleware = new Elysia({ name: 'auth-middleware' })
           return status(401, { message: 'ไม่พบบัญชีผู้ใช้ที่พร้อมใช้งาน' })
         }
 
-        if (requiredRole !== true && currentUser.role !== requiredRole) {
+        const hasRequiredRole = requiredRole === true
+          || (Array.isArray(requiredRole)
+            ? requiredRole.includes(currentUser.role)
+            : currentUser.role === requiredRole)
+        if (!hasRequiredRole) {
           return status(403, { message: 'บัญชีนี้ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' })
         }
 

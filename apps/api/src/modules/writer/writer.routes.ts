@@ -1,5 +1,4 @@
 import { Elysia } from 'elysia'
-import { importWriterChaptersResponse, importWriterMangaChaptersResponse } from './chapter/writer-chapter.controller'
 import { importChaptersBodySchema, importMangaChaptersBodySchema } from './chapter/writer-chapter.schema'
 import { authMiddleware } from '../../middleware/auth.middleware'
 import { USER_ROLE } from '../../models/user.model'
@@ -15,6 +14,8 @@ import {
   getWriterChaptersResponse,
   bulkUpdateChapterPriceResponse,
   bulkUpdateChapterStatusResponse,
+  importWriterChaptersResponse,
+  importWriterMangaChaptersResponse,
 } from './writer.controller'
 import {
   createWriterContentBodySchema,
@@ -40,12 +41,12 @@ import { writerDashboardQuerySchema } from './writer.schema'
 export const writerRoutes = new Elysia({ prefix: '/writer' })
   .use(authMiddleware)
   .post('/contents/:id/chapters/import-novels',
-    ({ currentUser, params, body }) => importWriterChaptersResponse(currentUser.id, params.id, body),
-    { auth: USER_ROLE.WRITER, params: writerChaptersParamsSchema, body: importChaptersBodySchema },
+    ({ currentUser, params, body }) => importWriterChaptersResponse(currentUser, params.id, body),
+    { auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN], params: writerChaptersParamsSchema, body: importChaptersBodySchema },
   )
   .post('/contents/:id/chapters/import-manga',
-    ({ currentUser, params, body }) => importWriterMangaChaptersResponse(currentUser.id, params.id, body),
-    { auth: USER_ROLE.WRITER, params: writerChaptersParamsSchema, body: importMangaChaptersBodySchema },
+    ({ currentUser, params, body }) => importWriterMangaChaptersResponse(currentUser, params.id, body),
+    { auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN], params: writerChaptersParamsSchema, body: importMangaChaptersBodySchema },
   )
   .get(
     '/purchases',
@@ -57,9 +58,9 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/contents/:id/overview',
-    ({ currentUser, params, query }) => getWriterOverview(currentUser.id, params.id, query),
+    ({ currentUser, params, query }) => getWriterOverview(currentUser, params.id, query),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerContentParamsSchema,
       query: writerOverviewQuerySchema,
     },
@@ -87,75 +88,75 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
   )
   .get(
     '/contents/:id',
-    ({ currentUser, params }) => getWriterContentResponse(currentUser.id, params.id),
+    ({ currentUser, params }) => getWriterContentResponse(currentUser, params.id),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerContentParamsSchema,
     },
   )
   .post(
     '/contents/:id/chapters',
-    ({ currentUser, params, body }) => createWriterChapterResponse(currentUser.id, params.id, body),
+    ({ currentUser, params, body }) => createWriterChapterResponse(currentUser, params.id, body),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerChaptersParamsSchema,
       body: createWriterChapterBodySchema,
     },
   )
   .get(
     '/contents/:id/chapters/:chapterId',
-    ({ currentUser, params }) => getWriterChapterResponse(currentUser.id, params.id, params.chapterId),
+    ({ currentUser, params }) => getWriterChapterResponse(currentUser, params.id, params.chapterId),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerChapterParamsSchema,
     },
   )
   .patch(
     '/contents/:id/chapters/:chapterId',
     ({ currentUser, params, body }) => updateWriterChapterResponse(
-      currentUser.id,
+      currentUser,
       params.id,
       params.chapterId,
       body,
     ),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerChapterParamsSchema,
       body: updateWriterChapterBodySchema,
     },
   )
   .patch(
     '/contents/:id',
-    ({ currentUser, params, body }) => updateWriterContentResponse(currentUser.id, params.id, body),
+    ({ currentUser, params, body }) => updateWriterContentResponse(currentUser, params.id, body),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerContentParamsSchema,
       body: updateWriterContentBodySchema,
     },
   )
   .get(
     '/contents/:id/chapters',
-    ({ currentUser, params, query }) => getWriterChaptersResponse(currentUser.id, params.id, query),
+    ({ currentUser, params, query }) => getWriterChaptersResponse(currentUser, params.id, query),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerChaptersParamsSchema,
       query: writerChaptersQuerySchema,
     },
   )
   .patch(
     '/contents/:id/chapters/bulk-price',
-    ({ currentUser, params, body }) => bulkUpdateChapterPriceResponse(currentUser.id, params.id, body),
+    ({ currentUser, params, body }) => bulkUpdateChapterPriceResponse(currentUser, params.id, body),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerChaptersParamsSchema,
       body: bulkUpdateChapterPriceBodySchema,
     },
   )
   .patch(
     '/contents/:id/chapters/bulk-status',
-    ({ currentUser, params, body }) => bulkUpdateChapterStatusResponse(currentUser.id, params.id, body),
+    ({ currentUser, params, body }) => bulkUpdateChapterStatusResponse(currentUser, params.id, body),
     {
-      auth: USER_ROLE.WRITER,
+      auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
       params: writerChaptersParamsSchema,
       body: bulkUpdateChapterStatusBodySchema,
     },

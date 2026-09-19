@@ -297,7 +297,13 @@ export default function WorksPage() {
                     <TableRow key={work.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                          <a
+                            href={`${webUrl}/writer/content/${encodeURIComponent(work.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="size-14 shrink-0 overflow-hidden rounded-md bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`จัดการเรื่อง ${work.title}`}
+                          >
                             {work.cover_url ? (
                               <img
                                 src={work.cover_url}
@@ -308,9 +314,16 @@ export default function WorksPage() {
                             ) : (
                               <BookOpen className="m-auto mt-4 size-6 text-muted-foreground" />
                             )}
-                          </div>
+                          </a>
                           <div className="min-w-0">
-                            <div className="font-medium">{work.title}</div>
+                            <a
+                              href={`${webUrl}/writer/content/${encodeURIComponent(work.id)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block truncate font-medium underline-offset-4 hover:text-primary hover:underline"
+                            >
+                              {work.title}
+                            </a>
                             <a
                               href={`${webUrl}/content/${encodeURIComponent(work.slug)}`}
                               target="_blank"

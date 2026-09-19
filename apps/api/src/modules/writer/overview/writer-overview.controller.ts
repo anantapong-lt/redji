@@ -1,15 +1,18 @@
 import { status } from 'elysia'
+import type { AuthenticatedUser } from '../../auth/auth.service'
+import { resolveWriterContentAccess } from '../writer-access.service'
 import { findOverviewPurchases, findOverviewSummary, type OverviewPeriod } from './writer-overview.service'
 
 export async function getWriterOverview(
-  userId: string,
+  currentUser: Pick<AuthenticatedUser, 'id' | 'role'>,
   contentId: string,
   query: { period: OverviewPeriod },
 ) {
   try {
-    const summary = await findOverviewSummary(userId, contentId)
+    const access = await resolveWriterContentAccess(currentUser, contentId)
+    const summary = await findOverviewSummary(access.creatorUserId, contentId)
     if (!summary) return status(404, { message: 'ไม่พบเรื่องที่ต้องการ' })
-    const purchases = await findOverviewPurchases(userId, contentId, query.period)
+    const purchases = await findOverviewPurchases(access.creatorUserId, contentId, query.period)
     return { summary, period: query.period, purchases }
   } catch (error) {
     console.error('Unable to load writer overview', error)

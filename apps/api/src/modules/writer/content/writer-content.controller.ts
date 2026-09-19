@@ -84,8 +84,9 @@ async function validateGenres(primaryGenreId: string, secondaryGenreId: string |
 export async function getWriterContent(
   creatorUserId: string,
   contentId: string,
+  includeLocked = false,
 ): Promise<WriterContentDetail> {
-  const story = await findWriterContent(creatorUserId, contentId)
+  const story = await findWriterContent(creatorUserId, contentId, includeLocked)
   if (!story) throw new CreateWriterContentError('ไม่พบเนื้อหาที่ต้องการแก้ไข', 404)
   return story
 }
@@ -151,8 +152,9 @@ export async function updateWriterContent(
   creatorUserId: string,
   contentId: string,
   input: UpdateWriterContentInput,
+  includeLocked = false,
 ): Promise<CreatedStory> {
-  const existingStory = await getWriterContent(creatorUserId, contentId)
+  const existingStory = await getWriterContent(creatorUserId, contentId, includeLocked)
   const title = input.title.trim()
   const slug = input.slug.trim()
   const synopsis = optionalText(input.synopsis)
@@ -185,7 +187,7 @@ export async function updateWriterContent(
       ageRating,
       primaryGenreId: input.primary_genre_id,
       secondaryGenreId,
-    })
+    }, includeLocked)
     if (!story) throw new CreateWriterContentError('ไม่พบเนื้อหาที่ต้องการแก้ไข', 404)
 
     if (previousCoverUrl && hasCoverChanged) {

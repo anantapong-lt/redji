@@ -7,7 +7,9 @@ import { useAuth } from '@/components/auth/auth-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWriterContent } from '@/controllers/writer.controller'
+import { userRole } from '@/interface/user.interface'
 import { ApiError } from '@/lib/api-client'
+import { SITE_CONFIG } from '@/site.config'
 
 interface ContentManagementTabsProps {
   contentId: string
@@ -22,7 +24,7 @@ const tabs = [
 export function ContentManagementTabs({ contentId }: ContentManagementTabsProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
   const [title, setTitle] = useState<string | null>(null)
   const activeTab = tabs.find(({ value }) => (
     pathname === `/writer/content/${contentId}/${value}`
@@ -41,7 +43,11 @@ export function ContentManagementTabs({ contentId }: ContentManagementTabsProps)
       .catch((error) => {
         if (!cancelled) {
           if (error instanceof ApiError && error.status === 404) {
-            router.replace('/writer/contents')
+            if (user?.role === userRole.SUPER_ADMIN) {
+              window.location.replace(`${SITE_CONFIG.adminUrl}/works`)
+            } else {
+              router.replace('/writer/contents')
+            }
             return
           }
           setTitle(null)
@@ -51,10 +57,21 @@ export function ContentManagementTabs({ contentId }: ContentManagementTabsProps)
     return () => {
       cancelled = true
     }
-  }, [accessToken, contentId, router])
+  }, [accessToken, contentId, router, user?.role])
 
   return (
     <div className="space-y-2">
+      {user?.role === userRole.SUPER_ADMIN && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium text-foreground">คุณกำลังจัดการเรื่องนี้ด้วยสิทธิ์แอดมิน</span>
+          <a
+            href={`${SITE_CONFIG.adminUrl}/works`}
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            กลับหน้าผลงานทั้งหมด
+          </a>
+        </div>
+      )}
       {title ? (
         <h1 className="truncate text-xl font-extrabold text-foreground" title={title}>เรื่อง: {title}</h1>
       ) : accessToken ? (
@@ -70,7 +87,11 @@ export function ContentManagementTabs({ contentId }: ContentManagementTabsProps)
               key={value}
               value={value}
               asChild
-              className="h-9 flex-1 rounded-lg px-3 text-center text-sm font-semibold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+              className="h-9 flex-1 rounded-lg px-3 text-center text-sm font-semibold text-muted-foreground shadow-none hover:bg-accent hover:text-foreground data-[state=active]:shadow-none"
+              style={activeTab === value ? {
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+              } : undefined}
             >
               <Link href={`/writer/content/${contentId}/${value}`}>{label}</Link>
             </TabsTrigger>

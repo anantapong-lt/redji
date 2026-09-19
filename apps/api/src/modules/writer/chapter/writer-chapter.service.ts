@@ -88,11 +88,12 @@ export async function insertImportedMangaChapters(
 export async function findOwnedStoryType(
   creatorUserId: string,
   storyId: string,
+  includeLocked = false,
 ): Promise<StoryType | undefined> {
   const [story] = await db<{ type: StoryType }[]>`
     SELECT type FROM stories
     WHERE id = ${storyId} AND creator_user_id = ${creatorUserId} AND deleted_at IS NULL
-      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
+      AND (${includeLocked} OR moderation_status <> ${MODERATION_STATUS.LOCKED})
     LIMIT 1
   `
   return story?.type

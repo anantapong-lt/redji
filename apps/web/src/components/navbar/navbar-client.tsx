@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ChevronDown, HistoryIcon, Home, LogIn, LogOut, Menu, PenLine, Search, ShieldCheck, UserRound, X } from 'lucide-react'
+import { Bell, ChevronDown, HistoryIcon, Home, LayoutDashboard, LogIn, LogOut, Menu, PenLine, Search, ShieldCheck, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -319,6 +319,14 @@ export function NavbarClient({
                         ประวัติการทำรายการ
                       </Link>
                     </DropdownMenuItem>
+                    {user.role === userRole.SUPER_ADMIN && (
+                      <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                        <a href={`${SITE_CONFIG.adminUrl}/dashboard`}>
+                          <LayoutDashboard />
+                          แดชบอร์ดแอดมิน
+                        </a>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={() => void handleLogout()}
@@ -404,6 +412,9 @@ export function NavbarClient({
               {[
                 { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
                 ...(user ? [{ label: 'ประวัติทำรายการ', icon: HistoryIcon, href: '/transactions' }] : []),
+                ...(user?.role === userRole.SUPER_ADMIN
+                  ? [{ label: 'แดชบอร์ดแอดมิน', icon: LayoutDashboard, href: `${SITE_CONFIG.adminUrl}/dashboard` }]
+                  : []),
                 { label: 'ค้นหานิยาย', icon: Search },
                 { label: user?.role === userRole.WRITER ? 'โหมดนักเขียน' : 'สมัครนักเขียน', icon: PenLine, href: user?.role === userRole.WRITER ? '/writer' : undefined, canApply: user?.role === userRole.USER },
               ].map(({ label, icon: Icon, href, canApply }) => canApply ? (
