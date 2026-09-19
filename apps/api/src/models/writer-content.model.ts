@@ -1,4 +1,4 @@
-import type { StoryStatus, StoryType } from './story.model'
+import type { ModerationStatus, StoryStatus, StoryType } from './story.model'
 
 export type WriterContentTab = 'novel' | 'cartoon'
 
@@ -16,6 +16,7 @@ export interface WriterContent {
   cover_blur_data_url: string | null
   type: StoryType
   status: StoryStatus
+  moderation_status: ModerationStatus
   total_views: string
   chapter_count: string
   sales_count: string

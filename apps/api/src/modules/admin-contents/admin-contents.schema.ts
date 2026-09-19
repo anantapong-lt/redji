@@ -16,7 +16,6 @@ export const adminContentParamsSchema = t.Object({
 
 export const adminContentStatusBodySchema = t.Object({
   status: t.UnionEnum(ADMIN_CONTENT_STATUSES),
-  reason: t.Optional(t.String({ minLength: 1, maxLength: 1_000 })),
 }, { additionalProperties: false })
 
 // Kept for the deprecated delete endpoint handler until consumers have moved.

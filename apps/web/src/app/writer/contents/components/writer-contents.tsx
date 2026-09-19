@@ -31,7 +31,7 @@ import type {
 } from '@/interface/writer-content.interface'
 import { formatChapterNumber } from '@/utils/chapter-number.util'
 import { CreateContentDialog } from './create-content-dialog'
-import { ChevronDownIcon, ImageIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, ImageIcon, LockKeyholeIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 
 const PAGE_LIMIT = 10
@@ -79,6 +79,20 @@ function LatestChapter({ content }: { content: WriterContent }) {
   return (
     <span>
       ตอนที่ {formatChapterNumber(content.latest_chapter.chapter_number)}
+    </span>
+  )
+}
+
+function SystemSuspensionLock({ content }: { content: WriterContent }) {
+  if (content.moderation_status !== 'suspended') return null
+
+  return (
+    <span
+      title="ผลงานนี้ถูกระงับโดยระบบ และจะไม่แสดงต่อผู้อ่านจนกว่าแอดมินจะเปิดใช้งานอีกครั้ง"
+      aria-label="ผลงานถูกระงับโดยระบบ"
+      className="inline-flex shrink-0 text-destructive"
+    >
+      <LockKeyholeIcon className="size-4" aria-hidden="true" />
     </span>
   )
 }
@@ -281,7 +295,10 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 {!hasError && contents.map((content) => (
               <article key={content.id} className="border-b p-3 last:border-b-0">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="min-w-0 text-sm font-semibold break-words">{content.title}</h2>
+                  <h2 className="flex min-w-0 items-start gap-1.5 text-sm font-semibold break-words">
+                    <span>{content.title}</span>
+                    <SystemSuspensionLock content={content} />
+                  </h2>
                   <Badge className="shrink-0" variant={statusVariant(content.status)}>
                     {statusLabels[content.status]}
                   </Badge>
@@ -400,7 +417,10 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                       href={`/writer/content/${content.id}/overview`}
                       className="block px-3 py-2 transition-colors hover:text-primary"
                     >
-                      {content.title}
+                      <span className="inline-flex items-center gap-1.5">
+                        {content.title}
+                        <SystemSuspensionLock content={content} />
+                      </span>
                     </Link>
                   </TableCell>
                   <TableCell className="px-3 py-2 text-right tabular-nums">

@@ -64,7 +64,7 @@ export async function getWriterContentsByType(
       SELECT
         stories.id, stories.title, stories.slug, stories.cover_url,
         stories.cover_blur_data_url, stories.type,
-        stories.status, stories.total_views::TEXT,
+        stories.status, stories.moderation_status, stories.total_views::TEXT,
         COUNT(chapters.id)::TEXT AS chapter_count,
         (
           SELECT COUNT(*)

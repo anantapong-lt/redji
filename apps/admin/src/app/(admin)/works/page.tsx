@@ -18,7 +18,6 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import { formatCoin } from '@/utils/format-coin'
 
 type WorkType = 'novel' | 'manga'
@@ -85,9 +84,7 @@ export default function WorksPage() {
   const [hidingId, setHidingId] = useState<string | null>(null)
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const [workToHide, setWorkToHide] = useState<Work | null>(null)
-  const [workStatusToApply, setWorkStatusToApply] = useState<Exclude<WorkStatus, 'active'>>(WORK_STATUS.HIDDEN)
-  const [hideReason, setHideReason] = useState('')
-  const [hideReasonError, setHideReasonError] = useState<string | null>(null)
+  const [workStatusToApply, setWorkStatusToApply] = useState<Exclude<WorkStatus, 'active'>>(WORK_STATUS.SUSPENDED)
 
   const loadWorks = useCallback(async () => {
     if (!accessToken) return
@@ -148,11 +145,6 @@ export default function WorksPage() {
 
   const hideWork = async () => {
     if (!accessToken || !workToHide) return
-    const reason = hideReason.trim()
-    if (!reason) {
-      setHideReasonError(`กรุณาระบุเหตุผลในการ${workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน`)
-      return
-    }
     const work = workToHide
     setHidingId(work.id)
     try {
@@ -160,13 +152,11 @@ export default function WorksPage() {
         method: 'PUT',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
-        body: JSON.stringify({ status: workStatusToApply, reason }),
+        body: JSON.stringify({ status: workStatusToApply }),
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
       if (!response.ok) throw new Error(body?.message ?? 'ไม่สามารถซ่อนผลงานได้')
       setWorkToHide(null)
-      setHideReason('')
-      setHideReasonError(null)
       await loadWorks()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'ไม่สามารถซ่อนผลงานได้')
@@ -377,8 +367,6 @@ export default function WorksPage() {
                             }
                             setWorkToHide(work)
                             setWorkStatusToApply(value as Exclude<WorkStatus, 'active'>)
-                            setHideReason('')
-                            setHideReasonError(null)
                           }}
                         >
                           <SelectTrigger className="ml-auto h-8 w-28"><SelectValue /></SelectTrigger>
@@ -432,8 +420,6 @@ export default function WorksPage() {
         onOpenChange={(open) => {
           if (!open && !hidingId) {
             setWorkToHide(null)
-            setHideReason('')
-            setHideReasonError(null)
           }
         }}
       >
@@ -445,30 +431,10 @@ export default function WorksPage() {
                 ? `ต้องการระงับผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์จนกว่าแอดมินจะเปิดใช้งานอีกครั้ง`
                 : `ต้องการซ่อนผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์ แต่เจ้าของยังจัดการผลงานได้`}
             </DialogDescription>
-            <div className="space-y-2">
-              <label htmlFor="hide-work-reason" className="text-sm font-medium">
-                เหตุผลในการ{workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'} <span className="text-destructive">*</span>
-              </label>
-              <Textarea
-                id="hide-work-reason"
-                value={hideReason}
-                onChange={(event) => {
-                  setHideReason(event.target.value)
-                  if (hideReasonError) setHideReasonError(null)
-                }}
-                placeholder={`ระบุเหตุผลในการ${workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน`}
-                maxLength={1000}
-                disabled={hidingId !== null}
-                aria-invalid={Boolean(hideReasonError)}
-              />
-              {hideReasonError ? <p className="text-sm text-destructive">{hideReasonError}</p> : null}
-            </div>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setWorkToHide(null)
-              setHideReason('')
-              setHideReasonError(null)
             }} disabled={hidingId !== null}>
               ยกเลิก
             </Button>

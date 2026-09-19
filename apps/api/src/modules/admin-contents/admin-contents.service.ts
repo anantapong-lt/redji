@@ -1,6 +1,5 @@
 import { db } from '../../db'
 import { MODERATION_STATUS, type ModerationStatus, type StoryType } from '../../models/story.model'
-import { NOTIFICATION_TYPE } from '../../models/notification.model'
 
 type AdminContentTypeFilter = StoryType | 'all'
 type AdminContentStatusFilter = ModerationStatus | 'all'
@@ -89,35 +88,24 @@ export async function findAdminContents(
   return { contents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } }
 }
 
-export async function updateAdminContentStatus(contentId: string, status: ModerationStatus, reason: string | null): Promise<boolean> {
+export async function updateAdminContentStatus(contentId: string, status: ModerationStatus): Promise<boolean> {
   return db.begin(async (transaction) => {
-    const [content] = await transaction<Array<{ id: string; title: string; creator_user_id: string }>>`
+    const [content] = await transaction<Array<{ id: string }>>`
       UPDATE stories
       SET moderation_status = ${status}::moderation_status, updated_at = NOW()
       WHERE id = ${contentId}
-      RETURNING id, title, creator_user_id
+      RETURNING id
     `
     if (!content) return false
 
-    if (status !== MODERATION_STATUS.ACTIVE) await transaction`
-      INSERT INTO notifications (user_id, type, title, message, target_url, data)
-      VALUES (
-        ${content.creator_user_id},
-        ${NOTIFICATION_TYPE.CONTENT_HIDDEN},
-        'ผลงานถูกซ่อนโดยแอดมิน',
-        ${`ผลงาน “${content.title}” ถูกซ่อนโดยแอดมิน\nเหตุผล: ${reason}`},
-        '/writer/contents',
-        ${JSON.stringify({ story_id: content.id, reason })}::JSONB
-      )
-    `
     return true
   })
 }
 
-export function softDeleteAdminContent(contentId: string, reason: string): Promise<boolean> {
-  return updateAdminContentStatus(contentId, MODERATION_STATUS.HIDDEN, reason)
+export function softDeleteAdminContent(contentId: string, _reason: string): Promise<boolean> {
+  return updateAdminContentStatus(contentId, MODERATION_STATUS.HIDDEN)
 }
 
 export async function restoreAdminContentVisibility(contentId: string): Promise<boolean> {
-  return updateAdminContentStatus(contentId, MODERATION_STATUS.ACTIVE, null)
+  return updateAdminContentStatus(contentId, MODERATION_STATUS.ACTIVE)
 }
