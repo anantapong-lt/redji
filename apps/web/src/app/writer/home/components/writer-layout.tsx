@@ -26,8 +26,8 @@ const writerNavigation = [
 ] as const
 
 const writerInformationNavigation = [
-  { label: 'ข้อมูลนักเขียน', icon: UserCog },
-  { label: 'ข้อกำหนดการใช้งาน', icon: FileText },
+  { href: '', label: 'ข้อมูลนักเขียน', icon: UserCog, enabled: false },
+  { href: '/writer/terms', label: 'ข้อกำหนดการใช้งาน', icon: FileText, enabled: true },
 ] as const
 
 function DisabledNavigationItem({
@@ -178,9 +178,29 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
           <div className="my-2 border-t border-sidebar-border" />
 
           <div className="space-y-0.5">
-            {writerInformationNavigation.map(({ icon, label }) => (
-              <DisabledNavigationItem key={label} icon={icon} label={label} />
-            ))}
+            {writerInformationNavigation.map(({ enabled, href, icon: Icon, label }) => {
+              const isActive = enabled && (pathname === href || pathname.startsWith(`${href}/`))
+
+              return enabled ? (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-sidebar-accent"
+                  data-active={isActive || undefined}
+                  style={isActive ? {
+                    backgroundColor: 'var(--sidebar-primary)',
+                    color: 'var(--sidebar-primary-foreground)',
+                  } : undefined}
+                >
+                  <Icon className="size-4 shrink-0" strokeWidth={1.8} />
+                  <span>{label}</span>
+                </Link>
+              ) : (
+                <DisabledNavigationItem key={label} icon={Icon} label={label} />
+              )
+            })}
           </div>
         </nav>
 

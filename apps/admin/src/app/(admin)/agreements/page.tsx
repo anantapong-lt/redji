@@ -191,12 +191,12 @@ export default function AgreementsPage() {
           </Tabs>
         </CardContent>
         <Dialog open={previewAgreement !== null} onOpenChange={(open) => !open && setPreviewAgreement(null)}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="grid h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] sm:h-[min(90dvh,56rem)] sm:max-w-5xl">
             <DialogHeader>
               <DialogTitle>ตัวอย่างเวอร์ชัน {previewAgreement?.version}</DialogTitle>
             </DialogHeader>
             <div
-              className="max-h-[65vh] overflow-y-auto rounded-md border p-5"
+              className="min-h-0 overflow-y-auto rounded-md border p-5 sm:p-8"
               dangerouslySetInnerHTML={{ __html: previewAgreement?.content_html ?? '' }}
             />
           </DialogContent>
