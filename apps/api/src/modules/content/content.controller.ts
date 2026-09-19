@@ -31,8 +31,14 @@ async function findCommentableChapter(
   chapterNumber: string,
   currentUserId: string | null,
   requireReadAccess: boolean,
+  hasAdminAccess = false,
 ) {
-  const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
+  const chapter = await findPublicChapterForReading(
+    slug,
+    Number(chapterNumber),
+    currentUserId,
+    hasAdminAccess,
+  )
   if (!chapter) return null
   if (requireReadAccess && !chapter.can_read) return 'forbidden' as const
   return chapter
@@ -44,10 +50,17 @@ export async function getChapterComments(
   currentUserId: string | null,
   page = 1,
   limit = 10,
+  hasAdminAccess = false,
 ) {
   try {
     if (!await commentsAreEnabled()) return Response.json({ message: 'ระบบความคิดเห็นปิดใช้งานอยู่' }, { status: 403 })
-    const chapter = await findCommentableChapter(slug, chapterNumber, currentUserId, false)
+    const chapter = await findCommentableChapter(
+      slug,
+      chapterNumber,
+      currentUserId,
+      false,
+      hasAdminAccess,
+    )
     if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
     if (chapter === 'forbidden') return Response.json({ message: 'คุณไม่มีสิทธิ์เข้าถึงความคิดเห็นของตอนนี้' }, { status: 403 })
     return getChapterCommentsForReading(chapter.id, currentUserId, page, limit)
@@ -179,9 +192,15 @@ export async function getPublicChapter(
   currentUserId: string | null,
   page = 1,
   limit = 5,
+  hasAdminAccess = false,
 ) {
   try {
-    const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
+    const chapter = await findPublicChapterForReading(
+      slug,
+      Number(chapterNumber),
+      currentUserId,
+      hasAdminAccess,
+    )
     if (!chapter) {
       return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
     }
@@ -194,7 +213,7 @@ export async function getPublicChapter(
     }
 
     const [chapters, content, mangaPages] = await Promise.all([
-      findPublicReaderChapters(chapter.story.id, currentUserId),
+      findPublicReaderChapters(chapter.story.id, currentUserId, hasAdminAccess),
       chapter.story.type === 'novel'
         ? findNovelChapterContent(chapter.id)
         : Promise.resolve(null),
@@ -208,7 +227,7 @@ export async function getPublicChapter(
       image_url: createWriterChapterPageSignedUrl(image_key),
     }))
 
-    if (page === 1) await incrementPublicContentView(chapter.story.id)
+    if (page === 1 && !hasAdminAccess) await incrementPublicContentView(chapter.story.id)
 
     return Response.json(
       {
@@ -246,9 +265,15 @@ export async function getPublicMangaChapterPages(
   currentUserId: string | null,
   page = 1,
   limit = 5,
+  hasAdminAccess = false,
 ) {
   try {
-    const chapter = await findPublicChapterForReading(slug, Number(chapterNumber), currentUserId)
+    const chapter = await findPublicChapterForReading(
+      slug,
+      Number(chapterNumber),
+      currentUserId,
+      hasAdminAccess,
+    )
     if (!chapter) return Response.json({ message: 'ไม่พบตอนที่ต้องการ' }, { status: 404 })
 
     if (!chapter.can_read) {
@@ -335,6 +360,7 @@ export async function getPublicContentChapters(
   limit?: number,
   sort?: PublicChapterSort,
   currentUserId: string | null = null,
+  hasAdminAccess = false,
 ) {
   try {
     const result = await findPublicChaptersBySlug(
@@ -343,6 +369,7 @@ export async function getPublicContentChapters(
       limit ?? 25,
       currentUserId,
       sort ?? 'latest',
+      hasAdminAccess,
     )
 
     if (!result) {
@@ -371,15 +398,26 @@ export async function getPublicContentSitemap() {
   }
 }
 
-export async function getPublicContent(slug: string, currentUserId: string | null = null) {
+export async function getPublicContent(
+  slug: string,
+  currentUserId: string | null = null,
+  hasAdminAccess = false,
+) {
   try {
-    const story = await findPublicContentBySlug(slug, currentUserId)
+    const story = await findPublicContentBySlug(slug, currentUserId, hasAdminAccess)
 
     if (!story) {
       return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
     }
 
-    const chapters = await findPublicChaptersBySlug(slug, 1, 25, currentUserId)
+    const chapters = await findPublicChaptersBySlug(
+      slug,
+      1,
+      25,
+      currentUserId,
+      'latest',
+      hasAdminAccess,
+    )
     if (!chapters) {
       return Response.json({ message: 'ไม่พบเรื่องที่ต้องการ' }, { status: 404 })
     }

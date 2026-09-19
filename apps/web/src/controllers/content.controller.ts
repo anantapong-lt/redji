@@ -49,6 +49,7 @@ export function getPublicMangaChapterPages(
   chapterNumber: string,
   page: number,
   limit: number,
+  accessToken?: string | null,
 ): Promise<PublicMangaChapterPagesResponse> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -56,7 +57,7 @@ export function getPublicMangaChapterPages(
   })
   return apiRequest<PublicMangaChapterPagesResponse>(
     `/contents/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapterNumber)}/read/pages?${searchParams.toString()}`,
-    { cache: 'no-store' },
+    { cache: 'no-store', accessToken },
   )
 }
 

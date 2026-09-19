@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/components/auth/auth-provider'
 import { getPublicMangaChapterPages } from '@/controllers/content.controller'
 import type { PublicMangaChapterPage } from '@/interface/content.interface'
 import { useReaderContentProtection } from './use-reader-content-protection'
@@ -87,6 +88,7 @@ export function MangaChapterContent({
   initialPages: PublicMangaChapterPage[]
   initialPagination: MangaPagePagination
 }) {
+  const { accessToken } = useAuth()
   const { isProduction, preventInteraction } = useReaderContentProtection()
   const [pages, setPages] = useState(initialPages)
   const [pagination, setPagination] = useState(initialPagination)
@@ -108,6 +110,7 @@ export function MangaChapterContent({
         String(Number(chapterNumber)),
         pagination.page + 1,
         pagination.limit,
+        accessToken,
       )
       setPages((current) => {
         const knownIds = new Set(current.map((page) => page.id))
@@ -120,7 +123,7 @@ export function MangaChapterContent({
       loadingRef.current = false
       setIsLoading(false)
     }
-  }, [chapterNumber, pagination, slug])
+  }, [accessToken, chapterNumber, pagination, slug])
 
   const refreshExpiredPage = useCallback(async (pageNumber: number) => {
     const requestedPage = Math.ceil(pageNumber / pagination.limit)
@@ -133,6 +136,7 @@ export function MangaChapterContent({
         String(Number(chapterNumber)),
         requestedPage,
         pagination.limit,
+        accessToken,
       )
       const refreshedPages = new Map(response.pages.map((page) => [page.id, page]))
       setPages((current) => current.map((page) => refreshedPages.get(page.id) ?? page))
@@ -141,7 +145,7 @@ export function MangaChapterContent({
     } finally {
       refreshingPageRef.current.delete(requestedPage)
     }
-  }, [chapterNumber, pagination.limit, slug])
+  }, [accessToken, chapterNumber, pagination.limit, slug])
 
   useEffect(() => {
     const target = loadMoreRef.current

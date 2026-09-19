@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
+import { USER_ROLE } from '../../models/user.model'
 import {
   favoritePublicContent,
   createChapterComment,
@@ -45,6 +46,7 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
       currentUser?.id ?? null,
       query.page ?? 1,
       query.limit ?? 10,
+      currentUser?.role === USER_ROLE.SUPER_ADMIN,
     ),
     {
       optionalAuth: true,
@@ -127,6 +129,7 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
       query.limit,
       query.sort,
       currentUser?.id ?? null,
+      currentUser?.role === USER_ROLE.SUPER_ADMIN,
     ),
     {
       optionalAuth: true,
@@ -142,6 +145,7 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
       currentUser?.id ?? null,
       query.page ?? 1,
       query.limit ?? 5,
+      currentUser?.role === USER_ROLE.SUPER_ADMIN,
     ),
     {
       optionalAuth: true,
@@ -157,6 +161,7 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
       currentUser?.id ?? null,
       query.page ?? 1,
       query.limit ?? 5,
+      currentUser?.role === USER_ROLE.SUPER_ADMIN,
     ),
     {
       optionalAuth: true,
@@ -166,6 +171,10 @@ export const contentRoutes = new Elysia({ prefix: '/contents' })
   )
   .get(
     '/:slug',
-    ({ currentUser, params }) => getPublicContent(params.slug, currentUser?.id ?? null),
+    ({ currentUser, params }) => getPublicContent(
+      params.slug,
+      currentUser?.id ?? null,
+      currentUser?.role === USER_ROLE.SUPER_ADMIN,
+    ),
     { optionalAuth: true, params: contentParamsSchema },
   )

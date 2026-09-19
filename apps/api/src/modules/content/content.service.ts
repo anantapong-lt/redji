@@ -88,14 +88,17 @@ export async function findPublicChapterForReading(
   slug: string,
   chapterNumber: number,
   currentUserId: string | null,
+  hasAdminAccess = false,
 ): Promise<PublicChapterForReading | undefined> {
   const [chapter] = await db<PublicChapterForReading[]>`
     SELECT
       chapters.id,
       chapters.chapter_number::TEXT,
       chapters.title,
-      chapters.published_at,
+      COALESCE(chapters.published_at, chapters.created_at) AS published_at,
       (
+        ${hasAdminAccess}
+        OR
         chapters.is_free
         OR EXISTS (
           SELECT 1
@@ -116,14 +119,19 @@ export async function findPublicChapterForReading(
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
       AND chapters.chapter_number = ${chapterNumber}
-      AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
-      AND chapters.published_at <= NOW()
-      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
-      AND stories.deleted_at IS NULL
-      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
-      AND users.status = ${USER_STATUS.ACTIVE}
-      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
-      AND users.deleted_at IS NULL
+      AND (
+        ${hasAdminAccess}
+        OR (
+          chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+          AND chapters.published_at <= NOW()
+          AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
+          AND stories.deleted_at IS NULL
+          AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
+          AND users.status = ${USER_STATUS.ACTIVE}
+          AND users.writer_status = ${WRITER_STATUS.ACTIVE}
+          AND users.deleted_at IS NULL
+        )
+      )
     LIMIT 1
   `
 
@@ -416,6 +424,7 @@ export async function getChapterCommentReactionSummary(
 export async function findPublicReaderChapters(
   storyId: string,
   currentUserId: string | null,
+  hasAdminAccess = false,
 ): Promise<PublicReaderChapter[]> {
   return db<PublicReaderChapter[]>`
     SELECT
@@ -424,7 +433,7 @@ export async function findPublicReaderChapters(
       chapters.title,
       chapters.is_free,
       chapters.price::TEXT,
-      chapters.published_at,
+      COALESCE(chapters.published_at, chapters.created_at) AS published_at,
       EXISTS (
         SELECT 1
         FROM chapter_purchases
@@ -432,6 +441,8 @@ export async function findPublicReaderChapters(
           AND chapter_purchases.buyer_user_id = ${currentUserId}::UUID
       ) AS is_purchased,
       (
+        ${hasAdminAccess}
+        OR
         chapters.is_free
         OR EXISTS (
           SELECT 1
@@ -442,8 +453,13 @@ export async function findPublicReaderChapters(
       ) AS can_read
     FROM chapters
     WHERE chapters.story_id = ${storyId}
-      AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
-      AND chapters.published_at <= NOW()
+      AND (
+        ${hasAdminAccess}
+        OR (
+          chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+          AND chapters.published_at <= NOW()
+        )
+      )
     ORDER BY chapters.chapter_number ASC, chapters.id ASC
   `
 }
@@ -549,6 +565,7 @@ export interface PublicContent {
 export async function findPublicContentBySlug(
   slug: string,
   currentUserId: string | null = null,
+  hasAdminAccess = false,
 ): Promise<PublicContent | undefined> {
   const [story] = await db<PublicContent[]>`
     SELECT
@@ -595,20 +612,30 @@ export async function findPublicContentBySlug(
         SELECT COUNT(*)::TEXT
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
-          AND chapters.published_at <= NOW()
+          AND (
+            ${hasAdminAccess}
+            OR (
+              chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+              AND chapters.published_at <= NOW()
+            )
+          )
       ) AS chapter_count,
       (
         SELECT json_build_object(
           'id', chapters.id,
           'chapter_number', chapters.chapter_number::TEXT,
           'title', chapters.title,
-          'published_at', chapters.published_at
+          'published_at', COALESCE(chapters.published_at, chapters.created_at)
         )
         FROM chapters
         WHERE chapters.story_id = stories.id
-          AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
-          AND chapters.published_at <= NOW()
+          AND (
+            ${hasAdminAccess}
+            OR (
+              chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+              AND chapters.published_at <= NOW()
+            )
+          )
         ORDER BY chapters.chapter_number DESC, chapters.id DESC
         LIMIT 1
       ) AS latest_chapter,
@@ -635,12 +662,17 @@ export async function findPublicContentBySlug(
     INNER JOIN genres AS primary_genre ON primary_genre.id = stories.primary_genre_id
     LEFT JOIN genres AS secondary_genre ON secondary_genre.id = stories.secondary_genre_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
-      AND stories.deleted_at IS NULL
-      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
-      AND users.status = ${USER_STATUS.ACTIVE}
-      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
-      AND users.deleted_at IS NULL
+      AND (
+        ${hasAdminAccess}
+        OR (
+          stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
+          AND stories.deleted_at IS NULL
+          AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
+          AND users.status = ${USER_STATUS.ACTIVE}
+          AND users.writer_status = ${WRITER_STATUS.ACTIVE}
+          AND users.deleted_at IS NULL
+        )
+      )
     LIMIT 1
   `
 
@@ -817,18 +849,24 @@ export async function findPublicChaptersBySlug(
   limit: number,
   currentUserId: string | null,
   sort: PublicChapterSort = 'latest',
+  hasAdminAccess = false,
 ): Promise<PublicChaptersResult | undefined> {
   const [story] = await db<{ id: string }[]>`
     SELECT stories.id
     FROM stories
     INNER JOIN users ON users.id = stories.creator_user_id
     WHERE LOWER(stories.slug) = LOWER(${slug})
-      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
-      AND stories.deleted_at IS NULL
-      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
-      AND users.status = ${USER_STATUS.ACTIVE}
-      AND users.writer_status = ${WRITER_STATUS.ACTIVE}
-      AND users.deleted_at IS NULL
+      AND (
+        ${hasAdminAccess}
+        OR (
+          stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
+          AND stories.deleted_at IS NULL
+          AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
+          AND users.status = ${USER_STATUS.ACTIVE}
+          AND users.writer_status = ${WRITER_STATUS.ACTIVE}
+          AND users.deleted_at IS NULL
+        )
+      )
     LIMIT 1
   `
   if (!story) return undefined
@@ -842,7 +880,7 @@ export async function findPublicChaptersBySlug(
         chapters.title,
         chapters.is_free,
         chapters.price::TEXT,
-        chapters.published_at,
+        COALESCE(chapters.published_at, chapters.created_at) AS published_at,
         EXISTS (
           SELECT 1
           FROM chapter_purchases
@@ -851,6 +889,8 @@ export async function findPublicChaptersBySlug(
         ) AS is_purchased,
         COALESCE(stories.creator_user_id = ${currentUserId}::UUID, FALSE) AS is_owner,
         (
+          ${hasAdminAccess}
+          OR
           chapters.is_free
           OR EXISTS (
             SELECT 1
@@ -862,8 +902,13 @@ export async function findPublicChaptersBySlug(
       FROM chapters
       INNER JOIN stories ON stories.id = chapters.story_id
       WHERE chapters.story_id = ${story.id}
-      AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
-        AND chapters.published_at <= NOW()
+        AND (
+          ${hasAdminAccess}
+          OR (
+            chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+            AND chapters.published_at <= NOW()
+          )
+        )
       ORDER BY
         CASE WHEN ${sort} = 'latest' THEN chapters.published_at END DESC,
         CASE WHEN ${sort} = 'oldest' THEN chapters.published_at END ASC,
@@ -877,8 +922,13 @@ export async function findPublicChaptersBySlug(
       SELECT COUNT(*)::TEXT AS total
       FROM chapters
       WHERE story_id = ${story.id}
-        AND status = 'published'
-        AND published_at <= NOW()
+        AND (
+          ${hasAdminAccess}
+          OR (
+            status = ${CHAPTER_STATUS.PUBLISHED}
+            AND published_at <= NOW()
+          )
+        )
     `,
   ])
   const total = Number(count.total)
