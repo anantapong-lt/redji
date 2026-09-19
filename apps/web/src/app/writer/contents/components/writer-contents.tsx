@@ -411,8 +411,12 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   <TableCell className="p-0">
                     <Link
                       href={`/writer/content/${content.id}/overview`}
-                      aria-label={`แก้ไข ${content.title}`}
-                      className="flex px-3 py-2"
+                      aria-label={`${content.moderation_status === 'locked' ? 'ผลงานถูกล็อค' : 'แก้ไข'} ${content.title}`}
+                      aria-disabled={content.moderation_status === 'locked'}
+                      tabIndex={content.moderation_status === 'locked' ? -1 : undefined}
+                      className={`flex px-3 py-2 ${
+                        content.moderation_status === 'locked' ? 'pointer-events-none cursor-not-allowed opacity-70' : ''
+                      }`}
                     >
                       <div className="flex h-12 w-9 items-center justify-center overflow-hidden rounded-md bg-muted">
                         {content.cover_url ? (
@@ -430,7 +434,11 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   <TableCell className="max-w-72 p-0 font-semibold whitespace-normal">
                     <Link
                       href={`/writer/content/${content.id}/overview`}
-                      className="block px-3 py-2 transition-colors hover:text-primary"
+                      aria-disabled={content.moderation_status === 'locked'}
+                      tabIndex={content.moderation_status === 'locked' ? -1 : undefined}
+                      className={`block px-3 py-2 transition-colors hover:text-primary ${
+                        content.moderation_status === 'locked' ? 'pointer-events-none cursor-not-allowed opacity-70' : ''
+                      }`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         {content.title}
