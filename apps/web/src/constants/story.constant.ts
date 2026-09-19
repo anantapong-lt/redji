@@ -27,7 +27,7 @@ export const STORY_COVER_ACCEPTED_TYPES = [
 
 export const STORY_STATUS_OPTIONS = [
   { value: StoryStatus.DRAFT, label: 'ฉบับร่าง' },
-  { value: StoryStatus.ONGOING, label: 'กำลังเผยแพร่' },
+  { value: StoryStatus.ONGOING, label: 'เผยแพร่' },
   { value: StoryStatus.COMPLETED, label: 'จบแล้ว' },
   { value: StoryStatus.HIATUS, label: 'หยุดชั่วคราว' },
   { value: StoryStatus.CANCELLED, label: 'ยกเลิก' },

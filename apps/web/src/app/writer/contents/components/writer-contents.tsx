@@ -48,14 +48,14 @@ const typeLabels: Record<StoryType, string> = {
 
 const statusLabels: Record<StoryStatus, string> = {
   [StoryStatus.DRAFT]: 'ฉบับร่าง',
-  [StoryStatus.ONGOING]: 'กำลังเผยแพร่',
+  [StoryStatus.ONGOING]: 'เผยแพร่',
   [StoryStatus.COMPLETED]: 'จบแล้ว',
   [StoryStatus.HIATUS]: 'หยุดชั่วคราว',
   [StoryStatus.CANCELLED]: 'ยกเลิก',
 }
 
 function statusVariant(status: StoryStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
-  if (status === StoryStatus.ONGOING) return 'default'
+  if (status === StoryStatus.ONGOING) return 'outline'
   if (status === StoryStatus.DRAFT) return 'secondary'
   if (status === StoryStatus.CANCELLED) return 'destructive'
   return 'outline'
@@ -99,9 +99,13 @@ function SystemSuspensionLock({ content }: { content: WriterContent }) {
 
 function ContentStatusBadge({ content, className }: { content: WriterContent; className?: string }) {
   const isLocked = content.moderation_status === 'locked'
+  const isPublished = !isLocked && content.status === StoryStatus.ONGOING
 
   return (
-    <Badge className={className} variant={isLocked ? 'destructive' : statusVariant(content.status)}>
+    <Badge
+      className={`${isPublished ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''} ${className ?? ''}`}
+      variant={isLocked ? 'destructive' : statusVariant(content.status)}
+    >
       {isLocked ? 'ล็อค' : statusLabels[content.status]}
     </Badge>
   )
