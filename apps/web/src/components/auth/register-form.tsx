@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -47,8 +47,17 @@ const registerSchema = z
 
 type RegisterValues = z.infer<typeof registerSchema>
 
+type WebsiteAgreement = {
+  id: string
+  version: number
+  content_html: string
+}
+
 export function RegisterForm() {
   const [termsOpen, setTermsOpen] = useState(false)
+  const [websiteAgreement, setWebsiteAgreement] = useState<WebsiteAgreement | null>(null)
+  const [isLoadingAgreement, setIsLoadingAgreement] = useState(true)
+  const [agreementError, setAgreementError] = useState<string | null>(null)
   const [otpDialogOpen, setOtpDialogOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
@@ -71,6 +80,34 @@ export function RegisterForm() {
   const phoneNumber = watch('phone_number')
   const password = watch('password')
   const termsAccepted = watch('terms')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    void fetch(getApiUrl('/agreements/website'), {
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('ไม่สามารถโหลดข้อตกลงและเงื่อนไขได้')
+        const body = await response.json() as { agreement: WebsiteAgreement | null }
+        if (!controller.signal.aborted) {
+          setWebsiteAgreement(body.agreement)
+          setAgreementError(null)
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setWebsiteAgreement(null)
+          setAgreementError('ไม่สามารถโหลดข้อตกลงและเงื่อนไขได้')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoadingAgreement(false)
+      })
+
+    return () => controller.abort()
+  }, [])
 
   function resetOtp() {
     setVerificationId(null)
@@ -250,13 +287,34 @@ export function RegisterForm() {
         onVerifyOtp={verifyDialogOtp}
       />
       <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>ข้อตกลงและเงื่อนไขการใช้บริการ</DialogTitle>
-            <DialogDescription>
-              การสมัครสมาชิกถือว่าคุณยอมรับข้อตกลงและเงื่อนไขการใช้บริการของเว็บไซต์
+            <DialogDescription className="sr-only">
+              รายละเอียดข้อตกลงและเงื่อนไขการใช้บริการของเว็บไซต์
             </DialogDescription>
           </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto rounded-lg border bg-background p-4 sm:p-6">
+            {isLoadingAgreement ? (
+              <div className="space-y-3" aria-label="กำลังโหลดข้อตกลงและเงื่อนไข">
+                <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+                <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
+                <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+              </div>
+            ) : agreementError ? (
+              <p className="py-10 text-center text-sm text-destructive">{agreementError}</p>
+            ) : websiteAgreement ? (
+              <div
+                className="break-words text-sm leading-7 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/35 [&_blockquote]:pl-4 [&_h1]:my-5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-4 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:my-3 [&_h3]:text-lg [&_h3]:font-semibold [&_li]:my-1 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6"
+                dangerouslySetInnerHTML={{ __html: websiteAgreement.content_html }}
+              />
+            ) : (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                ยังไม่มีข้อตกลงและเงื่อนไขที่เปิดใช้งาน
+              </p>
+            )}
+          </div>
           <DialogFooter>
             <button
               type="button"
