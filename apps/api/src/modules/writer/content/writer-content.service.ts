@@ -7,7 +7,7 @@ import type {
   WriterContentCount,
   WriterContentDetail,
 } from '../../../models/writer-content.model'
-import type { StoryStatus, StoryType } from '../../../models/story.model'
+import { MODERATION_STATUS, type StoryStatus, type StoryType } from '../../../models/story.model'
 
 export interface WriterContentRecordInput {
   type: StoryType
@@ -33,6 +33,7 @@ export async function findWriterContent(
     WHERE id = ${contentId}
       AND creator_user_id = ${creatorUserId}
       AND deleted_at IS NULL
+      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
     LIMIT 1
   `
   return story
@@ -96,6 +97,7 @@ export async function getWriterContentsByType(
       WHERE stories.creator_user_id = ${creatorUserId}
         AND stories.type = ${storyType}
         AND stories.deleted_at IS NULL
+        AND stories.moderation_status <> ${MODERATION_STATUS.SUSPENDED}
       GROUP BY stories.id, latest_chapter.id, latest_chapter.chapter_number,
         latest_chapter.title, latest_chapter.status, latest_chapter.published_at
       ORDER BY stories.updated_at DESC, stories.id DESC
@@ -108,6 +110,7 @@ export async function getWriterContentsByType(
       WHERE creator_user_id = ${creatorUserId}
         AND type = ${storyType}
         AND deleted_at IS NULL
+        AND moderation_status <> ${MODERATION_STATUS.SUSPENDED}
     `,
   ])
   const total = Number(count.total)
@@ -155,6 +158,7 @@ export async function updateWriterContentRecord(
     WHERE id = ${contentId}
       AND creator_user_id = ${creatorUserId}
       AND deleted_at IS NULL
+      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
     RETURNING id, type, slug, cover_url, cover_blur_data_url
   `
   return story

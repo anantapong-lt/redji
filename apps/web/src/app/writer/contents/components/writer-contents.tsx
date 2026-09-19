@@ -84,7 +84,7 @@ function LatestChapter({ content }: { content: WriterContent }) {
 }
 
 function SystemSuspensionLock({ content }: { content: WriterContent }) {
-  if (content.moderation_status !== 'suspended') return null
+  if (content.moderation_status !== 'locked') return null
 
   return (
     <span
@@ -98,11 +98,11 @@ function SystemSuspensionLock({ content }: { content: WriterContent }) {
 }
 
 function ContentStatusBadge({ content, className }: { content: WriterContent; className?: string }) {
-  const isSuspended = content.moderation_status === 'suspended'
+  const isLocked = content.moderation_status === 'locked'
 
   return (
-    <Badge className={className} variant={isSuspended ? 'destructive' : statusVariant(content.status)}>
-      {isSuspended ? 'ล็อค' : statusLabels[content.status]}
+    <Badge className={className} variant={isLocked ? 'destructive' : statusVariant(content.status)}>
+      {isLocked ? 'ล็อค' : statusLabels[content.status]}
     </Badge>
   )
 }
@@ -306,7 +306,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
               <article
                 key={content.id}
                 className={`border-b p-3 last:border-b-0 ${
-                  content.moderation_status === 'suspended' ? 'bg-destructive/10' : ''
+                  content.moderation_status === 'locked' ? 'bg-destructive/10' : ''
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -351,7 +351,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     <p>{typeLabels[content.type]}</p>
                     <p className="mt-0.5">สร้างเมื่อ {formatDate(content.created_at)}</p>
                   </div>
-                  <ManageContentMenu contentId={content.id} />
+                  {content.moderation_status !== 'locked' && <ManageContentMenu contentId={content.id} />}
                 </div>
               </article>
                 ))}
@@ -405,7 +405,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   key={content.id}
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity} ${
-                    content.moderation_status === 'suspended' ? 'bg-destructive/10 hover:bg-destructive/15' : ''
+                    content.moderation_status === 'locked' ? 'bg-destructive/10 hover:bg-destructive/15' : ''
                   }`}
                 >
                   <TableCell className="p-0">
@@ -455,7 +455,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   </TableCell>
                   <TableCell className="px-3 py-2">{formatDate(content.created_at)}</TableCell>
                   <TableCell className="px-3 py-2 text-right">
-                    <ManageContentMenu contentId={content.id} />
+                    {content.moderation_status !== 'locked' && <ManageContentMenu contentId={content.id} />}
                   </TableCell>
                 </TableRow>
               ))}

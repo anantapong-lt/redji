@@ -9,6 +9,7 @@ import type {
 } from '../../../models/writer-chapter.model'
 import {
   CHAPTER_STATUS,
+  MODERATION_STATUS,
   STORY_TYPE,
   type ChapterStatus,
   type StoryType,
@@ -91,6 +92,7 @@ export async function findOwnedStoryType(
   const [story] = await db<{ type: StoryType }[]>`
     SELECT type FROM stories
     WHERE id = ${storyId} AND creator_user_id = ${creatorUserId} AND deleted_at IS NULL
+      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
     LIMIT 1
   `
   return story?.type

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getWriterContent } from '@/controllers/writer.controller'
+import { ApiError } from '@/lib/api-client'
 
 interface ContentManagementTabsProps {
   contentId: string
@@ -20,6 +21,7 @@ const tabs = [
 
 export function ContentManagementTabs({ contentId }: ContentManagementTabsProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { accessToken } = useAuth()
   const [title, setTitle] = useState<string | null>(null)
   const activeTab = tabs.find(({ value }) => (
@@ -36,14 +38,20 @@ export function ContentManagementTabs({ contentId }: ContentManagementTabsProps)
       .then(({ story }) => {
         if (!cancelled) setTitle(story.title)
       })
-      .catch(() => {
-        if (!cancelled) setTitle(null)
+      .catch((error) => {
+        if (!cancelled) {
+          if (error instanceof ApiError && error.status === 404) {
+            router.replace('/writer/contents')
+            return
+          }
+          setTitle(null)
+        }
       })
 
     return () => {
       cancelled = true
     }
-  }, [accessToken, contentId])
+  }, [accessToken, contentId, router])
 
   return (
     <div className="space-y-2">

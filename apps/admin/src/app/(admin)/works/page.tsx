@@ -21,10 +21,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCoin } from '@/utils/format-coin'
 
 type WorkType = 'novel' | 'manga'
-type WorkStatus = 'active' | 'hidden' | 'suspended'
+type WorkStatus = 'active' | 'hidden' | 'locked' | 'suspended'
 const WORK_STATUS = {
   ACTIVE: 'active',
   HIDDEN: 'hidden',
+  LOCKED: 'locked',
   SUSPENDED: 'suspended',
 } as const
 
@@ -61,11 +62,13 @@ const typeLabels: Record<WorkType, string> = { novel: 'นิยาย', manga: 
 const statusLabels: Record<WorkStatus, string> = {
   active: 'ใช้งาน',
   hidden: 'ซ่อน',
+  locked: 'ล็อค',
   suspended: 'ระงับ',
 }
 const statusBadgeClasses: Record<WorkStatus, string> = {
   active: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   hidden: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  locked: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
   suspended: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
 }
 
@@ -84,7 +87,8 @@ export default function WorksPage() {
   const [hidingId, setHidingId] = useState<string | null>(null)
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const [workToHide, setWorkToHide] = useState<Work | null>(null)
-  const [workStatusToApply, setWorkStatusToApply] = useState<Exclude<WorkStatus, 'active'>>(WORK_STATUS.SUSPENDED)
+  const [workStatusToApply, setWorkStatusToApply] = useState<Exclude<WorkStatus, 'active'>>(WORK_STATUS.LOCKED)
+  const workStatusActionLabel = workStatusToApply === WORK_STATUS.LOCKED ? 'ล็อค' : 'ระงับ'
 
   const loadWorks = useCallback(async () => {
     if (!accessToken) return
@@ -372,6 +376,7 @@ export default function WorksPage() {
                           <SelectTrigger className="ml-auto h-8 w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value={WORK_STATUS.ACTIVE}>ใช้งาน</SelectItem>
+                            <SelectItem value={WORK_STATUS.LOCKED}>ล็อค</SelectItem>
                             <SelectItem value={WORK_STATUS.SUSPENDED}>ระงับ</SelectItem>
                           </SelectContent>
                         </Select>
@@ -425,11 +430,11 @@ export default function WorksPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>ยืนยันการ{workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน</DialogTitle>
+            <DialogTitle>ยืนยันการ{workStatusActionLabel}ผลงาน</DialogTitle>
             <DialogDescription>
               {workStatusToApply === WORK_STATUS.SUSPENDED
                 ? `ต้องการระงับผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์จนกว่าแอดมินจะเปิดใช้งานอีกครั้ง`
-                : `ต้องการซ่อนผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์ แต่เจ้าของยังจัดการผลงานได้`}
+                : `ต้องการล็อคผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์ แต่เจ้าของยังเห็นผลงานในหน้านักเขียน`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -439,7 +444,7 @@ export default function WorksPage() {
               ยกเลิก
             </Button>
             <Button variant="destructive" onClick={() => void hideWork()} disabled={hidingId !== null}>
-              {hidingId ? 'กำลังบันทึก...' : `${workStatusToApply === WORK_STATUS.SUSPENDED ? 'ระงับ' : 'ซ่อน'}ผลงาน`}
+              {hidingId ? 'กำลังบันทึก...' : `${workStatusActionLabel}ผลงาน`}
             </Button>
           </DialogFooter>
         </DialogContent>

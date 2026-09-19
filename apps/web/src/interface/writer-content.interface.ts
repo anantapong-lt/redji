@@ -10,7 +10,7 @@ export interface WriterContent {
   cover_blur_data_url: string | null
   type: StoryType
   status: StoryStatus
-  moderation_status: 'active' | 'hidden' | 'suspended'
+  moderation_status: 'active' | 'hidden' | 'locked' | 'suspended'
   total_views: string
   chapter_count: string
   sales_count: string
