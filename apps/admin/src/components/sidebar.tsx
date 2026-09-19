@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Banknote, BarChart3, BookOpen, ClipboardCheck, FileText, Flag, LayoutTemplate, LogOut, PenSquare, ReceiptText, ShieldCheck, UserCog, Users, WalletCards } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, ClipboardCheck, FileText, LayoutTemplate, LogOut, PenSquare, ReceiptText, ShieldCheck, UserCog, Users, WalletCards } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { NotificationBell } from '@readji/shared/src/notification-bell'
 import { useAdminAuth } from '@/components/admin-auth-provider'
@@ -12,7 +12,7 @@ import { Sidebar as SidebarPrimitive, SidebarContent, SidebarFooter, SidebarGrou
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 
 const navigation = [
-  { label: 'ภาพรวม', items: [{ href: '/dashboard', label: 'Dashboard', icon: BarChart3 }, { href: '/reports', label: 'รายงาน', icon: Flag }] },
+  { label: 'ภาพรวม', items: [{ href: '/dashboard', label: 'Dashboard', icon: BarChart3 }] },
   { label: 'จัดการเนื้อหา', items: [{ href: '/works', label: 'ผลงานทั้งหมด', icon: BookOpen }] },
   { label: 'จัดการผู้ใช้งาน', items: [{ href: '/users', label: 'ผู้ใช้งาน', icon: Users }, { href: '/writers', label: 'นักเขียน', icon: PenSquare }, { href: '/admin-account', label: 'บัญชีแอดมิน', icon: UserCog }, { href: '/writer-applications', label: 'คำขอเป็นนักเขียน', icon: ClipboardCheck }] },
   { label: 'การเงิน', items: [{ href: '/transactions', label: 'คำขอถอน', icon: Banknote }, { href: '/topups', label: 'รายการเติมเงิน', icon: WalletCards }, { href: '/purchases', label: 'ประวัติการซื้อ', icon: ReceiptText }] },

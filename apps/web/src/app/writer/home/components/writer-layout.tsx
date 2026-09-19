@@ -11,7 +11,6 @@ import {
   FileText,
   Home,
   Menu,
-  UserCog,
   X,
 } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
@@ -26,7 +25,6 @@ const writerNavigation = [
 ] as const
 
 const writerInformationNavigation = [
-  { href: '', label: 'ข้อมูลนักเขียน', icon: UserCog, enabled: false },
   { href: '/writer/terms', label: 'ข้อกำหนดการใช้งาน', icon: FileText, enabled: true },
 ] as const
 
@@ -219,15 +217,22 @@ export function WriterLayout({ children, user }: { children: ReactNode; user: Au
 
         <footer className="p-3">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
-            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="size-full object-cover" />
-              ) : userInitial}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold">{user.display_name}</p>
-              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-            </div>
+            <Link
+              href="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              aria-label="ไปหน้าโปรไฟล์"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-white">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                ) : userInitial}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold">{user.display_name}</span>
+                <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+              </span>
+            </Link>
             <NotificationBell
               apiUrl={SITE_CONFIG.apiUrl}
               accessToken={accessToken}
