@@ -39,11 +39,20 @@ export async function createAgreement(type: AgreementType, contentHtml: string):
   return agreement
 }
 
-export async function activateAgreement(type: AgreementType, id: string): Promise<boolean> {
+export async function setAgreementActive(type: AgreementType, id: string, isActive: boolean): Promise<boolean> {
   return db.begin(async (transaction) => {
-    await transaction`UPDATE usage_agreements SET is_active = FALSE, updated_at = NOW() WHERE type = ${type}::usage_agreement_type AND is_active`
+    const [existingAgreement] = await transaction<{ id: string }[]>`
+      SELECT id FROM usage_agreements
+      WHERE id = ${id} AND type = ${type}::usage_agreement_type
+      FOR UPDATE
+    `
+    if (!existingAgreement) return false
+
+    if (isActive) {
+      await transaction`UPDATE usage_agreements SET is_active = FALSE, updated_at = NOW() WHERE type = ${type}::usage_agreement_type AND is_active`
+    }
     const [agreement] = await transaction<{ id: string }[]>`
-      UPDATE usage_agreements SET is_active = TRUE, updated_at = NOW()
+      UPDATE usage_agreements SET is_active = ${isActive}, updated_at = NOW()
       WHERE id = ${id} AND type = ${type}::usage_agreement_type RETURNING id
     `
     return Boolean(agreement)

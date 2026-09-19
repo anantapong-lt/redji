@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, FilePenLine, FileText, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAdminAuth } from '@/components/admin-auth-provider'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RichTextEditor } from '../../../../../web/src/components/common/rich-text-editor'
 
@@ -25,6 +26,7 @@ export default function AgreementsPage() {
   const [contentHtml, setContentHtml] = useState('')
   const [editorKey, setEditorKey] = useState(0)
   const [previewAgreement, setPreviewAgreement] = useState<Agreement | null>(null)
+  const [updatingAgreementId, setUpdatingAgreementId] = useState<string | null>(null)
 
   const load = async () => {
     if (!accessToken) return
@@ -52,13 +54,24 @@ export default function AgreementsPage() {
     }
     await load()
   }
-  const activate = async (id: string) => {
-    if (!accessToken) return
-    await fetch(`${apiUrl}/admin/agreements/${type}/${id}/activate`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    await load()
+  const setAgreementStatus = async (agreement: Agreement, isActive: boolean) => {
+    if (!accessToken || updatingAgreementId) return
+    setUpdatingAgreementId(agreement.id)
+    try {
+      const response = await fetch(`${apiUrl}/admin/agreements/${type}/${agreement.id}/status`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: isActive }),
+      })
+      const body = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(body.message ?? 'ไม่สามารถเปลี่ยนสถานะข้อตกลงได้')
+      await load()
+      toast.success(body.message ?? 'เปลี่ยนสถานะข้อตกลงเรียบร้อยแล้ว')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ไม่สามารถเปลี่ยนสถานะข้อตกลงได้')
+    } finally {
+      setUpdatingAgreementId(null)
+    }
   }
   const edit = (agreement: Agreement) => {
     setContentHtml(agreement.content_html)
@@ -118,13 +131,12 @@ export default function AgreementsPage() {
                         <TableRow key={agreement.id}>
                           <TableCell>v{agreement.version}</TableCell>
                           <TableCell>
-                            {agreement.is_active ? (
-                              <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700" variant="outline">
-                                กำลังใช้งาน
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">ยังไม่ใช้งาน</span>
-                            )}
+                            <Switch
+                              checked={agreement.is_active}
+                              disabled={updatingAgreementId !== null}
+                              onCheckedChange={(checked) => void setAgreementStatus(agreement, checked)}
+                              aria-label={`${agreement.is_active ? 'ปิด' : 'เปิด'}ใช้งานเวอร์ชัน ${agreement.version}`}
+                            />
                           </TableCell>
                           <TableCell>
                             {new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' }).format(
@@ -137,19 +149,14 @@ export default function AgreementsPage() {
                                 render={<Button size="sm" variant="outline">จัดการ</Button>}
                               />
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => edit(agreement)}>
+                                <DropdownMenuItem onClick={() => edit(agreement)}>
                                   <FilePenLine />
                                   แก้ไข
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setPreviewAgreement(agreement)}>
+                                <DropdownMenuItem onClick={() => setPreviewAgreement(agreement)}>
                                   <Eye />
                                   ดูตัวอย่าง
                                 </DropdownMenuItem>
-                                {!agreement.is_active && (
-                                  <DropdownMenuItem onSelect={() => void activate(agreement.id)}>
-                                    เปิดใช้งาน
-                                  </DropdownMenuItem>
-                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
