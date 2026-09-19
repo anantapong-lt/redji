@@ -60,7 +60,7 @@ const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').repl
 const webUrl = (process.env.NEXT_PUBLIC_WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const typeLabels: Record<WorkType, string> = { novel: 'นิยาย', manga: 'การ์ตูน' }
 const statusLabels: Record<WorkStatus, string> = {
-  active: 'ใช้งาน',
+  active: 'เผยแพร่',
   hidden: 'ซ่อน',
   locked: 'ล็อค',
   suspended: 'ระงับ',
@@ -375,7 +375,7 @@ export default function WorksPage() {
                         >
                           <SelectTrigger className="ml-auto h-8 w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={WORK_STATUS.ACTIVE}>ใช้งาน</SelectItem>
+                            <SelectItem value={WORK_STATUS.ACTIVE}>เผยแพร่</SelectItem>
                             <SelectItem value={WORK_STATUS.LOCKED}>ล็อค</SelectItem>
                             <SelectItem value={WORK_STATUS.SUSPENDED}>ระงับ</SelectItem>
                           </SelectContent>
@@ -433,7 +433,7 @@ export default function WorksPage() {
             <DialogTitle>ยืนยันการ{workStatusActionLabel}ผลงาน</DialogTitle>
             <DialogDescription>
               {workStatusToApply === WORK_STATUS.SUSPENDED
-                ? `ต้องการระงับผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์จนกว่าแอดมินจะเปิดใช้งานอีกครั้ง`
+                ? `ต้องการระงับผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์จนกว่าแอดมินจะเผยแพร่อีกครั้ง`
                 : `ต้องการล็อคผลงาน “${workToHide?.title ?? ''}” ใช่หรือไม่? ผลงานจะไม่แสดงบนเว็บไซต์ แต่เจ้าของยังเห็นผลงานในหน้านักเขียน`}
             </DialogDescription>
           </DialogHeader>
