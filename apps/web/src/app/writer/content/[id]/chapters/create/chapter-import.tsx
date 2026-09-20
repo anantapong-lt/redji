@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { EyeIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { EyeIcon, FileArchiveIcon, FileTextIcon, Trash2Icon, UploadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { FileUploadProgressDialog } from '@/components/common/file-upload-progress-dialog'
@@ -45,9 +45,11 @@ export function ChapterImport({ contentId, isManga = false, onCancel, onBusyChan
   const { accessToken } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const busyRef = useRef(false)
+  const dragDepthRef = useRef(0)
   const [rows, setRows] = useState<ImportedChapter[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [message, setMessage] = useState('')
   const [serverErrors, setServerErrors] = useState<Record<string, string[]>>({})
   const [preview, setPreview] = useState<ImportedChapter | null>(null)
@@ -132,9 +134,37 @@ export function ChapterImport({ contentId, isManga = false, onCancel, onBusyChan
   return <div className="@container mt-6 min-w-0 space-y-4">
     <fieldset disabled={busy} className="min-w-0 space-y-4 disabled:opacity-60">
       <Input ref={fileRef} type="file" accept=".zip,application/zip" className="hidden" aria-label="เลือกไฟล์ ZIP" onChange={(event) => void load(event.target.files?.[0])} />
-      <div className={`rounded-xl border border-border bg-card text-card-foreground ${rows.length ? 'flex flex-wrap items-center justify-between gap-3 p-4' : 'border-dashed px-5 py-8 text-center'}`}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => { event.preventDefault(); void load(event.dataTransfer.files[0]) }}>
+      <div
+        className={`relative rounded-xl border bg-card text-card-foreground transition-colors ${isDragging ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-border'} ${rows.length ? 'flex flex-wrap items-center justify-between gap-3 p-4' : 'border-dashed px-5 py-8 text-center'}`}
+        onDragEnter={(event) => {
+          event.preventDefault()
+          if (busyRef.current || !event.dataTransfer.types.includes('Files')) return
+          dragDepthRef.current += 1
+          setIsDragging(true)
+        }}
+        onDragOver={(event) => {
+          event.preventDefault()
+          if (!busyRef.current && event.dataTransfer.types.includes('Files')) event.dataTransfer.dropEffect = 'copy'
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault()
+          dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+          if (dragDepthRef.current === 0) setIsDragging(false)
+        }}
+        onDrop={(event) => {
+          event.preventDefault()
+          dragDepthRef.current = 0
+          setIsDragging(false)
+          void load(event.dataTransfer.files[0])
+        }}
+      >
+        {isDragging && <div className="pointer-events-none absolute inset-2 z-10 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-primary bg-card/95 text-center backdrop-blur-sm">
+          <span className="mb-3 flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <UploadIcon className="size-5" />
+          </span>
+          <p className="text-sm font-semibold text-foreground">วางไฟล์ ZIP เพื่ออัปโหลด</p>
+          <p className="mt-1 text-xs text-muted-foreground">ปล่อยไฟล์ลงในพื้นที่นี้ได้เลย</p>
+        </div>}
         {rows.length ? <div>
           <h2 className="text-sm font-semibold">ตรวจสอบตอน <span className="ml-1 font-normal text-muted-foreground">{rows.length} รายการ</span></h2>
           <p className="mt-1 text-xs text-muted-foreground">แก้ไขในตาราง หรือเลือกหลายตอนเพื่อแก้ไขพร้อมกัน</p>
@@ -156,10 +186,39 @@ export function ChapterImport({ contentId, isManga = false, onCancel, onBusyChan
               <p className="mt-2 whitespace-pre font-mono text-[11px] leading-5">{`ไฟล์การ์ตูน.zip\n├── ตอนที่ 1/\n│   ├── 1.jpg\n│   └── 2.jpg\n└── ตอนที่ 2/\n    ├── 1.jpg\n    └── 2.jpg`}</p>
               <p className="mt-2">ชื่อโฟลเดอร์จะเป็นชื่อตอน และตัวเลขในชื่อโฟลเดอร์จะเป็นเลขตอน</p>
             </div>
-          </div> : <>
-            <p>ชื่อไฟล์เป็นชื่อตอน ตัวเลขชุดแรกเป็นเลขตอน เช่น ตอนที่ 1 สวัสดี.txt</p>
-            <p>เนื้อหารวมหลังแตกไฟล์ไม่เกิน 100MB</p>
-          </>}
+          </div> : <div className="mx-auto w-full max-w-md overflow-hidden rounded-xl border border-border bg-background/70 text-left shadow-sm">
+            <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <FileArchiveIcon className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">novel.zip</p>
+                <p className="text-[11px] text-muted-foreground">ตัวอย่างโครงสร้างไฟล์สำหรับนำเข้าหลายตอน</p>
+              </div>
+            </div>
+            <div className="space-y-2 px-4 py-3 text-sm">
+              {['ตอนที่ 1 ปราณวารี.txt', '2.txt', '3.txt'].map((fileName) => <div key={fileName} className="flex min-w-0 items-center gap-2">
+                <span className="w-5 shrink-0 font-mono text-xs text-muted-foreground">├─</span>
+                <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate text-foreground">{fileName}</span>
+              </div>)}
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span className="w-5 shrink-0 font-mono text-xs">└─</span>
+                <span className="w-4 text-center">•••</span>
+                <span>ไฟล์ตอนอื่น ๆ</span>
+              </div>
+            </div>
+            <div className="grid gap-2 border-t border-border bg-muted/20 p-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-border bg-background px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">ชื่อไฟล์จะถูกใช้เป็น</p>
+                <p className="mt-0.5 text-sm font-medium text-foreground">ชื่อตอน</p>
+              </div>
+              <div className="rounded-lg border border-border bg-background px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">ตัวเลขในชื่อไฟล์จะถูกใช้เป็น</p>
+                <p className="mt-0.5 text-sm font-medium text-foreground">ตอนที่</p>
+              </div>
+            </div>
+          </div>}
         </div>}
       </div>
 
