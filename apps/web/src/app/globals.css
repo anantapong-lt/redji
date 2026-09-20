@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "./ui-variants.css";
 
+@source "../../../shared/src";
+
 @font-face {
   font-family: "TF NopScript";
   src: url("/fonts/TF%20NOPSCRIPT.TTF") format("truetype");

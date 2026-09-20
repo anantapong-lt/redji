@@ -327,6 +327,7 @@ export function NavbarClient({
                 accessToken={accessToken}
                 unreadCount={unreadNotificationCount}
                 onUnreadCountChange={setUnreadNotificationCount}
+                sideOffset={16}
                 onNotificationClick={(notification) => setSelectedNotification(notification)}
               />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
@@ -359,6 +360,7 @@ export function NavbarClient({
               <NotificationBell
                 apiUrl={SITE_CONFIG.apiUrl}
                 accessToken={accessToken}
+                presentation="bottom-sheet"
                 unreadCount={unreadNotificationCount}
                 onUnreadCountChange={setUnreadNotificationCount}
                 onNotificationClick={(notification) => setSelectedNotification(notification)}

@@ -43,10 +43,10 @@ export function Sidebar() {
         <NotificationBell
           apiUrl={apiUrl}
           accessToken={accessToken}
+          presentation={isMobile ? 'bottom-sheet' : 'popover'}
           side={isMobile ? 'top' : 'right'}
           align="end"
           anchorElement={isMobile ? undefined : notificationAnchor}
-          portalContainer={isMobile ? notificationAnchor : undefined}
           triggerClassName="relative flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           onNotificationClick={(notification) => {
             setOpenMobile(false)
