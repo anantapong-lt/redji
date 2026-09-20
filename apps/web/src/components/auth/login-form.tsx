@@ -11,7 +11,6 @@ import { useAuth } from './auth-provider'
 import { IconInput, PasswordInput } from './form-inputs'
 import { TurnstileWidget } from './turnstile-widget'
 import { ApiError } from '@/lib/api-client'
-import { userRole } from '@/interface/user.interface'
 import { getApiUrl } from '@/site.config'
 
 const loginSchema = z.object({
@@ -43,10 +42,10 @@ export function LoginForm({ registrationEnabled }: { registrationEnabled: boolea
     }
 
     try {
-      const session = await login(values.email, values.password, turnstileToken ?? undefined)
+      await login(values.email, values.password, turnstileToken ?? undefined)
       const next = searchParams.get('next')
       const returnTo = next?.startsWith('/') && !next.startsWith('//') ? next : null
-      router.replace(returnTo ?? (session.user.role === userRole.WRITER ? '/writer' : '/'))
+      router.replace(returnTo ?? '/')
     } catch (error) {
       setError('root', {
         message: error instanceof ApiError

@@ -48,7 +48,6 @@ const NotificationDetailDialog = dynamic(
 
 const NAV_ITEMS = [
   { label: 'หน้าแรก', icon: Home, href: '/' },
-  { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
 ]
 
 interface WriterApplicationData {
@@ -290,14 +289,11 @@ export function NavbarClient({
                       </span>
                     </DropdownMenuLabel>
 
-                    <div className="mx-1 mb-2 flex items-center justify-between gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
+                    <div className="mx-1 mb-2 flex items-center gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
                       <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-primary">
                         <GiTwoCoins className="size-4 text-amber-500" />
                         {formatBalance(user.balance)} {SITE_CONFIG.coinName}
                       </span>
-                      <Button asChild size="sm">
-                        <Link href="/topup">เติมเงิน</Link>
-                      </Button>
                     </div>
 
                     <DropdownMenuSeparator />
@@ -410,7 +406,6 @@ export function NavbarClient({
                 หน้าแรก
               </Link>
               {[
-                { label: 'เติมเงิน', icon: GiTwoCoins, href: '/topup' },
                 ...(user ? [{ label: 'ประวัติทำรายการ', icon: HistoryIcon, href: '/transactions' }] : []),
                 ...(user?.role === userRole.SUPER_ADMIN
                   ? [{ label: 'แดชบอร์ดแอดมิน', icon: LayoutDashboard, href: `${SITE_CONFIG.adminUrl}/dashboard` }]
@@ -455,14 +450,11 @@ export function NavbarClient({
                 <div className="h-12 w-full animate-pulse rounded-xl bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
               ) : user ? (
                 <>
-                  <div className="flex items-center justify-between gap-3 rounded-xl bg-accent/60 px-3 py-2.5">
+                  <div className="flex items-center gap-3 rounded-xl bg-accent/60 px-3 py-2.5">
                     <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-primary">
                       <GiTwoCoins className="size-4 text-amber-500" />
                       {formatBalance(user.balance)} {SITE_CONFIG.coinName}
                     </span>
-                    <Button asChild size="sm">
-                      <Link href="/topup" onClick={() => setMobileMenuOpen(false)}>เติมเงิน</Link>
-                    </Button>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
                     <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
