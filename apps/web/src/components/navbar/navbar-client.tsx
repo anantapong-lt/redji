@@ -107,6 +107,105 @@ function formatBalance(balance: string) {
   return Number(balance).toLocaleString('th-TH')
 }
 
+function UserDropdownMenu({
+  user,
+  userInitial,
+  compact = false,
+  onLogout,
+  onOpenWriterApplication,
+}: {
+  user: AuthUser
+  userInitial: string
+  compact?: boolean
+  onLogout: () => void
+  onOpenWriterApplication: () => void
+}) {
+  const avatar = (
+    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-semibold text-primary-foreground ${compact ? 'size-8 text-xs ring-2 ring-primary/35 ring-offset-2 ring-offset-background' : 'size-7 text-xs'}`}>
+      {user.avatar_url ? <img src={user.avatar_url} alt="" className="size-full object-cover" /> : userInitial}
+    </span>
+  )
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        {compact ? (
+          <button
+            type="button"
+            aria-label="เปิดเมนูผู้ใช้"
+            title={user.display_name}
+            className="readji-icon-button cursor-pointer p-1"
+          >
+            {avatar}
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 min-w-0 gap-2 rounded-full bg-card/70 py-1.5 pr-2.5 pl-1.5 shadow-none"
+          >
+            {avatar}
+            <span className="max-w-32 truncate font-semibold text-foreground">{user.display_name}</span>
+            <ChevronDown className="size-4 text-muted-foreground transition-transform group-aria-expanded/button:rotate-180" />
+          </Button>
+        )}
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" sideOffset={8} className="w-72 p-2">
+        <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2 font-normal">
+          <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+            {user.avatar_url ? <img src={user.avatar_url} alt="" className="size-full object-cover" /> : userInitial}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-foreground">{user.display_name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+          </span>
+        </DropdownMenuLabel>
+
+        <div className="mx-1 mb-2 flex items-center gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-primary">
+            <GiTwoCoins className="size-4 text-amber-500" />
+            {formatBalance(user.balance)} {SITE_CONFIG.coinName}
+          </span>
+        </div>
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+          <Link href="/favorites"><LibraryBig />ชั้นหนังสือ</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+          <Link href="/profile"><UserRound />จัดการโปรไฟล์</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+          <Link href="/transactions"><HistoryIcon />ประวัติการทำรายการ</Link>
+        </DropdownMenuItem>
+        {user.role === userRole.WRITER && (
+          <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+            <Link href="/writer"><PenLine />โหมดนักเขียน</Link>
+          </DropdownMenuItem>
+        )}
+        {user.role === userRole.USER && (
+          <DropdownMenuItem onSelect={onOpenWriterApplication} className="cursor-pointer py-2.5">
+            <PenLine />สมัครนักเขียน
+          </DropdownMenuItem>
+        )}
+        {user.role === userRole.SUPER_ADMIN && (
+          <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+            <a href={`${SITE_CONFIG.adminUrl}/dashboard`}><LayoutDashboard />แดชบอร์ดแอดมิน</a>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={onLogout}
+          className="cursor-pointer py-2.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
+        >
+          <LogOut />ออกจากระบบ
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function NavbarClient({
   initialUser,
   initialUnreadNotificationCount,
@@ -235,99 +334,12 @@ export function NavbarClient({
               {(!hasHydrated || status === 'loading') && !user ? (
                 <div className="h-10 w-32 animate-pulse rounded-full bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
               ) : user ? (
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 min-w-0 gap-2 rounded-full bg-card/70 py-1.5 pr-2.5 pl-1.5 shadow-none"
-                    >
-                      <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                        {user.avatar_url ? (
-                          <img src={user.avatar_url} alt="" className="size-full object-cover" />
-                        ) : userInitial}
-                      </span>
-                      <span className="max-w-32 truncate font-semibold text-foreground">
-                        {user.display_name}
-                      </span>
-                      <ChevronDown className="size-4 text-muted-foreground transition-transform group-aria-expanded/button:rotate-180" />
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent align="end" sideOffset={8} className="w-72 p-2">
-                    <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2 font-normal">
-                      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                        {user.avatar_url ? (
-                          <img src={user.avatar_url} alt="" className="size-full object-cover" />
-                        ) : userInitial}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-semibold text-foreground">{user.display_name}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
-                      </span>
-                    </DropdownMenuLabel>
-
-                    <div className="mx-1 mb-2 flex items-center gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
-                      <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-primary">
-                        <GiTwoCoins className="size-4 text-amber-500" />
-                        {formatBalance(user.balance)} {SITE_CONFIG.coinName}
-                      </span>
-                    </div>
-
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                      <Link href="/favorites">
-                        <LibraryBig />
-                        ชั้นหนังสือ
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                      <Link href="/profile">
-                        <UserRound />
-                        จัดการโปรไฟล์
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                      <Link href="/transactions">
-                        <HistoryIcon />
-                        ประวัติการทำรายการ
-                      </Link>
-                    </DropdownMenuItem>
-                    {user.role === userRole.WRITER && (
-                      <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                        <Link href="/writer">
-                          <PenLine />
-                          โหมดนักเขียน
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {user.role === userRole.USER && (
-                      <DropdownMenuItem
-                        onSelect={() => void openWriterApplicationDialog()}
-                        className="cursor-pointer py-2.5"
-                      >
-                        <PenLine />
-                        สมัครนักเขียน
-                      </DropdownMenuItem>
-                    )}
-                    {user.role === userRole.SUPER_ADMIN && (
-                      <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                        <a href={`${SITE_CONFIG.adminUrl}/dashboard`}>
-                          <LayoutDashboard />
-                          แดชบอร์ดแอดมิน
-                        </a>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={() => void handleLogout()}
-                      className="cursor-pointer py-2.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
-                    >
-                      <LogOut />
-                      ออกจากระบบ
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <UserDropdownMenu
+                  user={user}
+                  userInitial={userInitial}
+                  onLogout={() => void handleLogout()}
+                  onOpenWriterApplication={() => void openWriterApplicationDialog()}
+                />
               ) : (
                 <Link
                   href="/login"
@@ -352,15 +364,25 @@ export function NavbarClient({
                 onNotificationClick={(notification) => setSelectedNotification(notification)}
               />
             ) : <DisabledIconButton label="การแจ้งเตือน"><Bell className="size-5" /></DisabledIconButton>}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label="เปิดเมนู"
-              aria-expanded={mobileMenuOpen}
-              className="readji-icon-button cursor-pointer"
-            >
-              <Menu className="size-5" />
-            </button>
+            {user ? (
+              <UserDropdownMenu
+                compact
+                user={user}
+                userInitial={userInitial}
+                onLogout={() => void handleLogout()}
+                onOpenWriterApplication={() => void openWriterApplicationDialog()}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="เปิดเมนู"
+                aria-expanded={mobileMenuOpen}
+                className="readji-icon-button cursor-pointer"
+              >
+                <Menu className="size-5" />
+              </button>
+            )}
           </div>
           </div>
         </div>
