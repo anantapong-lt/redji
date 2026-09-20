@@ -222,28 +222,6 @@ export function NavbarClient({
             <Link href="/search" aria-label="ค้นหา" title="ค้นหา" className="readji-icon-button">
               <Search className="size-5" />
             </Link>
-            {user?.role === userRole.WRITER ? (
-              <Link
-                href="/writer"
-                aria-label="โหมดนักเขียน"
-                title="โหมดนักเขียน"
-                className="readji-icon-button"
-              >
-                <PenLine className="size-5" />
-              </Link>
-            ) : user?.role === userRole.USER ? (
-              <button
-                type="button"
-                onClick={() => void openWriterApplicationDialog()}
-                aria-label="สมัครนักเขียน"
-                title="สมัครนักเขียน"
-                className="readji-icon-button cursor-pointer"
-              >
-                <PenLine className="size-5" />
-              </button>
-            ) : (
-              <DisabledIconButton label="โหมดนักเขียน"><PenLine className="size-5" /></DisabledIconButton>
-            )}
             {user ? (
               <NotificationBell
                 apiUrl={SITE_CONFIG.apiUrl}
@@ -315,6 +293,23 @@ export function NavbarClient({
                         ประวัติการทำรายการ
                       </Link>
                     </DropdownMenuItem>
+                    {user.role === userRole.WRITER && (
+                      <DropdownMenuItem asChild className="cursor-pointer py-2.5">
+                        <Link href="/writer">
+                          <PenLine />
+                          โหมดนักเขียน
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {user.role === userRole.USER && (
+                      <DropdownMenuItem
+                        onSelect={() => void openWriterApplicationDialog()}
+                        className="cursor-pointer py-2.5"
+                      >
+                        <PenLine />
+                        สมัครนักเขียน
+                      </DropdownMenuItem>
+                    )}
                     {user.role === userRole.SUPER_ADMIN && (
                       <DropdownMenuItem asChild className="cursor-pointer py-2.5">
                         <a href={`${SITE_CONFIG.adminUrl}/dashboard`}>
