@@ -65,57 +65,109 @@ export function StoryResultsGrid({
   mobileInfiniteScroll?: boolean
 }) {
   const [stories, setStories] = useState(initialData.stories)
-  const [pagination, setPagination] = useState(initialData.pagination)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(initialData.pagination.hasNextPage)
+  const [skeletonCount, setSkeletonCount] = useState(0)
   const [loadError, setLoadError] = useState(false)
-  const isLoadingRef = useRef(false)
   const requestVersionRef = useRef(0)
+  const nextPageRef = useRef(initialData.pagination.page + 1)
+  const committedPageRef = useRef(initialData.pagination.page)
+  const totalPagesRef = useRef(initialData.pagination.totalPages)
+  const totalItemsRef = useRef(initialData.pagination.total)
+  const inFlightPagesRef = useRef(new Set<number>())
+  const reservedPagesRef = useRef(new Set<number>())
+  const pageResultsRef = useRef(new Map<number, LandingResponse>())
+
+  const getReservedSkeletonCount = useCallback(() => {
+    return Array.from(reservedPagesRef.current).reduce((count, page) => {
+      const remainingItems = totalItemsRef.current - ((page - 1) * initialData.pagination.limit)
+      return count + Math.min(initialData.pagination.limit, Math.max(0, remainingItems))
+    }, 0)
+  }, [initialData.pagination.limit])
 
   useEffect(() => {
     requestVersionRef.current += 1
-    isLoadingRef.current = false
+    nextPageRef.current = initialData.pagination.page + 1
+    committedPageRef.current = initialData.pagination.page
+    totalPagesRef.current = initialData.pagination.totalPages
+    totalItemsRef.current = initialData.pagination.total
+    inFlightPagesRef.current.clear()
+    reservedPagesRef.current.clear()
+    pageResultsRef.current.clear()
     setStories(initialData.stories)
-    setPagination(initialData.pagination)
     setIsLoadingMore(false)
+    setHasMore(initialData.pagination.hasNextPage)
+    setSkeletonCount(0)
     setLoadError(false)
   }, [initialData])
 
   const loadMore = useCallback(async () => {
-    if (isLoadingRef.current || !pagination.hasNextPage) return
+    const page = nextPageRef.current
+    if (page > totalPagesRef.current || inFlightPagesRef.current.has(page)) return
 
-    isLoadingRef.current = true
     const requestVersion = requestVersionRef.current
+    nextPageRef.current = page + 1
+    inFlightPagesRef.current.add(page)
+    reservedPagesRef.current.add(page)
     setIsLoadingMore(true)
+    setHasMore(nextPageRef.current <= totalPagesRef.current)
+    setSkeletonCount(getReservedSkeletonCount())
     setLoadError(false)
 
     try {
       const nextData = await getLandingStories(
         initialData.section,
-        pagination.page + 1,
-        pagination.limit,
+        page,
+        initialData.pagination.limit,
         undefined,
         categories,
         search,
         contentType,
       )
       if (requestVersion !== requestVersionRef.current) return
-      setStories((current) => {
-        const existingIds = new Set(current.map((story) => story.id))
-        return [
-          ...current,
-          ...nextData.stories.filter((story) => !existingIds.has(story.id)),
-        ]
-      })
-      setPagination(nextData.pagination)
+
+      totalPagesRef.current = nextData.pagination.totalPages
+      totalItemsRef.current = nextData.pagination.total
+      pageResultsRef.current.set(page, nextData)
+
+      const readyStories: LandingStory[] = []
+      let readyPage = committedPageRef.current + 1
+      while (pageResultsRef.current.has(readyPage)) {
+        const readyResult = pageResultsRef.current.get(readyPage)
+        if (!readyResult) break
+
+        readyStories.push(...readyResult.stories)
+        pageResultsRef.current.delete(readyPage)
+        reservedPagesRef.current.delete(readyPage)
+        committedPageRef.current = readyPage
+        readyPage += 1
+      }
+
+      if (readyStories.length > 0) {
+        setStories((current) => {
+          const existingIds = new Set(current.map((story) => story.id))
+          return [
+            ...current,
+            ...readyStories.filter((story) => !existingIds.has(story.id)),
+          ]
+        })
+      }
+
+      setSkeletonCount(getReservedSkeletonCount())
+      setHasMore(nextPageRef.current <= totalPagesRef.current)
     } catch {
-      if (requestVersion === requestVersionRef.current) setLoadError(true)
+      if (requestVersion === requestVersionRef.current) {
+        nextPageRef.current = Math.min(nextPageRef.current, page)
+        setHasMore(page <= totalPagesRef.current)
+        setLoadError(true)
+      }
     } finally {
       if (requestVersion === requestVersionRef.current) {
-        isLoadingRef.current = false
-        setIsLoadingMore(false)
+        inFlightPagesRef.current.delete(page)
+        setIsLoadingMore(inFlightPagesRef.current.size > 0)
       }
     }
-  }, [categories, contentType, initialData.section, pagination.hasNextPage, pagination.limit, pagination.page, search])
+  }, [categories, contentType, getReservedSkeletonCount, initialData.pagination.limit, initialData.section, search])
 
   const gridStories = useMemo(
     () => stories.map((story) => toStoryGridItem(story, initialData.section, renderedAt)),
@@ -127,9 +179,10 @@ export function StoryResultsGrid({
       <StoryGrid
         eagerFirst={initialData.section === 'latest'}
         stories={gridStories}
-        hasMore={pagination.hasNextPage}
+        hasMore={hasMore}
         isLoadingMore={isLoadingMore}
-        skeletonCount={isLoadingMore ? pagination.limit : 0}
+        skeletonCount={skeletonCount}
+        initialStoryCount={initialData.stories.length}
         onLoadMore={loadMore}
         mobileLayout={mobileInfiniteScroll ? 'grid' : 'carousel'}
       />

@@ -14,6 +14,7 @@ export function StoryGrid({
   hasMore = false,
   isLoadingMore = false,
   skeletonCount = 0,
+  initialStoryCount = stories.length,
   onLoadMore,
   mobileLayout = 'carousel',
 }: {
@@ -22,6 +23,7 @@ export function StoryGrid({
   hasMore?: boolean
   isLoadingMore?: boolean
   skeletonCount?: number
+  initialStoryCount?: number
   onLoadMore?: () => Promise<void>
   mobileLayout?: 'carousel' | 'grid'
 }) {
@@ -37,11 +39,11 @@ export function StoryGrid({
     (_, index) => items.slice(index * 6, index * 6 + 6),
   )
   const handleScroll: UIEventHandler<HTMLDivElement> = (event) => {
-    if (!hasMore || isLoadingMore || !onLoadMore) return
+    if (!hasMore || !onLoadMore) return
 
     const container = event.currentTarget
     const remainingScroll = container.scrollWidth - container.scrollLeft - container.clientWidth
-    if (remainingScroll <= 48) void onLoadMore()
+    if (remainingScroll <= Math.max(48, container.clientWidth * 0.5)) void onLoadMore()
   }
   const handleLoadMoreClick = async () => {
     if (hasMore && onLoadMore) await onLoadMore()
@@ -49,8 +51,12 @@ export function StoryGrid({
 
   useEffect(() => {
     const sentinel = loadMoreSentinelRef.current
-    if (mobileLayout !== 'grid' || !sentinel || !hasMore || isLoadingMore || !onLoadMore) return
-    if (!window.matchMedia('(max-width: 1023px)').matches) return
+    if (!sentinel || !hasMore || !onLoadMore) return
+
+    const shouldObserve = mobileLayout === 'grid'
+      ? window.matchMedia('(max-width: 1023px)').matches
+      : window.matchMedia('(min-width: 768px) and (max-width: 1279px)').matches
+    if (!shouldObserve) return
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -60,7 +66,7 @@ export function StoryGrid({
     )
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [hasMore, isLoadingMore, mobileLayout, onLoadMore])
+  }, [hasMore, mobileLayout, onLoadMore])
 
   useEffect(() => {
     const grid = resultGridRef.current
@@ -99,7 +105,7 @@ export function StoryGrid({
         onScroll={mobileLayout === 'carousel' ? handleScroll : undefined}
         className={mobileLayout === 'grid'
           ? `mx-auto grid grid-cols-3 gap-x-2 gap-y-5 pb-2 lg:max-w-7xl lg:gap-x-4 lg:gap-y-7 lg:pb-0 ${resultGridColumnsClass}`
-          : 'mx-auto flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-4 md:gap-x-4 md:gap-y-7 md:overflow-visible md:pb-0 lg:grid-cols-6 xl:max-w-7xl xl:grid-cols-4 2xl:grid-cols-6'}
+          : 'mx-auto flex snap-x snap-proximity scroll-smooth gap-2 overflow-x-auto overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-4 md:gap-x-4 md:gap-y-7 md:overflow-visible md:pb-0 lg:grid-cols-6 xl:max-w-7xl xl:grid-cols-4 2xl:grid-cols-6'}
         style={mobileLayout === 'grid' && stories.length !== 1
           ? { '--result-grid-columns': resultGridColumns } as CSSProperties
           : undefined}
@@ -107,7 +113,7 @@ export function StoryGrid({
         {pages.map((page, pageIndex) => (
           <div
             key={pageIndex}
-            className={mobileLayout === 'grid' ? 'contents' : `grid w-[calc(120%_-_0.2rem)] shrink-0 snap-start snap-always grid-cols-3 gap-x-2 gap-y-5 md:contents ${
+            className={mobileLayout === 'grid' ? 'contents' : `grid w-[calc(120%_-_0.2rem)] shrink-0 snap-start grid-cols-3 gap-x-2 gap-y-5 md:contents ${
               page.length > 3 ? 'grid-rows-2' : 'grid-rows-1'
             }`}
           >
@@ -125,7 +131,14 @@ export function StoryGrid({
               const { id, ...story } = item
 
               return (
-                <div key={id} className="min-w-0">
+                <div
+                  key={id}
+                  className={`min-w-0 ${
+                    storyIndex >= initialStoryCount
+                      ? 'animate-in fade-in-0 duration-300 motion-reduce:animate-none'
+                      : ''
+                  }`}
+                >
                   <StoryCard {...story} eager={eagerFirst && storyIndex < 6} />
                 </div>
               )
@@ -134,14 +147,18 @@ export function StoryGrid({
         ))}
       </div>
 
-      {hasMore && mobileLayout === 'grid' ? <div ref={loadMoreSentinelRef} className="h-px lg:hidden" /> : null}
+      {hasMore ? (
+        <div
+          ref={loadMoreSentinelRef}
+          className={mobileLayout === 'grid' ? 'h-px lg:hidden' : 'hidden h-px md:block xl:hidden'}
+        />
+      ) : null}
 
       {hasMore ? (
         <button
           type="button"
-          disabled={isLoadingMore}
           onClick={() => void handleLoadMoreClick()}
-          className={`mx-auto mt-8 hidden cursor-pointer rounded-full border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 disabled:cursor-wait disabled:opacity-60 ${
+          className={`mx-auto mt-8 hidden cursor-pointer rounded-full border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 ${
             mobileLayout === 'grid' ? 'lg:block' : 'md:block'
           }`}
         >
