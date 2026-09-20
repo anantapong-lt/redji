@@ -22,6 +22,30 @@ export interface ProfileStory {
   latest_chapter: { chapter_number: string } | null
 }
 
+export interface FavoriteStory {
+  id: string
+  title: string
+  slug: string
+  cover_url: string | null
+  cover_blur_data_url: string | null
+  type: 'novel' | 'manga'
+  status: 'ongoing' | 'completed' | 'hiatus' | 'cancelled'
+  author_name: string
+  chapter_count: string
+  total_views: string
+  favorite_count: string
+  latest_chapter: {
+    chapter_number: string
+    title: string
+    published_at: string
+  }
+}
+
+export interface FavoriteStoriesResponse {
+  stories: FavoriteStory[]
+  pagination: { page: number; limit: number; has_next_page: boolean }
+}
+
 export interface UserProfile {
   id: string
   username: string

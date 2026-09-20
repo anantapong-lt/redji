@@ -26,6 +26,97 @@ export interface ProfileStory {
   latest_chapter: { chapter_number: string } | null
 }
 
+export interface FavoriteStory {
+  id: string
+  title: string
+  slug: string
+  cover_url: string | null
+  cover_blur_data_url: string | null
+  type: StoryType
+  status: StoryStatus
+  author_name: string
+  chapter_count: string
+  total_views: string
+  favorite_count: string
+  latest_chapter: {
+    chapter_number: string
+    title: string
+    published_at: Date
+  }
+}
+
+export interface FavoriteStoriesResult {
+  stories: FavoriteStory[]
+  pagination: { page: number; limit: number; has_next_page: boolean }
+}
+
+export async function findMyFavoriteStories(
+  userId: string,
+  type: StoryType,
+  page = 1,
+  limit = 12,
+): Promise<FavoriteStoriesResult> {
+  const offset = (page - 1) * limit
+  const stories = await db<FavoriteStory[]>`
+    SELECT
+      stories.id,
+      stories.title,
+      stories.slug,
+      stories.cover_url,
+      stories.cover_blur_data_url,
+      stories.type,
+      stories.status,
+      story_creators.display_name AS author_name,
+      chapter_stats.chapter_count,
+      stories.total_views::TEXT AS total_views,
+      favorite_stats.favorite_count,
+      json_build_object(
+        'chapter_number', latest_chapter.chapter_number::TEXT,
+        'title', latest_chapter.title,
+        'published_at', latest_chapter.published_at
+      ) AS latest_chapter
+    FROM story_favorites
+    INNER JOIN stories ON stories.id = story_favorites.story_id
+    INNER JOIN users AS story_creators ON story_creators.id = stories.creator_user_id
+    INNER JOIN LATERAL (
+      SELECT COUNT(*)::TEXT AS chapter_count
+      FROM chapters
+      WHERE chapters.story_id = stories.id
+        AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+        AND chapters.published_at <= NOW()
+    ) AS chapter_stats ON chapter_stats.chapter_count <> '0'
+    INNER JOIN LATERAL (
+      SELECT chapter_number, title, COALESCE(published_at, created_at) AS published_at
+      FROM chapters
+      WHERE chapters.story_id = stories.id
+        AND chapters.status = ${CHAPTER_STATUS.PUBLISHED}
+        AND chapters.published_at <= NOW()
+      ORDER BY chapter_number DESC, id DESC
+      LIMIT 1
+    ) AS latest_chapter ON TRUE
+    INNER JOIN LATERAL (
+      SELECT COUNT(*)::TEXT AS favorite_count
+      FROM story_favorites AS all_favorites
+      WHERE all_favorites.story_id = stories.id
+    ) AS favorite_stats ON TRUE
+    WHERE story_favorites.user_id = ${userId}
+      AND stories.type = ${type}
+      AND stories.status IN (${STORY_STATUS.ONGOING}, ${STORY_STATUS.COMPLETED})
+      AND stories.deleted_at IS NULL
+      AND stories.moderation_status = ${MODERATION_STATUS.ACTIVE}
+      AND story_creators.status = ${USER_STATUS.ACTIVE}
+      AND story_creators.writer_status = ${WRITER_STATUS.ACTIVE}
+      AND story_creators.deleted_at IS NULL
+    ORDER BY story_favorites.created_at DESC, stories.id DESC
+    LIMIT ${limit + 1} OFFSET ${offset}
+  `
+
+  return {
+    stories: stories.slice(0, limit),
+    pagination: { page, limit, has_next_page: stories.length > limit },
+  }
+}
+
 export interface PublicProfile {
   id: string
   username: string

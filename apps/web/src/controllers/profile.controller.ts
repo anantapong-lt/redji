@@ -1,5 +1,5 @@
 import { apiRequest } from '@/lib/api-client'
-import type { ProfileSocialLinks, RandomWriterProfile, UserProfile } from '@/interface/profile.interface'
+import type { FavoriteStoriesResponse, ProfileSocialLinks, RandomWriterProfile, UserProfile } from '@/interface/profile.interface'
 
 export function getRandomWriterProfiles(limit = 5): Promise<{ profiles: RandomWriterProfile[] }> {
   return apiRequest(`/profiles/random?limit=${limit}`, { cache: 'no-store' })
@@ -7,6 +7,17 @@ export function getRandomWriterProfiles(limit = 5): Promise<{ profiles: RandomWr
 
 export function getMyProfile(accessToken: string): Promise<{ profile: UserProfile }> {
   return apiRequest('/profiles/me', { accessToken, cache: 'no-store' })
+}
+
+export function getMyFavoriteStories(
+  type: 'novel' | 'manga',
+  page: number,
+  accessToken: string,
+): Promise<FavoriteStoriesResponse> {
+  return apiRequest(`/profiles/me/favorites?type=${type}&page=${page}&limit=12`, {
+    accessToken,
+    cache: 'no-store',
+  })
 }
 
 export function getProfile(username: string, type: 'novel' | 'manga' = 'novel', page = 1): Promise<{ profile: UserProfile }> {

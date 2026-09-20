@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ChevronDown, HistoryIcon, Home, LayoutDashboard, LogIn, LogOut, Menu, PenLine, Search, ShieldCheck, UserRound, X } from 'lucide-react'
+import { Bell, ChevronDown, HistoryIcon, Home, LayoutDashboard, LibraryBig, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -276,15 +276,15 @@ export function NavbarClient({
 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                      <Link href="/profile">
-                      <UserRound />
-                      โปรไฟล์
+                      <Link href="/favorites">
+                        <LibraryBig />
+                        ชั้นหนังสือ
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer py-2.5">
-                      <Link href="/profile?tab=security">
-                        <ShieldCheck />
-                        ความปลอดภัย
+                      <Link href="/profile">
+                        <UserRound />
+                        จัดการโปรไฟล์
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer py-2.5">

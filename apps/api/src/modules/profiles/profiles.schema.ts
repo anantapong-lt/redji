@@ -10,6 +10,12 @@ export const profileStoriesQuerySchema = t.Object({
   limit: t.Optional(t.Numeric({ minimum: 1, maximum: 24, multipleOf: 1 })),
 })
 
+export const favoriteStoriesQuerySchema = t.Object({
+  type: t.Union([t.Literal('novel'), t.Literal('manga')]),
+  page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1 })),
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 24, multipleOf: 1 })),
+})
+
 export const randomProfilesQuerySchema = t.Object({
   limit: t.Optional(t.Numeric({ minimum: 1, maximum: 12, multipleOf: 1 })),
 })

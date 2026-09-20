@@ -3,7 +3,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 import type { AuthUser } from '@/interface/user.interface'
 import type { TopupPageConfig } from '@/interface/topup.interface'
-import type { UserProfile } from '@/interface/profile.interface'
+import type { FavoriteStoriesResponse, UserProfile } from '@/interface/profile.interface'
 import type { AccountSecurity } from '@/interface/account-security.interface'
 import { SITE_CONFIG } from '@/site.config'
 
@@ -116,6 +116,28 @@ export async function getServerProfile(username: string): Promise<UserProfile | 
     if (!response.ok) return null
     const body = await response.json() as { profile: UserProfile }
     return body.profile
+  } catch {
+    return null
+  }
+}
+
+export async function getServerFavoriteStories(
+  type: 'novel' | 'manga',
+  page = 1,
+): Promise<FavoriteStoriesResponse | null> {
+  const cookieHeader = (await cookies()).toString()
+  if (!cookieHeader) return null
+
+  try {
+    const response = await fetch(
+      `${serverApiUrl()}/profiles/me/favorites?type=${type}&page=${page}&limit=12`,
+      {
+        cache: 'no-store',
+        headers: { Accept: 'application/json', Cookie: cookieHeader },
+      },
+    )
+    if (!response.ok) return null
+    return await response.json() as FavoriteStoriesResponse
   } catch {
     return null
   }

@@ -1,4 +1,4 @@
-import { findMyProfile, findPublicProfileByUsername, findRandomWriterProfiles, updateMyProfile, updateMyProfileAvatar, updateMyProfileCover } from './profiles.service'
+import { findMyFavoriteStories, findMyProfile, findPublicProfileByUsername, findRandomWriterProfiles, updateMyProfile, updateMyProfileAvatar, updateMyProfileCover } from './profiles.service'
 
 export async function getRandomWriterProfilesResponse(limit?: number) {
   return { profiles: await findRandomWriterProfiles(limit ?? 5) }
@@ -7,6 +7,16 @@ export async function getRandomWriterProfilesResponse(limit?: number) {
 export async function getMyProfileResponse(userId: string) {
   const profile = await findMyProfile(userId)
   return profile ? { profile } : Response.json({ message: 'ไม่พบโปรไฟล์' }, { status: 404 })
+}
+
+export async function getMyFavoriteStoriesResponse(
+  userId: string | undefined,
+  type: 'novel' | 'manga',
+  page?: number,
+  limit?: number,
+) {
+  if (!userId) return Response.json({ message: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
+  return findMyFavoriteStories(userId, type, page ?? 1, limit ?? 12)
 }
 
 export async function getPublicProfileResponse(username: string, type?: 'novel' | 'manga', page?: number, limit?: number) {

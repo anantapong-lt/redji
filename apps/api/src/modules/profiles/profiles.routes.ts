@@ -1,11 +1,15 @@
 import { Elysia } from 'elysia'
 import { authMiddleware } from '../../middleware/auth.middleware'
-import { getMyProfileResponse, getPublicProfileResponse, getRandomWriterProfilesResponse, updateMyProfileAvatarResponse, updateMyProfileCoverResponse, updateMyProfileResponse } from './profiles.controller'
-import { profileStoriesQuerySchema, profileUsernameParamsSchema, randomProfilesQuerySchema, updateMyProfileAvatarBodySchema, updateMyProfileBodySchema, updateMyProfileCoverBodySchema } from './profiles.schema'
+import { getMyFavoriteStoriesResponse, getMyProfileResponse, getPublicProfileResponse, getRandomWriterProfilesResponse, updateMyProfileAvatarResponse, updateMyProfileCoverResponse, updateMyProfileResponse } from './profiles.controller'
+import { favoriteStoriesQuerySchema, profileStoriesQuerySchema, profileUsernameParamsSchema, randomProfilesQuerySchema, updateMyProfileAvatarBodySchema, updateMyProfileBodySchema, updateMyProfileCoverBodySchema } from './profiles.schema'
 
 export const profilesRoutes = new Elysia({ prefix: '/profiles' })
   .use(authMiddleware)
   .get('/me', ({ currentUser }) => getMyProfileResponse(currentUser.id), { auth: true })
+  .get('/me/favorites', ({ currentUser, query }) => getMyFavoriteStoriesResponse(currentUser?.id, query.type, query.page, query.limit), {
+    optionalAuth: true,
+    query: favoriteStoriesQuerySchema,
+  })
   .patch('/me', ({ currentUser, body }) => updateMyProfileResponse(currentUser.id, body), {
     auth: true,
     body: updateMyProfileBodySchema,
