@@ -1,12 +1,25 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
-import { Extension, mergeAttributes, Node } from '@tiptap/core'
+import {
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
+import { Extension, mergeAttributes, Node, type Editor } from '@tiptap/core'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import Underline from '@tiptap/extension-underline'
 import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { EditorContent, useEditor } from '@tiptap/react'
+import {
+  EditorContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  useEditor,
+  type NodeViewProps,
+} from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import {
   AlignCenterIcon,
@@ -14,6 +27,7 @@ import {
   AlignRightIcon,
   BoldIcon,
   Heading2Icon,
+  ImagePlusIcon,
   ItalicIcon,
   ListIcon,
   ListOrderedIcon,
@@ -31,6 +45,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 const lineHeightOptions = [
   { value: 'normal', label: 'ปกติ' },
@@ -81,6 +101,7 @@ const allowedPasteElements = new Set([
   'H6',
   'HR',
   'I',
+  'IMG',
   'LI',
   'OL',
   'P',
@@ -100,7 +121,6 @@ const removedPasteElements = new Set([
   'EMBED',
   'FORM',
   'IFRAME',
-  'IMG',
   'INPUT',
   'MATH',
   'OBJECT',
@@ -263,6 +283,32 @@ function sanitizePastedElement(element: HTMLElement) {
 
   if (!allowedPasteElements.has(normalizedElement.tagName)) {
     normalizedElement.replaceWith(...Array.from(normalizedElement.childNodes))
+    return
+  }
+
+  if (normalizedElement.tagName === 'IMG') {
+    const source = normalizedElement.getAttribute('src') ?? ''
+    const alt = normalizedElement.getAttribute('alt')?.slice(0, 255) ?? ''
+    const displayWidth = normalizedElement.getAttribute('data-image-display-width') ?? ''
+    const align = normalizedElement.getAttribute('data-image-align') ?? ''
+    const isSafeSource = isSafeEmbeddedImageSource(source)
+
+    for (const attribute of Array.from(normalizedElement.attributes)) {
+      normalizedElement.removeAttribute(attribute.name)
+    }
+    if (!isSafeSource) {
+      normalizedElement.remove()
+      return
+    }
+
+    normalizedElement.setAttribute('src', source)
+    normalizedElement.setAttribute('alt', alt)
+    if (/^\d{2,4}$/.test(displayWidth)) {
+      normalizedElement.setAttribute('data-image-display-width', displayWidth)
+    }
+    if (['left', 'center', 'right'].includes(align)) {
+      normalizedElement.setAttribute('data-image-align', align)
+    }
     return
   }
 
@@ -557,6 +603,210 @@ const SpanParagraph = Node.create({
   },
 })
 
+type ResizeDirection = 'left' | 'right'
+
+interface ImageResizeState {
+  direction: ResizeDirection
+  startX: number
+  startWidth: number
+  maxWidth: number
+}
+
+function ChapterImageView({ node, selected, updateAttributes }: NodeViewProps) {
+  const imageRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const resizeStateRef = useRef<ImageResizeState | null>(null)
+  const previewWidthRef = useRef<number | null>(null)
+  const [previewWidth, setPreviewWidth] = useState<number | null>(null)
+  const storedWidth = Number(node.attrs.displayWidth) || null
+  const displayWidth = previewWidth ?? storedWidth
+  const align = ['left', 'center', 'right'].includes(node.attrs.align)
+    ? node.attrs.align
+    : 'center'
+
+  const startResize = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    direction: ResizeDirection,
+  ) => {
+    const image = imageRef.current
+    const container = containerRef.current
+    if (!image || !container) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const renderedWidth = image.getBoundingClientRect().width
+    const availableWidth = container.parentElement?.getBoundingClientRect().width ?? renderedWidth
+    const maxWidth = Math.min(image.naturalWidth || renderedWidth, availableWidth)
+    resizeStateRef.current = {
+      direction,
+      startX: event.clientX,
+      startWidth: renderedWidth,
+      maxWidth,
+    }
+    previewWidthRef.current = renderedWidth
+    setPreviewWidth(renderedWidth)
+  }
+
+  const resizeImage = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const state = resizeStateRef.current
+    if (!state) return
+    const delta = state.direction === 'right'
+      ? event.clientX - state.startX
+      : state.startX - event.clientX
+    const minWidth = Math.min(48, state.maxWidth)
+    const nextWidth = Math.min(state.maxWidth, Math.max(minWidth, state.startWidth + delta))
+    previewWidthRef.current = nextWidth
+    setPreviewWidth(nextWidth)
+  }
+
+  const finishResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const state = resizeStateRef.current
+    if (!state) return
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    const nextWidth = previewWidthRef.current ?? state.startWidth
+    updateAttributes({
+      displayWidth: nextWidth >= state.maxWidth - 1 ? null : Math.round(nextWidth),
+    })
+    resizeStateRef.current = null
+    previewWidthRef.current = null
+    setPreviewWidth(null)
+  }
+
+  const justifyContent = align === 'left'
+    ? 'flex-start'
+    : align === 'right'
+      ? 'flex-end'
+      : 'center'
+
+  return (
+    <NodeViewWrapper
+      className="my-4 flex w-full"
+      style={{ justifyContent }}
+      data-image-align={align}
+    >
+      <div
+        ref={containerRef}
+        className={`relative max-w-full ${selected ? 'ring-2 ring-primary' : ''}`}
+        style={{ width: displayWidth ? `${displayWidth}px` : 'fit-content' }}
+        contentEditable={false}
+      >
+        <img
+          ref={imageRef}
+          src={node.attrs.src}
+          alt={node.attrs.alt ?? ''}
+          draggable={false}
+          className="block h-auto max-w-full rounded-lg"
+          style={{ width: displayWidth ? '100%' : 'auto' }}
+        />
+        {selected ? (
+          <>
+            {([
+              ['top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'left'],
+              ['top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'right'],
+              ['bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'left'],
+              ['right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize', 'right'],
+            ] as const).map(([positionClass, direction]) => (
+              <button
+                key={positionClass}
+                type="button"
+                aria-label="ลากเพื่อปรับขนาดรูปภาพ"
+                className={`absolute z-10 size-3 touch-none rounded-sm border-2 border-background bg-primary shadow-sm ${positionClass}`}
+                onPointerDown={(event) => startResize(event, direction)}
+                onPointerMove={resizeImage}
+                onPointerUp={finishResize}
+                onPointerCancel={finishResize}
+              />
+            ))}
+          </>
+        ) : null}
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+const ChapterImage = Node.create({
+  name: 'image',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      alt: { default: '' },
+      displayWidth: {
+        default: null,
+        parseHTML: (element) => {
+          const width = Number(element.getAttribute('data-image-display-width'))
+          return Number.isInteger(width) && width >= 48 && width <= 5000 ? width : null
+        },
+        renderHTML: (attributes) => attributes.displayWidth
+          ? { 'data-image-display-width': attributes.displayWidth }
+          : {},
+      },
+      align: {
+        default: 'center',
+        parseHTML: (element) => element.getAttribute('data-image-align') || 'center',
+        renderHTML: (attributes) => ({ 'data-image-align': attributes.align }),
+      },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'img[src]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const displayWidth = Number(HTMLAttributes['data-image-display-width'])
+    const align = HTMLAttributes['data-image-align']
+    const margins = align === 'left'
+      ? 'margin-left: 0; margin-right: auto;'
+      : align === 'right'
+        ? 'margin-left: auto; margin-right: 0;'
+        : 'margin-left: auto; margin-right: auto;'
+    return ['img', mergeAttributes(HTMLAttributes, {
+      class: 'my-4 h-auto max-w-full rounded-lg',
+      draggable: 'true',
+      style: `display: block; width: ${displayWidth ? `${displayWidth}px` : 'auto'}; max-width: 100%; height: auto; ${margins}`,
+    })]
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(ChapterImageView)
+  },
+})
+
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const MAX_IMAGES = 4
+
+function isSafeEmbeddedImageSource(source: string): boolean {
+  const match = /^data:image\/(?:jpeg|png|webp);base64,([a-z0-9+/=\s]+)$/i.exec(source)
+  if (!match) return false
+  const encoded = match[1].replace(/\s/g, '')
+  const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0
+  return encoded.length > 0 && Math.floor(encoded.length * 3 / 4) - padding <= MAX_IMAGE_SIZE
+}
+
+function readImageAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new Error('Invalid image result'))
+    reader.onerror = () => reject(reader.error ?? new Error('Unable to read image'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function countEditorImages(editor: Editor): number {
+  let count = 0
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === 'image') count += 1
+  })
+  return count
+}
+
 export interface RichTextEditorProps {
   id?: string
   initialContent?: string
@@ -604,6 +854,10 @@ export function RichTextEditor({
   contentClassName,
 }: RichTextEditorProps) {
   const [html, setHtml] = useState(initialContent)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [imageCount, setImageCount] = useState(0)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -612,6 +866,7 @@ export function RichTextEditor({
       TextStyleKit,
       LetterSpacing,
       BlockFormatting,
+      ChapterImage,
       TextAlign.configure({ types: ['heading', 'paragraph', 'blockquote', 'listItem'] }),
       Underline,
     ],
@@ -624,15 +879,167 @@ export function RichTextEditor({
       transformPastedHTML: normalizePastedHtml,
       transformPasted: normalizePastedSlice,
     },
+    onCreate: ({ editor: currentEditor }) => {
+      setImageCount(countEditorImages(currentEditor))
+    },
     onUpdate: ({ editor: currentEditor }) => {
       const nextHtml = currentEditor.getHTML()
       setHtml(nextHtml)
+      setImageCount(countEditorImages(currentEditor))
       onChange?.(nextHtml)
     },
   })
 
+  const validateImage = (file: File) => {
+    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+      setImageError('รองรับเฉพาะไฟล์ JPG, PNG และ WebP')
+      return false
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setImageError('รูปภาพแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB')
+      return false
+    }
+    return true
+  }
+
+  const currentImageCount = () => {
+    return editor ? countEditorImages(editor) : imageCount
+  }
+
+  const imageNodeFromFile = async (file: File) => {
+    if (!validateImage(file)) return null
+    try {
+      return {
+        type: 'image',
+        attrs: { src: await readImageAsDataUrl(file), alt: file.name },
+      }
+    } catch {
+      setImageError('ไม่สามารถอ่านไฟล์รูปภาพได้ กรุณาลองใหม่อีกครั้ง')
+      return null
+    }
+  }
+
+  const insertImageFiles = async (files: File[], position?: number) => {
+    if (!editor) return
+    const availableSlots = MAX_IMAGES - currentImageCount()
+    if (availableSlots <= 0) {
+      setImageError(`แทรกรูปภาพได้ไม่เกิน ${MAX_IMAGES} รูปต่อตอน`)
+      return
+    }
+    const exceedsLimit = files.length > availableSlots
+    if (exceedsLimit) {
+      setImageError(`แทรกรูปภาพได้ไม่เกิน ${MAX_IMAGES} รูปต่อตอน`)
+    }
+
+    const images = (await Promise.all(files.slice(0, availableSlots).map(imageNodeFromFile)))
+      .filter((image) => image !== null)
+    if (!images.length) return
+    if (!exceedsLimit && images.length === files.length) setImageError(null)
+    const chain = editor.chain().focus()
+    if (position === undefined) chain.insertContent(images).run()
+    else chain.insertContentAt(position, images).run()
+  }
+
+  const handleImageInput = (event: ChangeEvent<HTMLInputElement>) => {
+    void insertImageFiles(Array.from(event.target.files ?? []), editor?.state.selection.from)
+    event.target.value = ''
+  }
+
+  const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+    if (!editor) return
+    const clipboard = event.clipboardData
+    const htmlContent = clipboard.getData('text/html')
+    const clipboardImages = Array.from(clipboard.items)
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .flatMap((item) => item.getAsFile() ?? [])
+    if (!clipboardImages.length && !/<img\b/i.test(htmlContent)) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    const insertionPosition = editor.state.selection.from
+
+    if (!htmlContent) {
+      void insertImageFiles(clipboardImages, insertionPosition)
+      return
+    }
+
+    void (async () => {
+      setImageError(null)
+      const parsedDocument = new DOMParser().parseFromString(htmlContent, 'text/html')
+      const imageElements = Array.from(parsedDocument.body.querySelectorAll<HTMLImageElement>('img'))
+      const availableSlots = Math.max(0, MAX_IMAGES - currentImageCount())
+      let clipboardImageIndex = 0
+      let retainedImageCount = 0
+
+      for (const imageElement of imageElements) {
+        if (retainedImageCount >= availableSlots) {
+          imageElement.remove()
+          continue
+        }
+
+        const source = imageElement.getAttribute('src') ?? ''
+        if (isSafeEmbeddedImageSource(source)) {
+          if (clipboardImages[clipboardImageIndex]) clipboardImageIndex += 1
+          retainedImageCount += 1
+          continue
+        }
+
+        const file = clipboardImages[clipboardImageIndex++]
+        if (!file || !validateImage(file)) {
+          imageElement.remove()
+          continue
+        }
+        try {
+          imageElement.setAttribute('src', await readImageAsDataUrl(file))
+          imageElement.setAttribute('alt', imageElement.getAttribute('alt') || file.name)
+          retainedImageCount += 1
+        } catch {
+          imageElement.remove()
+          setImageError('ไม่สามารถอ่านไฟล์รูปภาพจาก Word ได้ กรุณาลองแทรกรูปด้วยปุ่มรูปภาพ')
+        }
+      }
+
+      for (const remainingFile of clipboardImages.slice(clipboardImageIndex, clipboardImageIndex + availableSlots - retainedImageCount)) {
+        if (!validateImage(remainingFile)) continue
+        try {
+          const imageElement = parsedDocument.createElement('img')
+          imageElement.setAttribute('src', await readImageAsDataUrl(remainingFile))
+          imageElement.setAttribute('alt', remainingFile.name)
+          parsedDocument.body.append(imageElement)
+          retainedImageCount += 1
+        } catch {
+          setImageError('ไม่สามารถอ่านไฟล์รูปภาพจาก Word ได้ กรุณาลองแทรกรูปด้วยปุ่มรูปภาพ')
+        }
+      }
+
+      if (Math.max(imageElements.length, clipboardImages.length) > availableSlots) {
+        setImageError(`แทรกรูปภาพได้ไม่เกิน ${MAX_IMAGES} รูปต่อตอน`)
+      }
+      editor.chain().focus().insertContentAt(
+        insertionPosition,
+        normalizePastedHtml(parsedDocument.body.innerHTML),
+      ).run()
+    })()
+  }
+
+  const imageIsSelected = editor?.isActive('image') ?? false
+  const imageLimitReached = imageCount >= MAX_IMAGES
+  const selectedImageAlign = String(editor?.getAttributes('image').align ?? 'center')
+
+  const setAlignment = (alignment: 'left' | 'center' | 'right') => {
+    if (!editor) return
+    if (imageIsSelected) {
+      editor.chain().focus().updateAttributes('image', { align: alignment }).run()
+      return
+    }
+    editor.chain().focus().setTextAlign(alignment).run()
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl border border-input bg-transparent focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+    <div
+      className="overflow-hidden rounded-xl border border-input bg-transparent focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30"
+      onPasteCapture={handlePaste}
+    >
       <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-2">
         <EditorButton
           label="หัวข้อ"
@@ -675,6 +1082,44 @@ export function RichTextEditor({
           <StrikethroughIcon />
         </EditorButton>
         <span className="mx-1 h-6 w-px bg-border" />
+        {imageLimitReached ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex cursor-not-allowed" tabIndex={0}>
+                  <EditorButton
+                    label="แทรกรูปภาพ"
+                    disabled
+                    onClick={() => undefined}
+                  >
+                    <ImagePlusIcon />
+                  </EditorButton>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                เพิ่มรูปภาพได้สูงสุด {MAX_IMAGES} รูปต่อตอน
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <EditorButton
+            label="แทรกรูปภาพ"
+            disabled={!editor}
+            onClick={() => imageInputRef.current?.click()}
+          >
+            <ImagePlusIcon />
+          </EditorButton>
+        )}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="sr-only"
+          aria-label="เลือกรูปภาพประกอบ"
+          onChange={handleImageInput}
+        />
+        <span className="mx-1 h-6 w-px bg-border" />
         <EditorButton
           label="รายการหัวข้อย่อย"
           active={editor?.isActive('bulletList')}
@@ -702,25 +1147,25 @@ export function RichTextEditor({
         <span className="mx-1 h-6 w-px bg-border" />
         <EditorButton
           label="จัดชิดซ้าย"
-          active={editor?.isActive({ textAlign: 'left' })}
+          active={imageIsSelected ? selectedImageAlign === 'left' : editor?.isActive({ textAlign: 'left' })}
           disabled={!editor}
-          onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+          onClick={() => setAlignment('left')}
         >
           <AlignLeftIcon />
         </EditorButton>
         <EditorButton
           label="จัดกึ่งกลาง"
-          active={editor?.isActive({ textAlign: 'center' })}
+          active={imageIsSelected ? selectedImageAlign === 'center' : editor?.isActive({ textAlign: 'center' })}
           disabled={!editor}
-          onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+          onClick={() => setAlignment('center')}
         >
           <AlignCenterIcon />
         </EditorButton>
         <EditorButton
           label="จัดชิดขวา"
-          active={editor?.isActive({ textAlign: 'right' })}
+          active={imageIsSelected ? selectedImageAlign === 'right' : editor?.isActive({ textAlign: 'right' })}
           disabled={!editor}
-          onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+          onClick={() => setAlignment('right')}
         >
           <AlignRightIcon />
         </EditorButton>
@@ -779,6 +1224,7 @@ export function RichTextEditor({
         editor={editor}
         className="[&_.tiptap_blockquote]:border-l-4 [&_.tiptap_blockquote]:border-border [&_.tiptap_blockquote]:pl-4 [&_.tiptap_h2]:my-3 [&_.tiptap_h2]:text-xl [&_.tiptap_h2]:font-bold [&_.tiptap_ol]:my-2 [&_.tiptap_ol]:list-decimal [&_.tiptap_ol]:pl-6 [&_.tiptap_p]:my-2 [&_.tiptap_ul]:my-2 [&_.tiptap_ul]:list-disc [&_.tiptap_ul]:pl-6"
       />
+      {imageError ? <p role="alert" className="border-t border-border px-3 py-2 text-xs text-destructive">{imageError}</p> : null}
       <input type="hidden" name={name} value={html} />
     </div>
   )

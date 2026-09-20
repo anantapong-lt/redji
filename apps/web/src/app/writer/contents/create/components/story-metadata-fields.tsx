@@ -19,7 +19,6 @@ import {
 import { useCreateStoryForm } from './create-story-form'
 
 interface StoryMetadataFieldsProps {
-  contentLabel: string
   initialTitle: string
   initialStatus?: StoryStatus
   initialAgeRating?: string
@@ -28,7 +27,6 @@ interface StoryMetadataFieldsProps {
 
 export function StoryMetadataFields({
   children,
-  contentLabel,
   initialAgeRating = '',
   initialStatus = StoryStatus.DRAFT,
   initialTitle,
@@ -43,7 +41,7 @@ export function StoryMetadataFields({
       <div className="space-y-2 md:col-span-2" data-field="title">
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="title" className="text-sm font-semibold">
-            ชื่อ{contentLabel} <span className="text-destructive">*</span>
+            ชื่อเรื่อง <span className="text-destructive">*</span>
           </Label>
           <span className="text-xs tabular-nums text-muted-foreground">
             {title.length}/{STORY_TITLE_MAX_LENGTH}
@@ -61,7 +59,7 @@ export function StoryMetadataFields({
           maxLength={STORY_TITLE_MAX_LENGTH}
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? 'title-error' : undefined}
-          placeholder={`กรอกชื่อ${contentLabel}`}
+          placeholder="กรอกชื่อเรื่อง"
           className="h-11 rounded-xl px-3"
         />
         {errors.title && (

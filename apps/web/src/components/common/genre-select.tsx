@@ -10,6 +10,21 @@ import {
 } from '@/components/ui/select'
 import { useGenreOptionsStore } from '@/store/genre-options.store'
 
+const WRITER_GENRE_ORDER = [
+  'romantic',
+  'romance-fantasy',
+  'bl-gl',
+  'fantasy',
+  'action',
+  'horror',
+  'drama',
+  'martial-arts',
+] as const
+
+const writerGenreOrder = new Map<string, number>(
+  WRITER_GENRE_ORDER.map((slug, index) => [slug, index]),
+)
+
 interface GenreSelectProps {
   id: string
   name: string
@@ -33,9 +48,13 @@ export function GenreSelect({
 }: GenreSelectProps) {
   const options = useGenreOptionsStore((state) => state.options)
   const status = useGenreOptionsStore((state) => state.status)
-  const availableOptions = options.filter((option) => (
-    option.value === value || !excludedValues.includes(option.value)
-  ))
+  const availableOptions = options
+    .filter((option) => option.value === value || !excludedValues.includes(option.value))
+    .sort((left, right) => {
+      const leftOrder = writerGenreOrder.get(left.slug) ?? Number.MAX_SAFE_INTEGER
+      const rightOrder = writerGenreOrder.get(right.slug) ?? Number.MAX_SAFE_INTEGER
+      return leftOrder - rightOrder
+    })
 
   const placeholder = status === 'loading' || status === 'idle'
     ? 'กำลังโหลดหมวดหมู่...'

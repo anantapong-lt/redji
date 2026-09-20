@@ -848,7 +848,7 @@ export async function findPublicChaptersBySlug(
   page: number,
   limit: number,
   currentUserId: string | null,
-  sort: PublicChapterSort = 'latest',
+  sort: PublicChapterSort = 'chapter_desc',
   hasAdminAccess = false,
 ): Promise<PublicChaptersResult | undefined> {
   const [story] = await db<{ id: string }[]>`

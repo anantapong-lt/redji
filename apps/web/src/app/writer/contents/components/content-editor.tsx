@@ -8,10 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StoryType } from '@/constants/story.constant'
 import { getWriterContent } from '@/controllers/writer.controller'
-import type {
-  WriterContentDetail,
-  WriterContentTab,
-} from '@/interface/writer-content.interface'
+import type { WriterContentDetail, WriterContentTab } from '@/interface/writer-content.interface'
 import { CoverImageUpload } from '../create/components/cover-image-upload'
 import { CreateStoryForm } from '../create/components/create-story-form'
 import { SlugField } from '../create/components/slug-field'
@@ -37,9 +34,7 @@ export function ContentEditor({
   const [isLoading, setIsLoading] = useState(Boolean(contentId))
   const [loadError, setLoadError] = useState<string | null>(null)
   const Root = embedded ? 'div' : 'main'
-  const rootClassName = embedded
-    ? 'mt-6'
-    : 'min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8'
+  const rootClassName = embedded ? 'mt-6' : 'min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8 '
   const containerClassName = embedded ? '' : 'mx-auto max-w-7xl'
 
   useEffect(() => {
@@ -131,9 +126,7 @@ export function ContentEditor({
     return (
       <Root className={rootClassName}>
         <div className="readji-surface mx-auto max-w-7xl rounded-2xl p-8 text-center">
-          <p className="text-sm text-destructive">
-            {loadError ?? 'ไม่พบเนื้อหาที่ต้องการแก้ไข'}
-          </p>
+          <p className="text-sm text-destructive">{loadError ?? 'ไม่พบเนื้อหาที่ต้องการแก้ไข'}</p>
           <Button asChild variant="outline" className="mt-4 h-11 rounded-xl">
             <Link href="/writer/contents">
               <ArrowLeft />
@@ -145,9 +138,7 @@ export function ContentEditor({
     )
   }
 
-  const contentType: WriterContentTab = story?.type === StoryType.MANGA
-    ? 'cartoon'
-    : initialContentType
+  const contentType: WriterContentTab = story?.type === StoryType.MANGA ? 'cartoon' : initialContentType
   const isCartoon = contentType === 'cartoon'
   const contentLabel = isCartoon ? 'การ์ตูน' : 'นิยาย'
   const databaseType = isCartoon ? StoryType.MANGA : StoryType.NOVEL
@@ -158,19 +149,12 @@ export function ContentEditor({
 
       <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
         <StoryMetadataFields
-          contentLabel={contentLabel}
           initialTitle={story?.title ?? initialTitle}
           initialStatus={story?.status}
           initialAgeRating={story?.age_rating?.toString() ?? ''}
         >
-          <SlugField
-            initialSlug={story?.slug}
-            allowAutoGenerate={!contentId}
-          />
-          <SynopsisField
-            contentLabel={contentLabel}
-            initialSynopsis={story?.synopsis ?? ''}
-          />
+          <SlugField initialSlug={story?.slug} allowAutoGenerate={!contentId} />
+          <SynopsisField contentLabel={contentLabel} initialSynopsis={story?.synopsis ?? ''} />
         </StoryMetadataFields>
 
         <StoryGenreFields
@@ -180,10 +164,7 @@ export function ContentEditor({
       </section>
 
       <aside className="readji-surface rounded-2xl p-5 md:p-6">
-        <CoverImageUpload
-          initialCoverUrl={story?.cover_url}
-          showRemoveButton={!contentId}
-        />
+        <CoverImageUpload initialCoverUrl={story?.cover_url} showRemoveButton={!contentId} />
         {actions}
       </aside>
     </>
@@ -201,9 +182,7 @@ export function ContentEditor({
               </Link>
             </Button>
             {!contentId && (
-              <h1 className="mt-3 text-2xl font-bold tracking-[-0.025em] md:text-3xl">
-                สร้าง{contentLabel}ใหม่
-              </h1>
+              <h1 className="mt-3 text-2xl font-bold tracking-[-0.025em] md:text-3xl">สร้าง{contentLabel}ใหม่</h1>
             )}
           </div>
 

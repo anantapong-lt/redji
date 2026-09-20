@@ -101,7 +101,7 @@ export function getPublicContentChapters(
   slug: string,
   page = 1,
   limit = 25,
-  sort: PublicChapterSort = 'latest',
+  sort: PublicChapterSort = 'chapter_desc',
   accessToken?: string | null,
   cookieHeader?: string,
 ): Promise<PublicChaptersResponse> {

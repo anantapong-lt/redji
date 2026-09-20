@@ -1,28 +1,13 @@
 'use client'
 
-import {
-  use,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type FormEvent,
-} from 'react'
+import { use, useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import Link from 'next/link'
 import { ChapterImport } from './chapter-import'
 import { useRouter } from 'next/navigation'
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  ArrowLeftIcon,
-  ImagePlusIcon,
-  LoaderCircleIcon,
-  Trash2Icon,
-  XIcon,
-} from 'lucide-react'
+import { ArrowLeftIcon, ImagePlusIcon, LoaderCircleIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
 import { RichTextEditor } from '@/components/common/rich-text-editor'
@@ -31,30 +16,22 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StoryType } from '@/constants/story.constant'
 import {
   createWriterChapter,
   getWriterChapter,
+  getWriterChapters,
   getWriterContent,
   updateWriterChapter,
 } from '@/controllers/writer.controller'
-import type {
-  ChapterStatus,
-  WriterChapterDetail,
-} from '@/interface/writer-chapter.interface'
+import type { ChapterStatus, WriterChapterDetail } from '@/interface/writer-chapter.interface'
 
 const chapterStatusOptions: { value: ChapterStatus; label: string }[] = [
   { value: 'draft', label: 'ฉบับร่าง' },
   { value: 'scheduled', label: 'ตั้งเวลาเผยแพร่' },
-  { value: 'published', label: 'เผยแพร่แล้ว' },
+  { value: 'published', label: 'เผยแพร่' },
   { value: 'hidden', label: 'ซ่อน' },
 ]
 
@@ -187,7 +164,8 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [storyType, setStoryType] = useState<StoryType | null>(null)
   const [chapter, setChapter] = useState<WriterChapterDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [chapterStatus, setChapterStatus] = useState<ChapterStatus>('draft')
+  const [chapterStatus, setChapterStatus] = useState<ChapterStatus>('published')
+  const [chapterNumber, setChapterNumber] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [images, setImages] = useState<ChapterImage[]>([])
   const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set())
@@ -198,12 +176,10 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
   const [isImportBusy, setIsImportBusy] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const chaptersHref = `/writer/content/${id}/chapters`
-  const imageSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  )
+  const imageSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const handleChapterStatusChange = useCallback((value: string) => {
     const nextStatus = value as ChapterStatus
-    setChapterStatus((current) => current === nextStatus ? current : nextStatus)
+    setChapterStatus((current) => (current === nextStatus ? current : nextStatus))
   }, [])
 
   useEffect(() => {
@@ -220,19 +196,26 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     void Promise.all([
       getWriterContent(id, accessToken),
       chapterId ? getWriterChapter(id, chapterId, accessToken) : Promise.resolve(null),
+      chapterId ? Promise.resolve(null) : getWriterChapters(id, '', 1, 1, accessToken),
     ])
-      .then(([{ story }, chapterResponse]) => {
+      .then(([{ story }, chapterResponse, chaptersResponse]) => {
         if (!cancelled) {
           setStoryType(story.type)
           if (chapterResponse) {
             setChapter(chapterResponse.chapter)
+            setChapterNumber(chapterResponse.chapter.chapter_number)
             setChapterStatus(chapterResponse.chapter.status)
             setScheduledAt(toLocalDateTime(chapterResponse.chapter.published_at))
-            setImages(chapterResponse.chapter.pages.map((page) => ({
-              id: page.id,
-              pageId: page.id,
-              previewUrl: page.image_url,
-            })))
+            setImages(
+              chapterResponse.chapter.pages.map((page) => ({
+                id: page.id,
+                pageId: page.id,
+                previewUrl: page.image_url,
+              })),
+            )
+          } else {
+            const latestChapterNumber = Number(chaptersResponse?.chapters[0]?.chapter_number ?? 0)
+            setChapterNumber(String(Number((latestChapterNumber + 1).toFixed(1))))
           }
         }
       })
@@ -251,11 +234,14 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
     imagesRef.current = images
   }, [images])
 
-  useEffect(() => () => {
-    for (const image of imagesRef.current) {
-      if (image.file) URL.revokeObjectURL(image.previewUrl)
-    }
-  }, [])
+  useEffect(
+    () => () => {
+      for (const image of imagesRef.current) {
+        if (image.file) URL.revokeObjectURL(image.previewUrl)
+      }
+    },
+    [],
+  )
 
   const addImages = (files: File[]) => {
     const imageFiles = files.filter((file) => file.type.startsWith('image/'))
@@ -340,10 +326,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
         if (image.file) body.append('images', image.file)
       }
       if (chapterId) {
-        body.set(
-          'retained_page_ids',
-          JSON.stringify(images.flatMap((image) => image.pageId ? [image.pageId] : [])),
-        )
+        body.set('retained_page_ids', JSON.stringify(images.flatMap((image) => (image.pageId ? [image.pageId] : []))))
       }
     }
 
@@ -369,9 +352,8 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
       toast.success(chapterId ? 'แก้ไขตอนเรียบร้อยแล้ว' : 'สร้างตอนเรียบร้อยแล้ว')
       router.push(chaptersHref)
     } catch (error) {
-      const message = error instanceof Error
-        ? error.message
-        : chapterId ? 'ไม่สามารถแก้ไขตอนได้' : 'ไม่สามารถสร้างตอนได้'
+      const message =
+        error instanceof Error ? error.message : chapterId ? 'ไม่สามารถแก้ไขตอนได้' : 'ไม่สามารถสร้างตอนได้'
       setSubmitError(message)
       toast.error(message)
     } finally {
@@ -433,16 +415,37 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
 
       {!chapterId && (
         <div className="mt-6 flex gap-2">
-          <Button type="button" disabled={isImportBusy} variant={isImporting ? 'outline' : 'default'} onClick={() => setIsImporting(false)}>สร้างทีละตอน</Button>
-          <Button type="button" disabled={isImportBusy} variant={isImporting ? 'default' : 'outline'} onClick={() => setIsImporting(true)}>อัปโหลด ZIP หลายตอน</Button>
+          <Button
+            type="button"
+            disabled={isImportBusy}
+            variant={isImporting ? 'outline' : 'default'}
+            onClick={() => setIsImporting(false)}
+          >
+            สร้างทีละตอน
+          </Button>
+          <Button
+            type="button"
+            disabled={isImportBusy}
+            variant={isImporting ? 'default' : 'outline'}
+            onClick={() => setIsImporting(true)}
+          >
+            อัปโหลด ZIP หลายตอน
+          </Button>
         </div>
       )}
-      {isImporting && <ChapterImport contentId={id} isManga={isCartoon} onCancel={() => setIsImporting(false)} onBusyChange={setIsImportBusy} />}
+      {isImporting && (
+        <ChapterImport
+          contentId={id}
+          isManga={isCartoon}
+          onCancel={() => setIsImporting(false)}
+          onBusyChange={setIsImportBusy}
+        />
+      )}
       <form onSubmit={handleSubmit} className={`mt-6 space-y-5 ${isImporting ? 'hidden' : ''}`}>
         <section className="readji-surface grid gap-5 rounded-2xl p-5 md:grid-cols-2 md:p-6">
           <div className="space-y-2">
             <Label htmlFor="chapter-title" className="text-sm font-semibold">
-              ชื่อตอน <span className="text-destructive">*</span>
+              ชื่อตอน
             </Label>
             <Input
               id="chapter-title"
@@ -450,7 +453,6 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               defaultValue={chapter?.title ?? ''}
               placeholder="กรอกชื่อตอน"
               maxLength={255}
-              required
               className="h-11 rounded-xl px-3"
             />
           </div>
@@ -462,7 +464,8 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
             <Input
               id="chapter-number"
               name="chapter_number"
-              defaultValue={chapter?.chapter_number ?? ''}
+              value={chapterNumber}
+              onChange={(event) => setChapterNumber(event.target.value)}
               type="number"
               min={0}
               step="0.1"
@@ -493,11 +496,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
             <Label htmlFor="chapter-status" className="text-sm font-semibold">
               สถานะ <span className="text-destructive">*</span>
             </Label>
-            <Select
-              name="status"
-              value={chapterStatus}
-              onValueChange={handleChapterStatusChange}
-            >
+            <Select name="status" value={chapterStatus} onValueChange={handleChapterStatusChange}>
               <SelectTrigger id="chapter-status" className="h-11! w-full rounded-xl px-3">
                 <SelectValue placeholder="เลือกสถานะ" />
               </SelectTrigger>
@@ -516,13 +515,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               <Label htmlFor="chapter-published-at" className="text-sm font-semibold">
                 วันและเวลาเผยแพร่ <span className="text-destructive">*</span>
               </Label>
-              <input
-                id="chapter-published-at"
-                name="published_at"
-                type="hidden"
-                value={scheduledAt}
-                required
-              />
+              <input id="chapter-published-at" name="published_at" type="hidden" value={scheduledAt} required />
               <DateTimePicker
                 value={scheduledAt}
                 onChange={setScheduledAt}
@@ -539,17 +532,28 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               <Label className="text-sm font-semibold">
                 รูปภาพ ({images.length} รูป) <span className="text-destructive">*</span>
               </Label>
-              {images.length > 0 && (
-                isSelectingImages ? (
+              {images.length > 0 &&
+                (isSelectingImages ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">เลือกแล้ว {selectedImageIds.size} รูป</span>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => {
-                      setSelectedImageIds(new Set())
-                      setIsSelectingImages(false)
-                    }}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedImageIds(new Set())
+                        setIsSelectingImages(false)
+                      }}
+                    >
                       ยกเลิก
                     </Button>
-                    <Button type="button" variant="destructive" size="sm" disabled={selectedImageIds.size === 0} onClick={removeSelectedImages}>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={selectedImageIds.size === 0}
+                      onClick={removeSelectedImages}
+                    >
                       <Trash2Icon />
                       ลบที่เลือก
                     </Button>
@@ -559,8 +563,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
                     <Trash2Icon />
                     เลือกลบ
                   </Button>
-                )
-              )}
+                ))}
             </div>
 
             <button
@@ -571,9 +574,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               onDragOver={(event) => event.preventDefault()}
               onDrop={handleDrop}
               className={`flex min-h-36 w-full flex-col items-center justify-center rounded-xl border border-dashed px-5 py-8 text-center transition-colors ${
-                isDragging
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary hover:bg-primary/5'
+                isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary hover:bg-primary/5'
               }`}
             >
               <ImagePlusIcon className="size-9 text-muted-foreground" strokeWidth={1.8} />
@@ -631,10 +632,7 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
               <Label htmlFor="chapter-content" className="text-sm font-semibold">
                 เนื้อหา <span className="text-destructive">*</span>
               </Label>
-              <RichTextEditor
-                id="chapter-content"
-                initialContent={chapter?.content ?? ''}
-              />
+              <RichTextEditor id="chapter-content" initialContent={chapter?.content ?? ''} />
             </div>
           </section>
         )}
@@ -648,15 +646,9 @@ export default function CreateChapterPage({ params }: CreateChapterPageProps) {
           <Button asChild type="button" variant="outline" className="h-11 rounded-xl px-5">
             <Link href={chaptersHref}>ยกเลิก</Link>
           </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="h-11 rounded-xl px-5 font-bold"
-          >
+          <Button type="submit" disabled={isSubmitting} className="h-11 rounded-xl px-5 font-bold">
             {isSubmitting && <LoaderCircleIcon className="animate-spin" />}
-            {isSubmitting
-              ? chapterId ? 'กำลังบันทึก...' : 'กำลังสร้าง...'
-              : chapterId ? 'บันทึก' : 'สร้าง'}
+            {isSubmitting ? (chapterId ? 'กำลังบันทึก...' : 'กำลังสร้าง...') : chapterId ? 'บันทึก' : 'สร้าง'}
           </Button>
         </div>
       </form>

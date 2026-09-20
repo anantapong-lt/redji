@@ -81,7 +81,7 @@ export function PublicChapterList({
   const { accessToken, status } = useAuth()
   const [chapters, setChapters] = useState(initialData.chapters)
   const [pagination, setPagination] = useState(initialData.pagination)
-  const [sort, setSort] = useState<PublicChapterSort>('latest')
+  const [sort, setSort] = useState<PublicChapterSort>('chapter_desc')
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [longPressChapterId, setLongPressChapterId] = useState<string | null>(null)
   const [isLongPressProgressActive, setIsLongPressProgressActive] = useState(false)
@@ -376,7 +376,7 @@ export function PublicChapterList({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold text-foreground transition-colors group-hover:text-primary group-data-[selected=true]:text-primary-foreground sm:group-data-[selected=true]:text-foreground">
-                    {chapter.title}
+                    {chapter.title.trim() || `ตอนที่: ${formatChapterNumber(chapter.chapter_number)}`}
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground group-data-[selected=true]:text-primary-foreground/75 sm:group-data-[selected=true]:text-muted-foreground">
                     {formatRelativeDate(chapter.published_at, renderedAt)}

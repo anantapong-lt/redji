@@ -368,7 +368,7 @@ export async function getPublicContentChapters(
       page ?? 1,
       limit ?? 25,
       currentUserId,
-      sort ?? 'latest',
+      sort ?? 'chapter_desc',
       hasAdminAccess,
     )
 
@@ -415,7 +415,7 @@ export async function getPublicContent(
       1,
       25,
       currentUserId,
-      'latest',
+      'chapter_desc',
       hasAdminAccess,
     )
     if (!chapters) {

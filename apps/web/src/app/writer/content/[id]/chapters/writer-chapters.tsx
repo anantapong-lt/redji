@@ -12,31 +12,15 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   bulkUpdateWriterChapterPrice,
   bulkUpdateWriterChapterStatus,
   getWriterChapters,
 } from '@/controllers/writer.controller'
-import type {
-  ChapterStatus,
-  WriterChaptersResponse,
-} from '@/interface/writer-chapter.interface'
+import type { ChapterStatus, WriterChaptersResponse } from '@/interface/writer-chapter.interface'
 import { formatChapterNumber } from '@/utils/chapter-number.util'
 
 const PAGE_LIMIT = 10
@@ -44,13 +28,14 @@ const PAGE_LIMIT = 10
 const statusOptions: { value: ChapterStatus; label: string }[] = [
   { value: 'draft', label: 'ฉบับร่าง' },
   { value: 'scheduled', label: 'ตั้งเวลาเผยแพร่' },
-  { value: 'published', label: 'เผยแพร่แล้ว' },
+  { value: 'published', label: 'เผยแพร่' },
   { value: 'hidden', label: 'ซ่อน' },
 ]
 
-const statusLabels = Object.fromEntries(
-  statusOptions.map(({ value, label }) => [value, label]),
-) as Record<ChapterStatus, string>
+const statusLabels = Object.fromEntries(statusOptions.map(({ value, label }) => [value, label])) as Record<
+  ChapterStatus,
+  string
+>
 
 function formatDate(value: string | null): string {
   if (!value) return '-'
@@ -108,20 +93,19 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
-  const updateUrl = useCallback((
-    nextSearch: string,
-    nextPage: number,
-    replace = false,
-  ) => {
-    const params = new URLSearchParams()
-    if (nextSearch) params.set('search', nextSearch)
-    if (nextPage > 1) params.set('page', String(nextPage))
-    const query = params.toString()
-    const href = `/writer/content/${contentId}/chapters${query ? `?${query}` : ''}`
+  const updateUrl = useCallback(
+    (nextSearch: string, nextPage: number, replace = false) => {
+      const params = new URLSearchParams()
+      if (nextSearch) params.set('search', nextSearch)
+      if (nextPage > 1) params.set('page', String(nextPage))
+      const query = params.toString()
+      const href = `/writer/content/${contentId}/chapters${query ? `?${query}` : ''}`
 
-    if (replace) router.replace(href)
-    else router.push(href)
-  }, [contentId, router])
+      if (replace) router.replace(href)
+      else router.push(href)
+    },
+    [contentId, router],
+  )
 
   useEffect(() => {
     setSearchInput(search)
@@ -168,8 +152,7 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
 
   const chapters = result?.chapters ?? []
   const pagination = result?.pagination
-  const allVisibleSelected = chapters.length > 0
-    && chapters.every((chapter) => selectedIds.has(chapter.id))
+  const allVisibleSelected = chapters.length > 0 && chapters.every((chapter) => selectedIds.has(chapter.id))
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -293,7 +276,9 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
               />
             </div>
 
-            <div className={`grid min-w-0 items-center gap-2 ${bulkStatus === 'scheduled' ? '@[48rem]:grid-cols-2' : ''}`}>
+            <div
+              className={`grid min-w-0 items-center gap-2 ${bulkStatus === 'scheduled' ? '@[48rem]:grid-cols-2' : ''}`}
+            >
               <Select
                 value={bulkStatus}
                 disabled={isUpdating}
@@ -323,7 +308,12 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
           <div className="flex justify-end">
             <Button
               type="button"
-              disabled={isUpdating || (bulkPrice.trim() === '' && !bulkStatus) || (bulkPrice.trim() !== '' && (!Number.isFinite(Number(bulkPrice)) || Number(bulkPrice) < 0)) || (bulkStatus === 'scheduled' && !scheduledAt)}
+              disabled={
+                isUpdating ||
+                (bulkPrice.trim() === '' && !bulkStatus) ||
+                (bulkPrice.trim() !== '' && (!Number.isFinite(Number(bulkPrice)) || Number(bulkPrice) < 0)) ||
+                (bulkStatus === 'scheduled' && !scheduledAt)
+              }
               onClick={handleBulkSave}
               className="h-10 rounded-xl"
             >
@@ -374,68 +364,73 @@ export function WriterChapters({ contentId }: WriterChaptersProps) {
               </TableRow>
             )}
 
-            {!isLoading && !loadError && chapters.map((chapter) => (
-              <TableRow key={chapter.id} data-state={selectedIds.has(chapter.id) ? 'selected' : undefined}>
-                <TableCell className="px-4 text-center">
-                  <Checkbox
-                    checked={selectedIds.has(chapter.id)}
-                    onCheckedChange={() => toggleChapter(chapter.id)}
-                    aria-label={`เลือกตอนที่ ${chapter.chapter_number}`}
-                    className="mx-auto"
-                  />
-                </TableCell>
-                <TableCell className="px-4 font-semibold tabular-nums">
-                  <Link
-                    href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}
-                    className="hover:text-primary hover:underline"
-                  >
-                    {formatChapterNumber(chapter.chapter_number)}
-                  </Link>
-                </TableCell>
-                <TableCell className="max-w-72 px-4 whitespace-normal">
-                  <Link
-                    href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}
-                    className="hover:text-primary hover:underline"
-                  >
-                    {chapter.title}
-                  </Link>
-                  <Link
-                    href={`/content/${encodeURIComponent(chapter.story_slug)}/${encodeURIComponent(String(Number(chapter.chapter_number)))}`}
-                    className="mt-1 block w-fit text-xs text-muted-foreground hover:text-primary hover:underline"
-                    target='_blank'
-                  >
-                    {`content/${chapter.story_slug}/${String(Number(chapter.chapter_number))}`}
-                  </Link>
-                </TableCell>
-                <TableCell className="px-4 text-right tabular-nums">
-                  {chapter.is_free ? (
-                    <span className="font-semibold text-primary">ฟรี</span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      <GiTwoCoins className="size-4 text-orange-500" />
-                      {formatPrice(chapter.price)}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="px-4 text-right tabular-nums">
-                  {new Intl.NumberFormat('th-TH').format(Number(chapter.sales_count))}
-                </TableCell>
-                <TableCell className="px-4">
-                  <Badge variant={statusVariant(chapter.status)}>
-                    {statusLabels[chapter.status]}
-                  </Badge>
-                </TableCell>
-                <TableCell className="px-4">{formatDate(chapter.published_at)}</TableCell>
-                <TableCell className="px-4">{formatDate(chapter.created_at)}</TableCell>
-                <TableCell className="px-4 text-right">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}>
-                      จัดการ
+            {!isLoading &&
+              !loadError &&
+              chapters.map((chapter) => (
+                <TableRow key={chapter.id} data-state={selectedIds.has(chapter.id) ? 'selected' : undefined}>
+                  <TableCell className="px-4 text-center">
+                    <Checkbox
+                      checked={selectedIds.has(chapter.id)}
+                      onCheckedChange={() => toggleChapter(chapter.id)}
+                      aria-label={`เลือกตอนที่ ${chapter.chapter_number}`}
+                      className="mx-auto"
+                    />
+                  </TableCell>
+                  <TableCell className="px-4 font-semibold tabular-nums">
+                    <Link
+                      href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {formatChapterNumber(chapter.chapter_number)}
                     </Link>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell className="max-w-72 px-4 whitespace-normal">
+                    <Link
+                      href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {chapter.title}
+                    </Link>
+                    <Link
+                      href={`/content/${encodeURIComponent(chapter.story_slug)}/${encodeURIComponent(String(Number(chapter.chapter_number)))}`}
+                      className="mt-1 block w-fit text-xs text-muted-foreground hover:text-primary hover:underline"
+                      target="_blank"
+                    >
+                      {`content/${chapter.story_slug}/${String(Number(chapter.chapter_number))}`}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="px-4 text-right tabular-nums">
+                    {chapter.is_free ? (
+                      <span className="font-semibold text-primary">ฟรี</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <GiTwoCoins className="size-4 text-orange-500" />
+                        {formatPrice(chapter.price)}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 text-right tabular-nums">
+                    {new Intl.NumberFormat('th-TH').format(Number(chapter.sales_count))}
+                  </TableCell>
+                  <TableCell className="px-4">
+                    <Badge
+                      variant={statusVariant(chapter.status)}
+                      className={chapter.status === 'published'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : undefined}
+                    >
+                      {statusLabels[chapter.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4">{formatDate(chapter.published_at)}</TableCell>
+                  <TableCell className="px-4">{formatDate(chapter.created_at)}</TableCell>
+                  <TableCell className="px-4 text-right">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/writer/content/${contentId}/chapters/${chapter.id}/edit`}>จัดการ</Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
 

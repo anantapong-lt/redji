@@ -4,10 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Image as ImageIcon, UploadCloud, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  STORY_COVER_ACCEPTED_TYPES,
-  STORY_COVER_MAX_FILE_SIZE,
-} from '@/constants/story.constant'
+import { STORY_COVER_ACCEPTED_TYPES, STORY_COVER_MAX_FILE_SIZE } from '@/constants/story.constant'
 import { useCreateStoryForm } from './create-story-form'
 
 interface CoverImageUploadProps {
@@ -15,10 +12,7 @@ interface CoverImageUploadProps {
   showRemoveButton?: boolean
 }
 
-export function CoverImageUpload({
-  initialCoverUrl = null,
-  showRemoveButton = true,
-}: CoverImageUploadProps) {
+export function CoverImageUpload({ initialCoverUrl = null, showRemoveButton = true }: CoverImageUploadProps) {
   const { clearFieldError, errors } = useCreateStoryForm()
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(initialCoverUrl)
@@ -58,9 +52,7 @@ export function CoverImageUpload({
     setError(null)
     clearFieldError('cover')
 
-    if (!STORY_COVER_ACCEPTED_TYPES.includes(
-      file.type as (typeof STORY_COVER_ACCEPTED_TYPES)[number],
-    )) {
+    if (!STORY_COVER_ACCEPTED_TYPES.includes(file.type as (typeof STORY_COVER_ACCEPTED_TYPES)[number])) {
       rejectSelection('รองรับเฉพาะไฟล์ JPG, PNG และ WebP')
       return
     }
@@ -78,8 +70,10 @@ export function CoverImageUpload({
   }
 
   return (
-    <div className="space-y-3" data-field="cover">
-      <Label htmlFor="cover-file" className="text-sm font-semibold">รูปปก</Label>
+    <div className="space-y-3 " data-field="cover">
+      <Label htmlFor="cover-file" className="text-sm font-semibold">
+        รูปปก
+      </Label>
 
       {previewUrl ? (
         <div className="rounded-2xl border border-border p-3">
@@ -97,22 +91,20 @@ export function CoverImageUpload({
             </span>
           </button>
 
-          <div className="mt-3 min-w-0">
-            <p className="truncate text-sm font-semibold">
-              {fileName || 'รูปปกปัจจุบัน'}
-            </p>
-            <p className={`mt-1 text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {error ?? (fileName ? 'พร้อมส่งพร้อมข้อมูลเมื่อกดบันทึก' : 'รูปปกที่ใช้งานอยู่')}
-            </p>
-            <div className={`mt-3 grid gap-2 ${showRemoveButton ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="cursor-pointer rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
-              >
-                เปลี่ยนรูป
-              </button>
-              {showRemoveButton && (
+          {showRemoveButton && (
+            <div className="mt-3 min-w-0">
+              <p className="truncate text-sm font-semibold">{fileName || 'รูปปกปัจจุบัน'}</p>
+              <p className={`mt-1 text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {error ?? (fileName ? 'พร้อมส่งพร้อมข้อมูลเมื่อกดบันทึก' : 'รูปปกที่ใช้งานอยู่')}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="cursor-pointer rounded-lg border border-border px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
+                >
+                  เปลี่ยนรูป
+                </button>
                 <button
                   type="button"
                   onClick={clearSelection}
@@ -121,9 +113,9 @@ export function CoverImageUpload({
                   <X className="size-3.5" strokeWidth={2} />
                   นำรูปออก
                 </button>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
         <button
@@ -140,9 +132,7 @@ export function CoverImageUpload({
         </button>
       )}
 
-      {previewUrl && (
-        <p className="text-xs text-muted-foreground">ขนาดแนะนำ 1200 × 1600 px</p>
-      )}
+      {previewUrl && showRemoveButton && <p className="text-xs text-muted-foreground">ขนาดแนะนำ 1200 × 1600 px</p>}
 
       <Input
         id="cover-file"
@@ -157,9 +147,7 @@ export function CoverImageUpload({
         aria-describedby={errors.cover ? 'cover-error' : undefined}
       />
 
-      {isExistingCoverRemoved && (
-        <input type="hidden" name="remove_cover" value="true" />
-      )}
+      {isExistingCoverRemoved && <input type="hidden" name="remove_cover" value="true" />}
 
       {error && !previewUrl && (
         <p className="flex items-center gap-1.5 text-xs text-destructive">
