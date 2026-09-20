@@ -54,7 +54,7 @@ export function StoryCard({
             src={image}
             alt={`ปกเรื่อง ${title}`}
             fill
-            sizes="(min-width: 1536px) 147px, (min-width: 1024px) 180px, (min-width: 768px) calc((100vw - 86px) / 3), calc((100vw - 54px) / 3)"
+            sizes="(min-width: 1536px) 147px, (min-width: 1280px) 125px, (min-width: 1024px) calc((100vw - 144px) / 6), (min-width: 768px) calc((100vw - 112px) / 4), calc((100vw - 48px) / 2.5)"
             quality={60}
             priority={eager}
             loading={eager ? 'eager' : 'lazy'}

@@ -29,7 +29,7 @@ export function PopularRankingSection({
   const [isDesktop, setIsDesktop] = useState(false)
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    const mediaQuery = window.matchMedia('(min-width: 1280px)')
     const updateViewport = () => setIsDesktop(mediaQuery.matches)
 
     updateViewport()

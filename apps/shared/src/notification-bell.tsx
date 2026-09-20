@@ -1,8 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { Bell, Banknote, CheckCircle2, CircleX, LoaderCircle, X } from 'lucide-react'
 import { Dialog as DialogPrimitive, Popover as PopoverPrimitive } from 'radix-ui'
+
+type PopoverMeasurable = NonNullable<
+  NonNullable<ComponentProps<typeof PopoverPrimitive.Anchor>['virtualRef']>['current']
+>
 
 export type NotificationType =
   | 'withdrawal_requested'
@@ -114,7 +125,7 @@ export function NotificationBell({
   onNotificationClick?: (notification: NotificationItem) => void
   triggerClassName?: string
   popoverClassName?: string
-  anchorElement?: HTMLElement | null
+  anchorElement?: PopoverMeasurable | null
   portalContainer?: HTMLElement | null
   side?: 'top' | 'right' | 'bottom' | 'left'
   align?: 'start' | 'center' | 'end'

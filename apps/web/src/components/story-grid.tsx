@@ -99,7 +99,7 @@ export function StoryGrid({
         onScroll={mobileLayout === 'carousel' ? handleScroll : undefined}
         className={mobileLayout === 'grid'
           ? `mx-auto grid grid-cols-3 gap-x-2 gap-y-5 pb-2 lg:max-w-7xl lg:gap-x-4 lg:gap-y-7 lg:pb-0 ${resultGridColumnsClass}`
-          : 'mx-auto flex snap-x snap-mandatory overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:max-w-7xl lg:grid-cols-5 lg:gap-x-4 lg:gap-y-7 lg:overflow-visible lg:pb-0 2xl:grid-cols-6'}
+          : 'mx-auto flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-4 md:gap-x-4 md:gap-y-7 md:overflow-visible md:pb-0 lg:grid-cols-6 xl:max-w-7xl xl:grid-cols-4 2xl:grid-cols-6'}
         style={mobileLayout === 'grid' && stories.length !== 1
           ? { '--result-grid-columns': resultGridColumns } as CSSProperties
           : undefined}
@@ -107,7 +107,7 @@ export function StoryGrid({
         {pages.map((page, pageIndex) => (
           <div
             key={pageIndex}
-            className={mobileLayout === 'grid' ? 'contents' : `grid w-full shrink-0 snap-start snap-always grid-cols-3 gap-x-2 gap-y-5 lg:contents ${
+            className={mobileLayout === 'grid' ? 'contents' : `grid w-[calc(120%_-_0.2rem)] shrink-0 snap-start snap-always grid-cols-3 gap-x-2 gap-y-5 md:contents ${
               page.length > 3 ? 'grid-rows-2' : 'grid-rows-1'
             }`}
           >
@@ -141,7 +141,9 @@ export function StoryGrid({
           type="button"
           disabled={isLoadingMore}
           onClick={() => void handleLoadMoreClick()}
-          className="mx-auto mt-8 hidden cursor-pointer rounded-full border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 disabled:cursor-wait disabled:opacity-60 lg:block"
+          className={`mx-auto mt-8 hidden cursor-pointer rounded-full border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-500 hover:text-zinc-950 disabled:cursor-wait disabled:opacity-60 ${
+            mobileLayout === 'grid' ? 'lg:block' : 'md:block'
+          }`}
         >
           {isLoadingMore ? 'กำลังโหลด...' : 'แสดงเพิ่มเติม'}
         </button>
