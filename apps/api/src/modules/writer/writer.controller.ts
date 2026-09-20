@@ -13,6 +13,7 @@ import {
 import {
   createWriterContent,
   CreateWriterContentError,
+  deleteWriterContent,
   getMyContents,
   getWriterContent,
   updateWriterContent,
@@ -109,6 +110,20 @@ export async function createWriterContentResponse(
 
     console.error('Unable to create writer content', error)
     return status(500, { message: 'ไม่สามารถสร้างเนื้อหาได้ กรุณาลองใหม่อีกครั้ง' })
+  }
+}
+
+export async function deleteWriterContentResponse(userId: string, contentId: string) {
+  try {
+    await deleteWriterContent(userId, contentId)
+    return { success: true }
+  } catch (error) {
+    if (error instanceof CreateWriterContentError) {
+      return status(error.statusCode, { message: error.message })
+    }
+
+    console.error('Unable to delete writer content', error)
+    return status(500, { message: 'ไม่สามารถลบผลงานได้ กรุณาลองใหม่อีกครั้ง' })
   }
 }
 

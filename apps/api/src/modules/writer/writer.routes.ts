@@ -6,6 +6,7 @@ import {
   getWriterStatsResponse,
   getWriterContentsResponse,
   createWriterContentResponse,
+  deleteWriterContentResponse,
   getWriterContentResponse,
   createWriterChapterResponse,
   getWriterChapterResponse,
@@ -91,6 +92,14 @@ export const writerRoutes = new Elysia({ prefix: '/writer' })
     ({ currentUser, params }) => getWriterContentResponse(currentUser, params.id),
     {
       auth: [USER_ROLE.WRITER, USER_ROLE.SUPER_ADMIN],
+      params: writerContentParamsSchema,
+    },
+  )
+  .delete(
+    '/contents/:id',
+    ({ currentUser, params }) => deleteWriterContentResponse(currentUser.id, params.id),
+    {
+      auth: USER_ROLE.WRITER,
       params: writerContentParamsSchema,
     },
   )

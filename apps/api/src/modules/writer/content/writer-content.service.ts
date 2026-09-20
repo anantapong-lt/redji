@@ -67,40 +67,28 @@ export async function getWriterContentsByType(
         stories.id, stories.title, stories.slug, stories.cover_url,
         stories.cover_blur_data_url, stories.type,
         stories.status, stories.moderation_status, stories.total_views::TEXT,
-        COUNT(chapters.id)::TEXT AS chapter_count,
+        (SELECT COUNT(*)::TEXT FROM chapters WHERE chapters.story_id = stories.id) AS chapter_count,
         (
-          SELECT COUNT(*)
+          SELECT ROUND(COALESCE(SUM(chapter_purchases.price), 0), 2)::TEXT
           FROM chapter_purchases
           INNER JOIN chapters AS purchased_chapters
             ON purchased_chapters.id = chapter_purchases.chapter_id
           WHERE purchased_chapters.story_id = stories.id
-        )::TEXT AS sales_count,
-        CASE
-          WHEN latest_chapter.id IS NULL THEN NULL
-          ELSE json_build_object(
-            'chapter_number', latest_chapter.chapter_number::TEXT,
-            'title', latest_chapter.title,
-            'status', latest_chapter.status,
-            'published_at', latest_chapter.published_at
-          )
-        END AS latest_chapter,
+        ) AS sales_total,
+        json_build_object('username', users.username, 'display_name', users.display_name) AS author,
+        json_build_object('id', primary_genre.id, 'name', primary_genre.name) AS primary_genre,
+        CASE WHEN secondary_genre.id IS NULL THEN NULL
+          ELSE json_build_object('id', secondary_genre.id, 'name', secondary_genre.name)
+        END AS secondary_genre,
         stories.created_at, stories.updated_at
       FROM stories
-      LEFT JOIN chapters ON chapters.story_id = stories.id
-      LEFT JOIN LATERAL (
-        SELECT chapters.id, chapters.chapter_number, chapters.title,
-          chapters.status, chapters.published_at
-        FROM chapters
-        WHERE chapters.story_id = stories.id
-        ORDER BY chapters.chapter_number DESC, chapters.id DESC
-        LIMIT 1
-      ) AS latest_chapter ON TRUE
+      INNER JOIN users ON users.id = stories.creator_user_id
+      INNER JOIN genres AS primary_genre ON primary_genre.id = stories.primary_genre_id
+      LEFT JOIN genres AS secondary_genre ON secondary_genre.id = stories.secondary_genre_id
       WHERE stories.creator_user_id = ${creatorUserId}
         AND stories.type = ${storyType}
         AND stories.deleted_at IS NULL
         AND stories.moderation_status <> ${MODERATION_STATUS.SUSPENDED}
-      GROUP BY stories.id, latest_chapter.id, latest_chapter.chapter_number,
-        latest_chapter.title, latest_chapter.status, latest_chapter.published_at
       ORDER BY stories.updated_at DESC, stories.id DESC
       LIMIT ${input.limit}
       OFFSET ${offset}
@@ -164,4 +152,20 @@ export async function updateWriterContentRecord(
     RETURNING id, type, slug, cover_url, cover_blur_data_url
   `
   return story
+}
+
+export async function softDeleteWriterContent(
+  creatorUserId: string,
+  contentId: string,
+): Promise<boolean> {
+  const [story] = await db<Array<{ id: string }>>`
+    UPDATE stories
+    SET deleted_at = NOW(), updated_at = NOW()
+    WHERE id = ${contentId}
+      AND creator_user_id = ${creatorUserId}
+      AND deleted_at IS NULL
+      AND moderation_status <> ${MODERATION_STATUS.LOCKED}
+    RETURNING id
+  `
+  return Boolean(story)
 }

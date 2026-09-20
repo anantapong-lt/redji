@@ -17,6 +17,7 @@ import {
   findWriterContent,
   getWriterContentsByType,
   insertWriterContent,
+  softDeleteWriterContent,
   updateWriterContentRecord,
 } from './writer-content.service'
 
@@ -97,6 +98,14 @@ export function getMyContents(
 ): Promise<MyContentsResult> {
   const storyType = input.tab === 'cartoon' ? STORY_TYPE.MANGA : STORY_TYPE.NOVEL
   return getWriterContentsByType(creatorUserId, storyType, input)
+}
+
+export async function deleteWriterContent(
+  creatorUserId: string,
+  contentId: string,
+): Promise<void> {
+  const deleted = await softDeleteWriterContent(creatorUserId, contentId)
+  if (!deleted) throw new CreateWriterContentError('ไม่พบผลงานที่ต้องการลบ หรือผลงานถูกล็อคโดยระบบ', 404)
 }
 
 export async function createWriterContent(

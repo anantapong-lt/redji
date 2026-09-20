@@ -175,6 +175,16 @@ export function getWriterContent(
   })
 }
 
+export function deleteWriterContent(
+  contentId: string,
+  accessToken: string,
+): Promise<{ success: boolean }> {
+  return apiRequest(`/writer/contents/${contentId}`, {
+    method: 'DELETE',
+    accessToken,
+  })
+}
+
 export function updateWriterContent(
   contentId: string,
   body: FormData,

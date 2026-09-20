@@ -7,11 +7,13 @@ import { useAuth } from '@/components/auth/auth-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -23,15 +25,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StoryStatus, StoryType } from '@/constants/story.constant'
-import { getMyContents } from '@/controllers/writer.controller'
+import { deleteWriterContent, getMyContents } from '@/controllers/writer.controller'
 import type {
   WriterContent,
   WriterContentTab,
   WriterContentsResponse,
 } from '@/interface/writer-content.interface'
-import { formatChapterNumber } from '@/utils/chapter-number.util'
 import { CreateContentDialog } from './create-content-dialog'
-import { ChevronDownIcon, ImageIcon, LockKeyholeIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { BookOpenIcon, LockKeyholeIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 
 const PAGE_LIMIT = 10
@@ -65,22 +66,19 @@ function formatNumber(value: string): string {
   return new Intl.NumberFormat('th-TH').format(Number(value))
 }
 
+function formatCoin(value: string): string {
+  return new Intl.NumberFormat('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value))
+}
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('th-TH', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(new Date(value))
-}
-
-function LatestChapter({ content }: { content: WriterContent }) {
-  if (!content.latest_chapter) return <span className="text-muted-foreground">ยังไม่มีตอน</span>
-
-  return (
-    <span>
-      ตอนที่ {formatChapterNumber(content.latest_chapter.chapter_number)}
-    </span>
-  )
 }
 
 function SystemSuspensionLock({ content }: { content: WriterContent }) {
@@ -111,28 +109,26 @@ function ContentStatusBadge({ content, className }: { content: WriterContent; cl
   )
 }
 
-function ManageContentMenu({ contentId }: { contentId: string }) {
+function ManageContentActions({ contentId, onDelete }: { contentId: string; onDelete: () => void }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="shrink-0">
+    <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+      <Button asChild variant="link" size="sm" className="h-auto p-0 text-amber-600 hover:text-amber-700">
+        <Link href={`/writer/content/${contentId}/content`}>
+          <PencilIcon />
           จัดการ
-          <ChevronDownIcon data-icon="inline-end" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/writer/content/${contentId}/content`}>
-            <PencilIcon />
-            แก้ไข
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-          <Trash2Icon />
-          ลบ
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </Link>
+      </Button>
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="h-auto p-0 text-destructive hover:text-destructive/80"
+        onClick={onDelete}
+      >
+        <Trash2Icon />
+        ลบ
+      </Button>
+    </div>
   )
 }
 
@@ -144,24 +140,16 @@ function LoadingRows({ isVisible }: { isVisible: boolean }) {
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
     >
-      <TableCell className="p-0">
-        <div className="flex px-3 py-2">
-          <Skeleton className="h-12 w-9 rounded-md" />
-        </div>
-      </TableCell>
-      <TableCell className="max-w-72 p-0">
-        <div className="px-3 py-2">
-          <Skeleton className="h-5 w-48 max-w-full" />
-        </div>
-      </TableCell>
+      <TableCell className="px-3 py-2"><Skeleton className="h-14 w-52" /></TableCell>
+      <TableCell className="px-3 py-2"><Skeleton className="h-9 w-28" /></TableCell>
       <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-10" /></TableCell>
       <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-12" /></TableCell>
       <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-10" /></TableCell>
-      <TableCell className="max-w-64 px-3 py-2"><Skeleton className="h-5 w-40 max-w-full" /></TableCell>
       <TableCell className="px-3 py-2"><Skeleton className="h-5 w-16" /></TableCell>
+      <TableCell className="px-3 py-2"><Skeleton className="h-9 w-20" /></TableCell>
       <TableCell className="px-3 py-2"><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
       <TableCell className="px-3 py-2"><Skeleton className="h-5 w-20" /></TableCell>
-      <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-7 w-16 rounded-[min(var(--radius-md),12px)]" /></TableCell>
+      <TableCell className="px-3 py-2 text-right"><Skeleton className="ml-auto h-5 w-28" /></TableCell>
     </TableRow>
   ))
 }
@@ -204,6 +192,9 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
   const [showSkeleton, setShowSkeleton] = useState(true)
   const [showContent, setShowContent] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const [contentToDelete, setContentToDelete] = useState<WriterContent | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -253,6 +244,37 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
 
   const changePage = (nextPage: number) => {
     router.push(`/writer/contents?tab=${activeTab}&page=${nextPage}`)
+  }
+
+  const confirmDelete = async () => {
+    if (!accessToken || !contentToDelete || isDeleting) return
+
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteWriterContent(contentToDelete.id, accessToken)
+      setContentToDelete(null)
+      if ((result?.contents.length ?? 0) <= 1 && page > 1) {
+        changePage(page - 1)
+      } else {
+        setResult((current) => {
+          if (!current) return current
+          const total = Math.max(0, current.pagination.total - 1)
+          return {
+            contents: current.contents.filter((content) => content.id !== contentToDelete.id),
+            pagination: {
+              ...current.pagination,
+              total,
+              totalPages: Math.ceil(total / current.pagination.limit),
+            },
+          }
+        })
+      }
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'ไม่สามารถลบผลงานได้ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const contents = result?.contents ?? []
@@ -340,22 +362,26 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                       ยอดขาย
                     </dt>
                     <dd className="mt-0.5 text-sm font-semibold tabular-nums">
-                      {formatNumber(content.sales_count)}
+                      {formatCoin(content.sales_total)}
                     </dd>
                   </div>
                 </dl>
 
                 <div className="mt-3 space-y-0.5 text-sm">
-                  <p className="text-xs text-muted-foreground">ตอนล่าสุด</p>
-                  <p className="break-words"><LatestChapter content={content} /></p>
+                  <p>{content.primary_genre.name}</p>
+                  {content.secondary_genre && (
+                    <p className="text-xs text-muted-foreground">{content.secondary_genre.name}</p>
+                  )}
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2">
                   <div className="min-w-0 text-xs text-muted-foreground">
-                    <p>{typeLabels[content.type]}</p>
+                    <p>{content.author.display_name} · {typeLabels[content.type]}</p>
                     <p className="mt-0.5">สร้างเมื่อ {formatDate(content.created_at)}</p>
                   </div>
-                  {content.moderation_status !== 'locked' && <ManageContentMenu contentId={content.id} />}
+                  {content.moderation_status !== 'locked' && (
+                    <ManageContentActions contentId={content.id} onDelete={() => setContentToDelete(content)} />
+                  )}
                 </div>
               </article>
                 ))}
@@ -363,20 +389,21 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
             )}
           </div>
 
-          <Table className="hidden min-w-[960px] md:table">
+          <Table className="hidden min-w-[1180px] md:table">
             <TableHeader className="bg-muted/40">
               <TableRow>
-                <TableHead className="w-16 px-3 py-2">ปก</TableHead>
-                <TableHead className="px-3 py-2">ชื่อ</TableHead>
-                <TableHead className="px-3 py-2 text-right">จำนวนตอน</TableHead>
-                <TableHead className="px-3 py-2 text-right">จำนวนเข้าชม</TableHead>
-                <TableHead className="px-3 py-2">
+                <TableHead className="px-3 py-2">ผลงาน</TableHead>
+                <TableHead className="px-3 py-2">ผู้สร้าง</TableHead>
+                <TableHead className="px-3 py-2 text-right">
                   <span className="flex items-center justify-end gap-1">
                     <GiTwoCoins className="size-4 text-orange-500" />
                     ยอดขาย
                   </span>
                 </TableHead>
-                <TableHead className="px-3 py-2">ตอนล่าสุด</TableHead>
+                <TableHead className="px-3 py-2 text-right">จำนวนตอน</TableHead>
+                <TableHead className="px-3 py-2 text-right">ยอดวิว</TableHead>
+                <TableHead className="px-3 py-2">ประเภท</TableHead>
+                <TableHead className="px-3 py-2">หมวดหมู่</TableHead>
                 <TableHead className="px-3 py-2">สถานะ</TableHead>
                 <TableHead className="px-3 py-2">วันที่สร้าง</TableHead>
                 <TableHead className="px-3 py-2 text-right">จัดการ</TableHead>
@@ -389,7 +416,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
                 >
-                  <TableCell colSpan={9} className="h-24 text-center text-destructive">
+                  <TableCell colSpan={10} className="h-24 text-center text-destructive">
                     ไม่สามารถโหลดผลงานได้ กรุณาลองใหม่อีกครั้ง
                   </TableCell>
                 </TableRow>
@@ -399,7 +426,7 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                 <TableRow
                   className={`transition-opacity duration-300 ease-out motion-reduce:transition-none ${contentOpacity}`}
                 >
-                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                     ยังไม่มี{tabLabels[activeTab]}
                   </TableCell>
                 </TableRow>
@@ -412,43 +439,52 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                     content.moderation_status === 'locked' ? 'bg-destructive/10 hover:bg-destructive/15' : ''
                   }`}
                 >
-                  <TableCell className="p-0">
-                    <Link
-                      href={`/writer/content/${content.id}/overview`}
-                      aria-label={`${content.moderation_status === 'locked' ? 'ผลงานถูกล็อค' : 'แก้ไข'} ${content.title}`}
-                      aria-disabled={content.moderation_status === 'locked'}
-                      tabIndex={content.moderation_status === 'locked' ? -1 : undefined}
-                      className={`flex px-3 py-2 ${
-                        content.moderation_status === 'locked' ? 'pointer-events-none cursor-not-allowed opacity-70' : ''
-                      }`}
-                    >
-                      <div className="flex h-12 w-9 items-center justify-center overflow-hidden rounded-md bg-muted">
+                  <TableCell className="px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/writer/content/${content.id}/overview`}
+                        aria-label={`${content.moderation_status === 'locked' ? 'ผลงานถูกล็อค' : 'จัดการ'} ${content.title}`}
+                        aria-disabled={content.moderation_status === 'locked'}
+                        tabIndex={content.moderation_status === 'locked' ? -1 : undefined}
+                        className={`flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted ${
+                          content.moderation_status === 'locked' ? 'pointer-events-none cursor-not-allowed opacity-70' : ''
+                        }`}
+                      >
                         {content.cover_url ? (
                           <img
                             src={content.cover_url}
-                            alt={`ปก ${content.title}`}
+                            alt={`ปกเรื่อง ${content.title}`}
                             className="size-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
-                          <ImageIcon className="size-5 text-muted-foreground" strokeWidth={1.6} />
+                          <BookOpenIcon className="size-6 text-muted-foreground" />
                         )}
+                      </Link>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/writer/content/${content.id}/overview`}
+                          aria-disabled={content.moderation_status === 'locked'}
+                          tabIndex={content.moderation_status === 'locked' ? -1 : undefined}
+                          className={`flex items-center gap-1.5 truncate font-medium transition-colors hover:text-primary ${
+                            content.moderation_status === 'locked' ? 'pointer-events-none cursor-not-allowed opacity-70' : ''
+                          }`}
+                        >
+                          <span className="truncate">{content.title}</span>
+                          <SystemSuspensionLock content={content} />
+                        </Link>
+                        <Link href={`/content/${encodeURIComponent(content.slug)}`} className="text-xs text-primary hover:underline">
+                          /{content.slug}
+                        </Link>
                       </div>
-                    </Link>
+                    </div>
                   </TableCell>
-                  <TableCell className="max-w-72 p-0 font-semibold whitespace-normal">
-                    <Link
-                      href={`/writer/content/${content.id}/overview`}
-                      aria-disabled={content.moderation_status === 'locked'}
-                      tabIndex={content.moderation_status === 'locked' ? -1 : undefined}
-                      className={`block px-3 py-2 transition-colors hover:text-primary ${
-                        content.moderation_status === 'locked' ? 'pointer-events-none cursor-not-allowed opacity-70' : ''
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        {content.title}
-                        <SystemSuspensionLock content={content} />
-                      </span>
-                    </Link>
+                  <TableCell className="px-3 py-2">
+                    <div>{content.author.display_name}</div>
+                    <div className="text-xs text-muted-foreground">@{content.author.username}</div>
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-right tabular-nums">
+                    {formatCoin(content.sales_total)}
                   </TableCell>
                   <TableCell className="px-3 py-2 text-right tabular-nums">
                     {formatNumber(content.chapter_count)}
@@ -456,18 +492,32 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
                   <TableCell className="px-3 py-2 text-right tabular-nums">
                     {formatNumber(content.total_views)}
                   </TableCell>
-                  <TableCell className="px-3 py-2 text-right tabular-nums">
-                    {formatNumber(content.sales_count)}
+                  <TableCell className="px-3 py-2">
+                    <Badge
+                      variant="outline"
+                      className={
+                        content.type === StoryType.NOVEL
+                          ? 'border-sky-200 bg-sky-50 text-sky-700'
+                          : 'border-violet-200 bg-violet-50 text-violet-700'
+                      }
+                    >
+                      {typeLabels[content.type]}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="max-w-64 px-3 py-2 whitespace-normal">
-                    <LatestChapter content={content} />
+                  <TableCell className="px-3 py-2">
+                    <div>{content.primary_genre.name}</div>
+                    {content.secondary_genre && (
+                      <div className="text-xs text-muted-foreground">{content.secondary_genre.name}</div>
+                    )}
                   </TableCell>
                   <TableCell className="px-3 py-2">
                     <ContentStatusBadge content={content} />
                   </TableCell>
                   <TableCell className="px-3 py-2">{formatDate(content.created_at)}</TableCell>
                   <TableCell className="px-3 py-2 text-right">
-                    {content.moderation_status !== 'locked' && <ManageContentMenu contentId={content.id} />}
+                    {content.moderation_status !== 'locked' && (
+                      <ManageContentActions contentId={content.id} onDelete={() => setContentToDelete(content)} />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -509,6 +559,39 @@ export function WriterContents({ activeTab, page }: WriterContentsProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog
+        open={contentToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setContentToDelete(null)
+            setDeleteError(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>ยืนยันการลบผลงาน</DialogTitle>
+            <DialogDescription>
+              ต้องการลบ “{contentToDelete?.title}” ใช่หรือไม่ ผลงานนี้จะไม่แสดงในรายการและหน้าเว็บไซต์
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => setContentToDelete(null)}
+            >
+              ยกเลิก
+            </Button>
+            <Button type="button" variant="destructive" disabled={isDeleting} onClick={() => void confirmDelete()}>
+              {isDeleting ? 'กำลังลบ...' : 'ลบผลงาน'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

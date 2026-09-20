@@ -19,13 +19,10 @@ export interface WriterContent {
   moderation_status: ModerationStatus
   total_views: string
   chapter_count: string
-  sales_count: string
-  latest_chapter: {
-    chapter_number: string
-    title: string
-    status: string
-    published_at: Date | null
-  } | null
+  sales_total: string
+  author: { username: string; display_name: string }
+  primary_genre: { id: string; name: string }
+  secondary_genre: { id: string; name: string } | null
   created_at: Date
   updated_at: Date
 }
