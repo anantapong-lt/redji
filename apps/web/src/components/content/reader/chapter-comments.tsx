@@ -20,6 +20,7 @@ import {
   type ChapterComment,
   type ChapterCommentReaction,
 } from '@/interface/content.interface'
+import { ApiError } from '@/lib/api-client'
 
 const reactionMeta: Record<ChapterCommentReaction, { emoji: string; label: string; color: string }> = {
   like: { emoji: '👍', label: 'ถูกใจ', color: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300' },
@@ -125,8 +126,9 @@ export function ChapterComments({ slug, chapterNumber }: { slug: string; chapter
       }
       setBody('')
       setReplyingTo(null)
-    } catch {
-      setErrorMessage('ส่งความคิดเห็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+      setErrorMessage(null)
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'ส่งความคิดเห็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
     } finally {
       setIsSubmitting(false)
     }
@@ -161,8 +163,9 @@ export function ChapterComments({ slug, chapterNumber }: { slug: string; chapter
         : { ...item, replies: item.replies.map(update) }
       setComments((current) => current.map(update))
       setEditingCommentId(null)
-    } catch {
-      setErrorMessage('แก้ไขความคิดเห็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+      setErrorMessage(null)
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : 'แก้ไขความคิดเห็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
     } finally {
       setIsUpdatingCommentId(null)
     }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ChevronDown, HistoryIcon, Home, LayoutDashboard, LibraryBig, LogIn, LogOut, Menu, PenLine, Search, UserRound, X } from 'lucide-react'
+import { Bell, ChevronDown, HistoryIcon, Home, LayoutDashboard, LibraryBig, LogIn, LogOut, Menu, PenLine, Plus, Search, UserRound, X } from 'lucide-react'
 import { GiTwoCoins } from 'react-icons/gi'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/auth/auth-provider'
@@ -162,11 +162,17 @@ function UserDropdownMenu({
           </span>
         </DropdownMenuLabel>
 
-        <div className="mx-1 mb-2 flex items-center gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
+        <div className="mx-1 mb-2 flex items-center justify-between gap-3 rounded-lg bg-accent/60 px-3 py-2.5">
           <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-primary">
             <GiTwoCoins className="size-4 text-amber-500" />
             {formatBalance(user.balance)} {SITE_CONFIG.coinName}
           </span>
+          <Button asChild size="sm" className="h-7 shrink-0 gap-1 rounded-full px-2.5 text-xs">
+            <Link href="/topup">
+              <Plus className="size-3.5" />
+              เติมเงิน
+            </Link>
+          </Button>
         </div>
 
         <DropdownMenuSeparator />
@@ -469,11 +475,17 @@ export function NavbarClient({
                 <div className="h-12 w-full animate-pulse rounded-xl bg-muted" aria-label="กำลังตรวจสอบสถานะผู้ใช้" />
               ) : user ? (
                 <>
-                  <div className="flex items-center gap-3 rounded-xl bg-accent/60 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-accent/60 px-3 py-2.5">
                     <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-primary">
                       <GiTwoCoins className="size-4 text-amber-500" />
                       {formatBalance(user.balance)} {SITE_CONFIG.coinName}
                     </span>
+                    <Button asChild size="sm" className="h-8 shrink-0 gap-1 rounded-full px-3 text-xs">
+                      <Link href="/topup" onClick={() => setMobileMenuOpen(false)}>
+                        <Plus className="size-3.5" />
+                        เติมเงิน
+                      </Link>
+                    </Button>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
                     <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
