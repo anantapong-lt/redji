@@ -4,12 +4,16 @@ import { useEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TurnstileWidget } from './turnstile-widget'
 import { ApiError } from '@/lib/api-client'
+import { Button } from '@/components/ui/button'
+
+const OTP_RESEND_DELAY_MS = 5 * 60 * 1000
 
 interface PhoneVerificationDialogProps {
   open: boolean
   required?: boolean
   initialPhoneNumber?: string
   initialOtpSent?: boolean
+  initialOtpSentAt?: number
   onOpenChange?: (open: boolean) => void
   onRequestOtp: (phoneNumber: string, turnstileToken: string | undefined, isResend: boolean) => Promise<void>
   onVerifyOtp: (phoneNumber: string, otp: string) => Promise<void>
@@ -20,6 +24,7 @@ export function PhoneVerificationDialog({
   required = false,
   initialPhoneNumber = '',
   initialOtpSent = false,
+  initialOtpSentAt = 0,
   onOpenChange,
   onRequestOtp,
   onVerifyOtp,
@@ -32,8 +37,30 @@ export function PhoneVerificationDialog({
   const [isSending, setIsSending] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [otpSentAt, setOtpSentAt] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  const resendAvailableAt = Math.max(otpSentAt, initialOtpSentAt) + OTP_RESEND_DELAY_MS
+  const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - now) / 1000))
+  const resendCountdown = `${Math.floor(resendSeconds / 60).toString().padStart(2, '0')}:${(resendSeconds % 60).toString().padStart(2, '0')}`
   const otpInputs = useRef<Array<HTMLInputElement | null>>([])
   const turnstileRequired = process.env.NODE_ENV !== 'development'
+
+  useEffect(() => {
+    const updateNow = () => setNow(Date.now())
+    updateNow()
+    if (!open || resendAvailableAt <= Date.now()) return
+    const interval = window.setInterval(() => {
+      updateNow()
+      if (Date.now() >= resendAvailableAt) window.clearInterval(interval)
+    }, 1000)
+    window.addEventListener('focus', updateNow)
+    document.addEventListener('visibilitychange', updateNow)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', updateNow)
+      document.removeEventListener('visibilitychange', updateNow)
+    }
+  }, [open, resendAvailableAt])
 
   useEffect(() => {
     if (!open) return
@@ -57,6 +84,7 @@ export function PhoneVerificationDialog({
   }
 
   async function requestOtp(isResend: boolean) {
+    if (isSending || isVerifying || Date.now() < resendAvailableAt) return
     if (!/^0[689][0-9]{8}$/.test(phoneNumber)) {
       setError('กรุณากรอกเบอร์มือถือไทย 10 หลัก')
       return
@@ -69,6 +97,9 @@ export function PhoneVerificationDialog({
     setError(null)
     try {
       await onRequestOtp(phoneNumber, turnstileToken ?? undefined, isResend)
+      const sentAt = Date.now()
+      setOtpSentAt(sentAt)
+      setNow(sentAt)
       setOtpSent(true)
       setOtp('')
       requestAnimationFrame(() => otpInputs.current[0]?.focus())
@@ -123,7 +154,7 @@ export function PhoneVerificationDialog({
               <div><p id="shared-otp-label" className="mb-2 text-sm font-medium">รหัสยืนยัน</p><div role="group" aria-labelledby="shared-otp-label" className="grid grid-cols-6 gap-2">{Array.from({ length: 6 }, (_, index) => <input key={index} ref={(element) => { otpInputs.current[index] = element }} value={otp[index] ?? ''} onChange={(event) => applyOtp(index, event.target.value)} onPaste={(event) => { event.preventDefault(); applyOtp(index, event.clipboardData.getData('text')) }} onKeyDown={(event) => { if (event.key === 'Backspace' && !otp[index] && index > 0) otpInputs.current[index - 1]?.focus() }} inputMode="numeric" autoComplete={index === 0 ? 'one-time-code' : 'off'} maxLength={6} disabled={isVerifying} aria-label={`หลักที่ ${index + 1}`} className="h-12 w-full min-w-0 rounded-lg border border-input bg-background px-0 text-center text-lg font-semibold tabular-nums shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60" />)}</div><p className="mt-2 text-center text-xs text-muted-foreground">รหัสมีอายุ 5 นาที และใช้ได้เพียงครั้งเดียว</p></div>
               {error && <p role="alert" className="text-center text-sm text-destructive">{error}</p>}
             </div>
-            <div className="border-t bg-muted/20 px-6 py-4"><p className="mb-2 text-sm font-medium">ยังไม่ได้รับรหัส?</p><TurnstileWidget key={turnstileKey} action="phone_verification" onTokenChange={setTurnstileToken} /><button type="button" onClick={() => void requestOtp(true)} disabled={isSending || (turnstileRequired && !turnstileToken)} className="h-10 w-full rounded-lg border border-primary text-sm font-medium text-primary disabled:opacity-60">{isSending ? 'กำลังส่ง...' : 'ขอรหัส OTP อีกครั้ง'}</button></div>
+            <div className="border-t bg-muted/20 px-6 py-4"><p className="mb-2 text-sm font-medium">ยังไม่ได้รับรหัส?</p><TurnstileWidget key={turnstileKey} action="phone_verification" onTokenChange={setTurnstileToken} /><Button type="button" variant="outline" onClick={() => void requestOtp(true)} disabled={isSending || isVerifying || resendSeconds > 0 || (turnstileRequired && !turnstileToken)} className="h-10 w-full rounded-lg border-primary text-sm font-medium tabular-nums text-primary disabled:opacity-60">{isSending ? 'กำลังส่ง...' : resendSeconds > 0 ? `ขอรหัส OTP อีกครั้งใน ${resendCountdown}` : 'ขอรหัส OTP อีกครั้ง'}</Button></div>
             <DialogFooter className={`m-0 rounded-none border-t bg-background px-6 py-5 ${required ? 'sm:justify-end' : 'sm:justify-between'}`}>
               {!required && <button type="button" onClick={() => changeOpen(false)} disabled={isVerifying} className="h-10 rounded-lg border px-4">ยกเลิก</button>}
               <button type="button" onClick={() => void verifyOtp()} disabled={isVerifying || otp.length !== 6} className="h-10 rounded-lg bg-primary px-4 text-primary-foreground disabled:opacity-60">{isVerifying ? 'กำลังยืนยัน...' : 'ยืนยัน OTP'}</button>

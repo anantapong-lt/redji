@@ -63,6 +63,8 @@ export function RegisterForm() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [turnstileKey, setTurnstileKey] = useState(0)
   const [verificationId, setVerificationId] = useState<string | null>(null)
+  const [otpSentAt, setOtpSentAt] = useState(0)
+  const [otpPhoneNumber, setOtpPhoneNumber] = useState('')
   const [pendingRegistration, setPendingRegistration] = useState<RegisterValues | null>(null)
   const [isSending, setIsSending] = useState(false)
   const turnstileRequired = process.env.NODE_ENV !== 'development'
@@ -127,6 +129,10 @@ export function RegisterForm() {
   }
 
   async function startOtp(phone: string) {
+    if (verificationId && phone === otpPhoneNumber && Date.now() < otpSentAt + 5 * 60 * 1000) {
+      setOtpDialogOpen(true)
+      return
+    }
     if (turnstileRequired && !turnstileToken) {
       setError('root', { message: 'กรุณายืนยัน Cloudflare Turnstile ก่อนสมัครสมาชิก' })
       return
@@ -135,6 +141,8 @@ export function RegisterForm() {
     clearErrors('root')
     try {
       const result = await startRegistrationPhoneVerification(phone, turnstileToken ?? undefined)
+      setOtpSentAt(Date.now())
+      setOtpPhoneNumber(phone)
       setVerificationId(result.verification_id)
       setOtpDialogOpen(true)
     } catch (error) {
@@ -159,6 +167,8 @@ export function RegisterForm() {
 
   async function requestDialogOtp(phone: string, token: string | undefined) {
     const result = await requestRegistrationPhoneVerification(phone, token)
+    setOtpSentAt(Date.now())
+    setOtpPhoneNumber(phone)
     setVerificationId(result.verification_id)
   }
 
@@ -282,6 +292,7 @@ export function RegisterForm() {
         open={otpDialogOpen}
         initialPhoneNumber={phoneNumber}
         initialOtpSent={Boolean(verificationId)}
+        initialOtpSentAt={otpSentAt}
         onOpenChange={setOtpDialogOpen}
         onRequestOtp={(phone, token) => requestDialogOtp(phone, token)}
         onVerifyOtp={verifyDialogOtp}

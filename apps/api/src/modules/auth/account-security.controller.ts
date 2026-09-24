@@ -98,8 +98,8 @@ export async function requestPhoneVerificationResponse(userId: string, body: Pho
         if (error.providerStatus === 402 || error.providerStatus === 423) {
           return Response.json({ message: 'เครดิต SMS OTP ไม่เพียงพอ กรุณาเติมเครดิตใน BoostSMS', field: 'phone_number' }, { status: 402 })
         }
-        if (error.providerStatus === 429) {
-          return Response.json({ message: 'ขอรหัส OTP บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่', field: 'phone_number' }, { status: 429 })
+        if (error.rateLimitMessage) {
+          return Response.json({ message: error.rateLimitMessage, field: 'phone_number' }, { status: 429 })
         }
         if (error.providerStatus === 401 || error.providerStatus === 403) {
           return Response.json({ message: 'การตั้งค่า BoostSMS API Key ไม่ถูกต้องหรือยังไม่ได้เปิดสิทธิ์ใช้งาน', field: 'phone_number' }, { status: 503 })

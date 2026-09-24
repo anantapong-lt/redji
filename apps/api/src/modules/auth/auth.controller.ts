@@ -1,12 +1,9 @@
 import {
-  createEmailRegistration,
+  createPhoneVerifiedRegistration,
   RegistrationError,
   verifyEmailRegistration,
 } from './auth.service'
-import {
-  sendVerificationEmail,
-  verifyLoginTurnstile,
-} from './auth.integrations'
+import { verifyLoginTurnstile } from './auth.integrations'
 import { isFeatureEnabled } from '../site-config/site-config.service'
 
 function registrationErrorResponse(error: unknown) {
@@ -40,7 +37,7 @@ export async function registerWithEmail(body: {
   }
 
   try {
-    const registration = await createEmailRegistration(
+    await createPhoneVerifiedRegistration(
       body.email,
       body.username,
       body.password,
@@ -48,18 +45,8 @@ export async function registerWithEmail(body: {
       body.registration_phone_verification_token,
     )
 
-    try {
-      await sendVerificationEmail(registration.email, registration.verificationToken)
-    } catch (error) {
-      console.error('Unable to send registration verification email', error)
-      return Response.json(
-        { message: 'สร้างคำขอสมัครแล้ว แต่ไม่สามารถส่งอีเมลยืนยันได้ กรุณาลองสมัครใหม่อีกครั้ง' },
-        { status: 502 },
-      )
-    }
-
     return Response.json(
-      { message: 'กรุณาตรวจสอบอีเมลเพื่อยืนยันการสมัครสมาชิก' },
+      { message: 'สมัครสมาชิกสำเร็จ สามารถเข้าสู่ระบบได้ทันที' },
       { status: 201 },
     )
   } catch (error) {

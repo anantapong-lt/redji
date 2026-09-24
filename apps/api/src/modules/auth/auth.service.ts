@@ -1,5 +1,4 @@
 import { db } from '../../db'
-import { env } from '../../config/env'
 import type { UserModel } from '../../models/user.model'
 import { consumeRegistrationPhoneVerification } from './registration-phone.service'
 
@@ -53,18 +52,13 @@ function isUniqueViolation(error: unknown): boolean {
   )
 }
 
-function createVerificationToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-export async function createEmailRegistration(
+export async function createPhoneVerifiedRegistration(
   email: string,
   username: string,
   password: string,
   registrationPhoneVerificationId: string,
   registrationPhoneVerificationToken: string,
-): Promise<{ email: string; verificationToken: string }> {
+): Promise<void> {
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedUsername = username.trim()
 
@@ -72,7 +66,6 @@ export async function createEmailRegistration(
     throw new RegistrationError('ชื่อผู้ใช้งานต้องมี 3 ถึง 30 ตัวอักษร', 400, 'username')
   }
 
-  const verificationToken = createVerificationToken()
   const passwordHash = await Bun.password.hash(password)
 
   try {
@@ -97,51 +90,28 @@ export async function createEmailRegistration(
         throw new RegistrationError('ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว', 409, 'username')
       }
 
-      await transaction`
-        DELETE FROM email_registration_requests
-        WHERE expires_at <= NOW()
+      const [user] = await transaction<{ id: string }[]>`
+        INSERT INTO users (email, username, display_name, phone_number, phone_verified_at)
+        VALUES (${normalizedEmail}, ${normalizedUsername}, ${normalizedUsername}, ${phoneNumber}, NOW())
+        RETURNING id
       `
+      if (!user) throw new Error('Unable to create phone-verified user')
 
       await transaction`
-        INSERT INTO email_registration_requests (
-          email,
-          username,
-          display_name,
-          password_hash,
-          phone_number,
-          phone_verified_at,
-          verification_token_hash,
-          expires_at
-        ) VALUES (
-          ${normalizedEmail},
-          ${normalizedUsername},
-          ${normalizedUsername},
-          ${passwordHash},
-          ${phoneNumber},
-          NOW(),
-          ${hashTokenId(verificationToken)},
-          NOW() + (${env.EMAIL_VERIFICATION_TTL_HOURS} * INTERVAL '1 hour')
-        )
-        ON CONFLICT (LOWER(email)) DO UPDATE SET
-          username = EXCLUDED.username,
-          display_name = EXCLUDED.display_name,
-          password_hash = EXCLUDED.password_hash,
-          phone_number = EXCLUDED.phone_number,
-          phone_verified_at = EXCLUDED.phone_verified_at,
-          verification_token_hash = EXCLUDED.verification_token_hash,
-          expires_at = EXCLUDED.expires_at,
-          updated_at = NOW()
+        INSERT INTO user_password_credentials (user_id, password_hash)
+        VALUES (${user.id}, ${passwordHash})
+      `
+      await transaction`
+        DELETE FROM email_registration_requests WHERE LOWER(email) = ${normalizedEmail}
       `
     })
   } catch (error) {
     if (error instanceof RegistrationError) throw error
     if (isUniqueViolation(error)) {
-      throw new RegistrationError('ชื่อผู้ใช้งานนี้กำลังรอการยืนยันจากอีเมลอื่น', 409, 'username')
+      throw new RegistrationError('อีเมล ชื่อผู้ใช้งาน หรือเบอร์มือถือนี้ถูกใช้งานแล้ว', 409)
     }
     throw error
   }
-
-  return { email: normalizedEmail, verificationToken }
 }
 
 export async function verifyEmailRegistration(token: string): Promise<void> {
@@ -223,7 +193,7 @@ export async function findActiveUserById(id: string): Promise<AuthenticatedUser 
     FROM users
     WHERE id = ${id}
       AND status = 'active'
-      AND email_verified_at IS NOT NULL
+      AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL)
       AND deleted_at IS NULL
     LIMIT 1
   `
@@ -323,7 +293,7 @@ export async function authenticateWithPassword(
   }
 
   if (user.status !== 'active') return { status: 'inactive' }
-  if (!user.email_verified_at) return { status: 'unverified' }
+  if (!user.email_verified_at && !user.phone_verified_at) return { status: 'unverified' }
 
 
   await db`

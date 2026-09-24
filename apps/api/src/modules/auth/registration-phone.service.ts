@@ -33,7 +33,7 @@ export async function requestRegistrationPhoneOtp(phone: string): Promise<{ veri
   if (owner) return Promise.reject('phone_in_use')
 
   const { ok, status, payload } = await providerRequest('/api/v1/otp/send', { phone, purpose: 'verify' })
-  if (!ok) throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status)
+  if (!ok) throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status, payload)
   if (!payload || typeof payload !== 'object' || !('ref' in payload) || typeof payload.ref !== 'string' || !payload.ref) {
     throw new PhoneOtpProviderError('unavailable')
   }
@@ -61,7 +61,7 @@ export async function verifyRegistrationPhoneOtp(verificationId: string, otp: st
     if (!ok) {
       if (status === 400 || status === 404) return 'invalid_otp'
       if (status === 410) return 'expired'
-      throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status)
+      throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status, payload)
     }
     if (!payload || typeof payload !== 'object' || !('valid' in payload) || payload.valid !== true || !('verified' in payload) || payload.verified !== true) return 'invalid_otp'
 

@@ -5,11 +5,40 @@ import type { GoogleProfile } from './auth.service'
 const PHONE_OTP_TTL_MINUTES = 10
 
 export class PhoneOtpProviderError extends Error {
+  public readonly providerMessage?: string
+
+  get rateLimitMessage(): string | undefined {
+    const match = this.providerMessage?.match(/^ส่ง OTP มากเกินไป กรุณารอ (\d{1,3}) นาที$/)
+    if ((this.providerStatus === 400 || this.providerStatus === 429) && match) {
+      return `ส่ง OTP มากเกินไป กรุณารอ ${match[1]} นาที`
+    }
+    if (this.providerStatus === 429) return 'ขอรหัส OTP บ่อยเกินไป กรุณารอแล้วลองใหม่'
+    return undefined
+  }
+
   constructor(
     public readonly reason: 'not_configured' | 'unavailable' | 'rejected',
     public readonly providerStatus?: number,
+    payload?: unknown,
   ) {
     super(reason)
+    if (payload && typeof payload === 'object') {
+      const details = payload as Record<string, unknown>
+      const providerError = details.error
+      const message = typeof details.message === 'string' ? details.message
+        : typeof providerError === 'string' ? providerError
+        : providerError && typeof providerError === 'object' && 'message' in providerError && typeof providerError.message === 'string'
+          ? providerError.message : undefined
+      if (message) {
+        this.providerMessage = message
+          .split(env.BOOST_SMS_API_KEY || '\0').join('[redacted]')
+          .replace(/Bearer\s+\S+|sk_live_\S+|[A-Za-z0-9_-]{24,}/gi, '[redacted]')
+          .replace(/[\w.+-]+@[\w.-]+/g, '[email]')
+          .replace(/\+?\d[\d\s()-]{3,}\d/g, '[number]')
+          .replace(/[\r\n\t]/g, ' ')
+          .slice(0, 500)
+      }
+    }
   }
 }
 
@@ -41,7 +70,7 @@ async function boostSmsOtpRequest(path: '/api/v1/otp/send' | '/api/v1/otp/verify
 async function requestBoostSmsOtp(phoneNumber: string): Promise<string> {
   const phone = phoneNumber.startsWith('+66') ? `0${phoneNumber.slice(3)}` : phoneNumber
   const { ok, status, payload } = await boostSmsOtpRequest('/api/v1/otp/send', { phone, purpose: 'verify' })
-  if (!ok) throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status)
+  if (!ok) throw new PhoneOtpProviderError(status >= 500 ? 'unavailable' : 'rejected', status, payload)
   if (!payload || typeof payload !== 'object' || !('ref' in payload) || typeof payload.ref !== 'string' || !payload.ref) {
     throw new PhoneOtpProviderError('unavailable')
   }
@@ -82,7 +111,7 @@ export async function requestPhoneVerification(userId: string, phoneNumber: stri
   const [user] = await db<{ id: string }[]>`
     SELECT id FROM users
     WHERE id = ${userId} AND status = 'active'
-      AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+      AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL) AND deleted_at IS NULL
     LIMIT 1
   `
   if (!user) return 'inactive'
@@ -134,7 +163,7 @@ export async function verifyPhoneVerification(
         UPDATE users
         SET phone_number = ${phoneNumber}, phone_verified_at = NOW(), updated_at = NOW()
         WHERE id = ${userId} AND status = 'active'
-          AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+          AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL) AND deleted_at IS NULL
         RETURNING id
       `
       if (!updated.length) return 'inactive'
@@ -157,7 +186,7 @@ export async function changeAccountPassword(
     FROM user_password_credentials AS credentials
     INNER JOIN users AS u ON u.id = credentials.user_id
     WHERE u.id = ${userId} AND u.status = 'active'
-      AND u.email_verified_at IS NOT NULL AND u.deleted_at IS NULL
+      AND (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL) AND u.deleted_at IS NULL
     LIMIT 1
   `
   if (!credentials) return 'no_password'
@@ -172,7 +201,7 @@ export async function changeAccountPassword(
       AND credentials.password_hash = ${credentials.password_hash}
       AND EXISTS (
         SELECT 1 FROM users WHERE id = ${userId} AND status = 'active'
-          AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+          AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL) AND deleted_at IS NULL
       )
     RETURNING user_id
   `
@@ -190,7 +219,7 @@ export async function setAccountPassword(
       SELECT id
       FROM users
       WHERE id = ${userId} AND status = 'active'
-        AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+        AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL) AND deleted_at IS NULL
       LIMIT 1
       FOR UPDATE
     `
@@ -216,7 +245,7 @@ export async function unlinkGoogleAccount(
       FROM user_password_credentials AS credentials
       INNER JOIN users AS u ON u.id = credentials.user_id
       WHERE u.id = ${userId} AND u.status = 'active'
-        AND u.email_verified_at IS NOT NULL AND u.deleted_at IS NULL
+        AND (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL) AND u.deleted_at IS NULL
       LIMIT 1
       FOR UPDATE
     `
@@ -242,7 +271,7 @@ export async function linkGoogleAccount(userId: string, profile: GoogleProfile):
       const [user] = await transaction<{ email: string }[]>`
         SELECT email FROM users
         WHERE id = ${userId} AND status = 'active'
-          AND email_verified_at IS NOT NULL AND deleted_at IS NULL
+          AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL) AND deleted_at IS NULL
         FOR UPDATE
       `
       if (!user) return 'inactive'
